@@ -27,8 +27,11 @@ ORDER.forEach(key=>{const d=BUILD[key];const b=document.createElement('button');
   b.className='tool'+(d.util?' util':'')+(key==='hand'?' active':'');b.dataset.key=key;
   b.innerHTML='<span class="glyph">'+d.glyph+'</span><span class="nm">'+d.label+'</span>'+
     (d.util?'<span class="cost">'+(key==='hand'?'∞':'—')+'</span>':'<span class="cost">'+d.cost+'</span>');
-  b.onclick=()=>{tool=key;document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key===key));
-    flash(d.util?(key==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen'):d.label+' — tippe auf die Karte ('+d.cost+' Denar)');};
+  b.onclick=()=>{
+    tool = (tool===key && key!=='hand') ? 'hand' : key;   // erneutes Tippen -> zurück zur Navigation
+    document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key===tool));
+    const d2=BUILD[tool];
+    flash(d2.util?(tool==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen'):d2.label+' — tippe auf die Karte ('+d2.cost+' Denar)');};
   toolsEl.appendChild(b);});
 
 // ---- Touch / Pointer ----
