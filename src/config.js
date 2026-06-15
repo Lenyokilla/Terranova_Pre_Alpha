@@ -1,0 +1,58 @@
+/* TERRA · config.js */
+
+/* ============================================================
+   TERRA — Mobiler City-Builder · isometrisches Grundgerüst
+   ============================================================ */
+const GRID=30;
+const TW=64, TH=32;       // isometrische Diamant-Maße (Welt-px)
+const TICK=420;
+
+const BUILD={
+  hand:    {label:'Hand',     glyph:'✥',  cost:0,  util:true},
+  road:    {label:'Straße',   glyph:'⌗',  cost:4,  up:0},
+  house:   {label:'Haus',     glyph:'🛖', cost:12, up:0},
+  well:    {label:'Brunnen',  glyph:'💧', cost:30, service:'water', every:13, up:1},
+  market:  {label:'Markt',    glyph:'🧺', cost:55, service:'market', every:15, up:2},
+  forum:   {label:'Forum',    glyph:'🏛️', cost:80, service:'tax',   every:18, up:3},
+  claypit: {label:'Lehmgrube',glyph:'🕳️', cost:35, every:14, up:2},
+  pottery: {label:'Töpferei', glyph:'🏺', cost:60, every:11, up:2},
+  raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
+};
+const ORDER=['hand','road','house','well','market','forum','claypit','pottery','raze'];
+
+const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5}];
+const SERVICE_LIFE=55;
+const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
+// ---- Spiel-Regeln ----
+const GOAL_POP=60;          // Ziel: so viele Einwohner
+const LOSE_MONEY=-60;       // darunter = Bankrott
+const MONTH=24;             // Ticks pro Unterhalts-Abrechnung
+const IMMIG_EVERY=8;        // Tick-Intervall für Zuwanderer-Versuch
+
+// 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
+const H3D=[
+  {top:'#b58f5e',left:'#7e5f39',right:'#9a7548',h:13,glyph:'🛖'},
+  {top:'#cda46c',left:'#9a7647',right:'#b58d57',h:19,glyph:'🏠'},
+  {top:'#e7dcc2',left:'#b7a682',right:'#d3c3a0',h:27,glyph:'🏡'},
+];
+const B3D={
+  well:  {top:'#4f93b0',left:'#2f6580',right:'#3f7c98',h:18,glyph:'💧', wcol:'#3a7d9c'},
+  market:{top:'#c46a40',left:'#8f4526',right:'#ad5733',h:20,glyph:'🧺', wcol:'#b1542d'},
+  forum: {top:'#d8b84a',left:'#a98a2c',right:'#c2a23b',h:30,glyph:'🏛️', wcol:'#c9a227'},
+  claypit:{wcol:'#a9713f'},   // Lehm-Träger
+  pottery:{wcol:'#3f9c8a'},   // Keramik-Träger
+};
+
+// ---- Terrain ----
+const STEP=13;   // Welt-px Höhe pro Geländestufe
+// top: zwei Farbtöne (Schachbrett) · side: Felskanten bei Erhebung · elev: Höhenstufe
+const TERR={
+  grass:   {top:['#8aa653','#82a04a'], elev:0, build:true},
+  meadow:  {top:['#a6bf66','#9cb85c'], elev:0, build:true},
+  field:   {top:['#cdb85c','#c5b052'], elev:0, build:true, furrow:true},
+  forest:  {top:['#6f9047','#688843'], elev:0, build:true, trees:true},
+  water:   {top:['#3f7d9c','#3b7796'], elev:0, build:false, water:true},
+  hill:    {top:['#94ad58','#8ba751'], side:['#7c5d38','#8c6c43'], elev:1, build:true},
+  mountain:{top:['#9b9387','#928a7e'], side:['#5f594f','#6f685c'], elev:2, build:false, peak:true},
+};
+function buildableTerr(t){const d=TERR[t.terr]; return d?d.build:true;}
