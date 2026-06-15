@@ -107,19 +107,40 @@ function drawWalker(w,gx,gy){
   drawLoad(w,p.x,headY-3.2*s,s);                                                                       // Last auf dem Kopf
   ctx.lineCap='butt';
 }
+// ---- Weiches Wasser: abgerundete, leicht überlappende Flächen (Küste fließt über) ----
+function _ex(p,cx,cy,k){return {x:cx+(p.x-cx)*k, y:cy+(p.y-cy)*k};}
+function waterBlob(x,y,k,col){
+  const t=project(x,y),r=project(x+1,y),b=project(x+1,y+1),l=project(x,y+1);
+  const cx=(t.x+b.x)/2, cy=(t.y+b.y)/2;
+  const T=_ex(t,cx,cy,k),R=_ex(r,cx,cy,k),B=_ex(b,cx,cy,k),L=_ex(l,cx,cy,k);
+  const m=(a,c)=>({x:(a.x+c.x)/2,y:(a.y+c.y)/2});
+  const m1=m(T,R),m2=m(R,B),m3=m(B,L),m4=m(L,T);
+  ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(m1.x,m1.y);
+  ctx.quadraticCurveTo(R.x,R.y,m2.x,m2.y);
+  ctx.quadraticCurveTo(B.x,B.y,m3.x,m3.y);
+  ctx.quadraticCurveTo(L.x,L.y,m4.x,m4.y);
+  ctx.quadraticCurveTo(T.x,T.y,m1.x,m1.y);
+  ctx.closePath();ctx.fill();
+}
 function render(){
   const r=cv.parentElement.getBoundingClientRect();
   ctx.clearRect(0,0,r.width,r.height);
-  const prevSet=new Set(previewCells.map(c=>c.x+','+c.y));
-  // Pass 1 — Boden: Terrain, Straßen, flache Deko + Bau-Vorschau
+  // Pass 1 — Land-Boden (Wasser separat, damit die Küste weich überfließt)
+  const waterT=[];
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ if(!onScreen(x,y))continue;
-    drawGround(x,y);
-    if(prevSet.has(x+','+y)){
-      const tile=grid[y][x], e=(TERR[tile.terr]||TERR.grass).elev;
-      const free=tile.type==='empty'&&buildableTerr(tile);
-      terrainBlock(x,y,e,free?'rgba(201,162,39,.6)':'rgba(192,83,58,.55)',
-        'rgba(150,110,20,.5)','rgba(150,110,20,.5)',null);
-    }
+    if(grid[y][x].terr==='water') waterT.push([x,y]);
+    else drawGround(x,y);
+  }
+  // Pass 1b — Wasser: heller Flachwasser-Saum (fließt in Nachbarn) + Wasserfläche + Wellen
+  for(const [x,y] of waterT) waterBlob(x,y,1.30,'#6a9fb6');
+  for(const [x,y] of waterT) waterBlob(x,y,1.13,'#3f7d9c');
+  for(const [x,y] of waterT){const t=project(x,y),b=project(x+1,y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});}
+  // Bau-Vorschau über dem Boden
+  for(const c of previewCells){ if(!onScreen(c.x,c.y))continue;
+    const tile=grid[c.y][c.x], e=(TERR[tile.terr]||TERR.grass).elev;
+    const free=tile.type==='empty'&&buildableTerr(tile);
+    terrainBlock(c.x,c.y,e,free?'rgba(201,162,39,.6)':'rgba(192,83,58,.55)',
+      'rgba(150,110,20,.5)','rgba(150,110,20,.5)',null);
   }
   // Pass 2 — Objekte (Gebäude, Träger, Schafe) tiefen-sortiert über dem Boden
   const items=[];
