@@ -132,16 +132,18 @@ function waterBlob(x,y,k,col){
 function render(){
   const r=cv.parentElement.getBoundingClientRect();
   ctx.clearRect(0,0,r.width,r.height);
-  // Pass 1 — Land-Boden (Wasser separat, damit die Küste weich überfließt)
-  const waterT=[];
-  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ if(!onScreen(x,y))continue;
-    if(grid[y][x].terr==='water') waterT.push([x,y]);
-    else drawGround(x,y);
+  // Pass 1 — Boden & Wasser in EINEM tiefen-sortierten Durchgang.
+  // So verdecken weiter vorne liegende Hügel/Berge/Wälder das dahinterliegende Wasser korrekt.
+  const ground=[];
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ if(onScreen(x,y)) ground.push({d:x+y,x,y}); }
+  ground.sort((a,b)=>a.d-b.d);
+  for(const g of ground){ const c=grid[g.y][g.x];
+    if(c.terr==='water'){
+      waterDiamond(g.x,g.y,1.04,'#3f7d9c');   // verschmolzene Fläche
+      waterBlob(g.x,g.y,1.14,'#3f7d9c');       // weiche, leicht überfließende Küste
+      const t=project(g.x,g.y),b=project(g.x+1,g.y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});
+    } else drawGround(g.x,g.y);
   }
-  // Pass 1b — Wasser: EIN zusammenhängender Körper, Küste nur dezent gerundet
-  for(const [x,y] of waterT) waterDiamond(x,y,1.04,'#3f7d9c');   // verschmolzene Fläche (kein Pfützen-Effekt)
-  for(const [x,y] of waterT) waterBlob(x,y,1.14,'#3f7d9c');      // weiche, leicht überfließende Küste
-  for(const [x,y] of waterT){const t=project(x,y),b=project(x+1,y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});}
   // Bau-Vorschau über dem Boden
   for(const c of previewCells){ if(!onScreen(c.x,c.y))continue;
     const tile=grid[c.y][c.x], e=(TERR[tile.terr]||TERR.grass).elev;
