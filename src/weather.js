@@ -23,8 +23,8 @@ function puff(x,y,R){const lobes=[[0,0,1],[-0.62,0.12,0.68],[0.62,0.14,0.70],[-0
   ctx.beginPath();
   for(const [dx,dy,s] of lobes){const cx=x+dx*R,cy=y+dy*R,rr=R*s; ctx.moveTo(cx+rr,cy); ctx.arc(cx,cy,rr,0,7);}
   ctx.fill();}
-// Sichtbarkeit der Wolken: voll beim Rauszoomen, transparent/weg beim Reinzoomen
-function cloudFade(){return Math.max(0,Math.min(1,(0.86-cam.scale)/(0.86-0.45)));}
+// Sichtbarkeit der Wolken: voll beim Rauszoomen, erst spät beim Reinzoomen ausblenden
+function cloudFade(){return Math.max(0,Math.min(1,(1.5-cam.scale)/(1.5-1.05)));}
 function drawWeather(){
   const fade=cloudFade();
   // 1) Wolkenschatten auf dem Boden (wolkenförmig, weich, in Sonnenrichtung versetzt)
