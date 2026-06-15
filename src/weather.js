@@ -27,14 +27,14 @@ function puff(x,y,R){const lobes=[[0,0,1],[-0.62,0.12,0.68],[0.62,0.14,0.70],[-0
 function cloudFade(){return Math.max(0,Math.min(1,(1.5-cam.scale)/(1.5-1.05)));}
 function drawWeather(){
   const fade=cloudFade();
-  // 1) Wolkenschatten auf dem Boden (wolkenförmig, weich, in Sonnenrichtung versetzt)
-  if(fade>0.02) for(const c of clouds){const p=project(c.gx,c.gy);
+  // 1) Wolkenschatten auf dem Boden — immer sichtbar (unabhängig vom Zoom)
+  for(const c of clouds){const p=project(c.gx,c.gy);
     const R=c.r*TW*0.5*cam.scale;
     ctx.save();
     ctx.translate(p.x+14*cam.scale, p.y+9*cam.scale);   // Sonne oben-links -> Schatten unten-rechts
     ctx.scale(1,TH/TW);                                  // auf den Boden plattdrücken (iso)
-    ctx.fillStyle='rgba(34,40,52,'+(0.10*fade).toFixed(3)+')'; puff(0,0,R*1.16);  // weicher Hof
-    ctx.fillStyle='rgba(30,36,48,'+(0.16*fade).toFixed(3)+')'; puff(0,0,R*0.92);  // Kern
+    ctx.fillStyle='rgba(34,40,52,0.10)'; puff(0,0,R*1.16);  // weicher Hof
+    ctx.fillStyle='rgba(30,36,48,0.16)'; puff(0,0,R*0.92);  // Kern
     ctx.restore();
   }
   // 2) Regen unter regnenden Wolken (immer sichtbar, leicht stärker beim Reinzoomen)
