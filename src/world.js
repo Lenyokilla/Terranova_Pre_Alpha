@@ -28,12 +28,20 @@ function generateTerrain(){
   // Wiesen als sanfte zusammenhängende Flecken (statt Pixel-Rauschen)
   for(let i=0;i<Math.round(4*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     12+(Math.random()*16|0), isGrass, t=>t.terr='meadow');
-  // Fluss: mäandernder Lauf von oben nach unten
-  let rx=2+(Math.random()*(GRID-4)|0);
-  for(let ry=0;ry<GRID;ry++){
-    grid[ry][clampg(rx)].terr='water';
-    if(Math.random()<0.4) grid[ry][clampg(rx+(Math.random()<.5?1:-1))].terr='water';
-    rx+= (Math.random()<.5?-1:1)*(Math.random()<.6?1:0); rx=clampg(rx);
+  // Geschwungener Fluss: glatter Sinus-Mäander von oben nach unten, lückenlos verbunden
+  const amp   = GRID*0.14 + Math.random()*GRID*0.10;     // Mäander-Auslenkung
+  const wlen  = GRID*(0.7+Math.random()*0.6);            // Wellenlänge
+  const phase = Math.random()*Math.PI*2;
+  const baseX = GRID*0.5 + (Math.random()-0.5)*GRID*0.18;
+  let prevX=null;
+  for(let ry=0; ry<GRID; ry++){
+    let cx = baseX + Math.sin(ry/wlen*Math.PI*2 + phase)*amp
+                   + Math.sin(ry*0.17 + phase*1.7)*amp*0.35;   // sanfte zweite Welle
+    cx = Math.round(cx);
+    const lo = Math.min(prevX==null?cx:prevX, cx), hi = Math.max(prevX==null?cx:prevX, cx);
+    for(let x=lo; x<=hi; x++) grid[ry][clampg(x)].terr='water';   // Reihen lückenlos verbinden
+    if(ry%3===0) grid[ry][clampg(cx+1)].terr='water';            // stellenweise etwas breiter
+    prevX=cx;
   }
   // Seen
   for(let i=0;i<Math.round(1.5*A);i++) growBlob(2+(Math.random()*(GRID-4)|0),2+(Math.random()*(GRID-4)|0),
