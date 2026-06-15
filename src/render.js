@@ -109,6 +109,13 @@ function drawWalker(w,gx,gy){
 }
 // ---- Weiches Wasser: abgerundete, leicht überlappende Flächen (Küste fließt über) ----
 function _ex(p,cx,cy,k){return {x:cx+(p.x-cx)*k, y:cy+(p.y-cy)*k};}
+function waterDiamond(x,y,k,col){       // exakte (gerade) Raute -> Nachbarn verschmelzen zu EINER Fläche
+  const t=project(x,y),r=project(x+1,y),b=project(x+1,y+1),l=project(x,y+1);
+  const cx=(t.x+b.x)/2, cy=(t.y+b.y)/2;
+  const T=_ex(t,cx,cy,k),R=_ex(r,cx,cy,k),B=_ex(b,cx,cy,k),L=_ex(l,cx,cy,k);
+  ctx.fillStyle=col;ctx.beginPath();
+  ctx.moveTo(T.x,T.y);ctx.lineTo(R.x,R.y);ctx.lineTo(B.x,B.y);ctx.lineTo(L.x,L.y);ctx.closePath();ctx.fill();
+}
 function waterBlob(x,y,k,col){
   const t=project(x,y),r=project(x+1,y),b=project(x+1,y+1),l=project(x,y+1);
   const cx=(t.x+b.x)/2, cy=(t.y+b.y)/2;
@@ -131,9 +138,9 @@ function render(){
     if(grid[y][x].terr==='water') waterT.push([x,y]);
     else drawGround(x,y);
   }
-  // Pass 1b — Wasser: heller Flachwasser-Saum (fließt in Nachbarn) + Wasserfläche + Wellen
-  for(const [x,y] of waterT) waterBlob(x,y,1.30,'#6a9fb6');
-  for(const [x,y] of waterT) waterBlob(x,y,1.13,'#3f7d9c');
+  // Pass 1b — Wasser: EIN zusammenhängender Körper, Küste nur dezent gerundet
+  for(const [x,y] of waterT) waterDiamond(x,y,1.04,'#3f7d9c');   // verschmolzene Fläche (kein Pfützen-Effekt)
+  for(const [x,y] of waterT) waterBlob(x,y,1.14,'#3f7d9c');      // weiche, leicht überfließende Küste
   for(const [x,y] of waterT){const t=project(x,y),b=project(x+1,y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});}
   // Bau-Vorschau über dem Boden
   for(const c of previewCells){ if(!onScreen(c.x,c.y))continue;
