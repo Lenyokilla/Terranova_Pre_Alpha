@@ -63,6 +63,8 @@ function treeDeco(gx,gy,g){
     const ox=(rng2(gx*9+i,gy)-0.5)*TW*0.45*s;
     const oy=(rng2(gx,gy*9+i)-0.5)*TH*0.35*s;
     const x=g.cx+ox, y=g.cy+oy;
+    ctx.fillStyle='rgba(28,38,18,.20)';                                  // weicher Bodenschatten
+    ctx.beginPath();ctx.ellipse(x+2.4*s,y+0.5*s,5.2*s,2.3*s,0,0,7);ctx.fill();
     const sway=Math.sin(animT*1.8 + (gx+gy)*0.6 + i*1.3)*2.6*s;   // Wind
     ctx.fillStyle='#5a3d22'; ctx.fillRect(x-1*s,y-2*s,2*s,6*s);          // Stamm
     ctx.fillStyle=i%2?'#39632c':'#447334';                               // Krone (Spitze schwingt)
