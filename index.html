@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TERRA · City Builder</title>
+<!-- ===== PWA ===== -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#241b11">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- ===== iOS Homescreen ===== -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TERRA">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="title">TERRA<span>Prototyp · isometrisch</span></div>
+    <div class="stat money"><span class="ic">⊚</span><span id="money">120</span></div>
+    <button id="cheat">+100</button>
+    <div class="stat pop"><span class="ic">☖</span><span id="pop">0</span><span id="goal"></span></div>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hint">Tippe ein Werkzeug an · „Hand" zum Schieben &amp; Zoomen</div>
+    <div id="banner" class="hide"></div>
+
+    <div id="sys">
+      <button id="bSave" title="Speichern">💾</button>
+      <button id="bLoad" title="Laden">📂</button>
+      <button id="bNew"  title="Neue Karte">✨</button>
+    </div>
+
+    <div id="speed">
+      <button data-sp="0" title="Pause">⏸</button>
+      <button data-sp="1" class="on">1×</button>
+      <button data-sp="2">2×</button>
+      <button data-sp="3">3×</button>
+    </div>
+
+    <div id="zoom"><button id="zin">+</button><button id="zout">−</button></div>
+
+    <div id="info" class="hide">
+      <button id="infoClose" title="Schließen">✕</button>
+      <div id="infoHead"><span id="infoGlyph"></span><span id="infoTitle"></span></div>
+      <div id="infoBody"></div>
+      <div id="infoWarn"></div>
+    </div>
+  </div>
+
+  <div id="dock"><div id="tools"></div></div>
+</div>
+
+  <script src="./src/config.js"></script>
+  <script src="./src/world.js"></script>
+  <script src="./src/gfx.js"></script>
+  <script src="./src/buildings.js"></script>
+  <script src="./src/render.js"></script>
+  <script src="./src/weather.js"></script>
+  <script src="./src/wildlife.js"></script>
+  <script src="./src/sim.js"></script>
+  <script src="./src/system.js"></script>
+  <script src="./src/input.js"></script>
+  <script src="./src/main.js"></script>
+</body>
+</html>
