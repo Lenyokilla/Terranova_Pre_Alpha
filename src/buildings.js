@@ -153,10 +153,72 @@ function drawPottery(gx, gy, baseLift) {
   return { cx: c.cx, topY };
 }
 
+function drawWell(gx, gy, baseLift) {
+  const s = cam.scale, stone = '#b9b3a6';
+  const c = isoCorners(gx, gy, baseLift, 0);
+  const ctr = { x: c.bx, y: c.by };
+  const I  = p => ({ x: ctr.x + (p.x - ctr.x) * 0.52, y: ctr.y + (p.y - ctr.y) * 0.52 });   // kleiner als die Kachel
+  const Ih = p => ({ x: I(p).x, y: I(p).y - 7 * s });                                        // Oberkante der Brunnenmauer
+  // Schatten
+  ctx.save(); ctx.translate(c.bx + 6 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.3 * s, 0, 7); ctx.fill(); ctx.restore();
+  // Brunnenmauer (zwei sichtbare Seiten)
+  ctx.fillStyle = shade(stone, -0.08); poly([I(c.W), I(c.S), Ih(c.S), Ih(c.W)]);
+  ctx.fillStyle = shade(stone, -0.26); poly([I(c.S), I(c.E), Ih(c.E), Ih(c.S)]);
+  // Wasseroberfläche
+  ctx.fillStyle = '#3f7d9c'; poly([Ih(c.N), Ih(c.E), Ih(c.S), Ih(c.W)]);
+  ctx.fillStyle = 'rgba(255,255,255,.22)';
+  ctx.beginPath(); ctx.ellipse((Ih(c.N).x + Ih(c.S).x) / 2, (Ih(c.N).y + Ih(c.S).y) / 2, 4 * s, 1.6 * s, 0, 0, 7); ctx.fill();
+  // Steinkante oben
+  ctx.strokeStyle = 'rgba(40,30,16,.35)'; ctx.lineWidth = Math.max(1, 1.1 * s);
+  ctx.beginPath(); ctx.moveTo(Ih(c.W).x, Ih(c.W).y); ctx.lineTo(Ih(c.S).x, Ih(c.S).y); ctx.lineTo(Ih(c.E).x, Ih(c.E).y); ctx.stroke();
+  // zwei Pfosten + Querbalken + Giebeldach + Eimer
+  const pL = Ih(c.W), pR = Ih(c.E), postH = 17 * s;
+  ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(2, 2.4 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pL.x, pL.y - postH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pR.x, pR.y); ctx.lineTo(pR.x, pR.y - postH); ctx.stroke();
+  const mx = (pL.x + pR.x) / 2, my = (pL.y + pR.y) / 2 - postH;
+  ctx.beginPath(); ctx.moveTo(pL.x, pL.y - postH); ctx.lineTo(pR.x, pR.y - postH); ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.fillStyle = '#8a4a2c';                                                                 // kleines Satteldach
+  ctx.beginPath(); ctx.moveTo(pL.x - 3 * s, my); ctx.lineTo(mx, my - 9 * s); ctx.lineTo(pR.x + 3 * s, my); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,50,40,.7)'; ctx.lineWidth = 1;                                   // Seil + Eimer
+  ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx, my + 7 * s); ctx.stroke();
+  ctx.fillStyle = '#7a5230'; ctx.fillRect(mx - 2.4 * s, my + 7 * s, 4.8 * s, 4 * s);
+  return { cx: c.cx, topY: my - 9 * s };
+}
+
+function drawMarket(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#cdb78c';
+  const c = isoCorners(gx, gy, baseLift, 9);
+  // Schatten
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  // niedriger Verkaufsstand (zwei Wände + Theke)
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
+  ctx.fillStyle = shade(wall, 0.05);  poly([c.Nt, c.Et, c.St, c.Wt]);     // Theke (Oberseite)
+  ctx.strokeStyle = 'rgba(40,30,16,.30)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
+  // Waren auf der Theke (Körbe / Amphoren)
+  const goods = [['#b9742f', -5, 1], ['#9c5b2b', 4, 2], ['#d8a24a', 0, -2], ['#8a5230', -1, 4]];
+  for (const [col, dx, dy] of goods) {
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(c.cx + dx * s, c.cy + dy * s, 3 * s, 2.2 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.beginPath(); ctx.ellipse(c.cx + dx * s - 0.8 * s, c.cy + dy * s - 0.8 * s, 1.2 * s, 0.8 * s, 0, 0, 7); ctx.fill();
+  }
+  // gestreiftes, überstehendes Marktdach
+  const topY = canopyRoof(c, '#c0533a', 9);
+  return { cx: c.cx, topY };
+}
+
 function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'forum') return drawForum(gx, gy, baseLift);
   if (kind === 'claypit') return drawClaypit(gx, gy, baseLift);
   if (kind === 'pottery') return drawPottery(gx, gy, baseLift);
+  if (kind === 'well') return drawWell(gx, gy, baseLift);
+  if (kind === 'market') return drawMarket(gx, gy, baseLift);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
   const s = cam.scale;
