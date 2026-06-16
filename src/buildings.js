@@ -406,3 +406,4 @@ function onScreen(gx, gy) {
   const p = project(gx, gy); const r = cv.parentElement.getBoundingClientRect();
   return p.x > -80 && p.x < r.width + 80 && p.y > -120 && p.y < r.height + 80;
 }
+
