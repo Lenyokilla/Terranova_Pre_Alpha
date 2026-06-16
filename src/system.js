@@ -112,12 +112,15 @@ function describeTile(x,y){
     ], warns: hasRoad?[]:['Keine angrenzende Straße — der Wasserträger kann nicht losziehen.']};
   }
   if(t.type==='market'){
+    const w=hasRoad?[]:['Keine angrenzende Straße — der Markthändler kann nicht losziehen.'];
+    if((t.bread||0)<=0) w.push('Kein Brot — eine angeschlossene Mühle liefert die Nahrung.');
     return {glyph:'🧺', title:'Markt', rows:[
-      {k:'Funktion', v:'Versorgt Häuser mit Nahrung'},
+      {k:'Funktion', v:'Verteilt Brot (Nahrung) & Keramik'},
+      {k:'Brot-Lager',    v:(t.bread||0)+' / 8'},
       {k:'Keramik-Lager', v:(t.cer||0)+' / 8'},
       roadRow,
       {k:'Trägerintervall', v:'alle '+BUILD.market.every+' Ticks'},
-    ], warns: hasRoad?[]:['Keine angrenzende Straße — der Markthändler kann nicht losziehen.']};
+    ], warns:w};
   }
   if(t.type==='forum'){
     return {glyph:'🏛️', title:'Forum', rows:[
@@ -142,6 +145,25 @@ function describeTile(x,y){
       {k:'Lehm-Lager',   v:(t.clay||0)+' / 8'},
       {k:'Keramik-Lager',v:(t.cer ||0)+' / 8'},
       {k:'Wandelt', v:'Lehm → Keramik'},
+      {k:'Liefert an', v:'Markt (über Straße)'},
+    ], warns:w};
+  }
+  if(t.type==='grainfield'){
+    const link=!!findPath(x,y,'mill');
+    return {glyph:'🌾', title:'Getreidefeld', rows:[
+      {k:'Funktion', v:'Baut Getreide an'},
+      {k:'Liefert an', v:'Mühle (über Straße)'},
+      {k:'Verbindung', v:link?'ja':'keine', cls:link?'ok':'bad'},
+    ], warns: link?[]:['Keine Straßenverbindung zu einer Mühle — das Getreide bleibt liegen.']};
+  }
+  if(t.type==='mill'){
+    const link=!!findPath(x,y,'market'); const w=[];
+    if((t.grain||0)<=0) w.push('Kein Getreide — ein angeschlossenes Getreidefeld liefert Nachschub.');
+    if(!link) w.push('Keine Straßenverbindung zum Markt — das Brot bleibt im Lager.');
+    return {glyph:'⚙', title:'Mühle', rows:[
+      {k:'Getreide-Lager', v:(t.grain||0)+' / 8'},
+      {k:'Brot-Lager',     v:(t.bread||0)+' / 8'},
+      {k:'Wandelt', v:'Getreide → Brot'},
       {k:'Liefert an', v:'Markt (über Straße)'},
     ], warns:w};
   }
