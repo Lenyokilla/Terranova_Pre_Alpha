@@ -16,9 +16,11 @@ const BUILD={
   forum:   {label:'Forum',    glyph:'🏛️', cost:80, service:'tax',   every:18, up:3},
   claypit: {label:'Lehmgrube',glyph:'🕳️', cost:35, every:14, up:2},
   pottery: {label:'Töpferei', glyph:'🏺', cost:60, every:11, up:2},
+  grainfield:{label:'Getreidefeld',glyph:'🌾', cost:30, every:14, up:1},
+  mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2},
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['hand','road','house','well','market','forum','claypit','pottery','raze'];
+const ORDER=['hand','road','house','well','market','forum','claypit','pottery','grainfield','mill','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5}];
 const SERVICE_LIFE=55;
@@ -41,6 +43,8 @@ const B3D={
   forum: {top:'#d8b84a',left:'#a98a2c',right:'#c2a23b',h:30,glyph:'🏛️', wcol:'#c9a227'},
   claypit:{wcol:'#a9713f'},   // Lehm-Träger
   pottery:{wcol:'#3f9c8a'},   // Keramik-Träger
+  grainfield:{wcol:'#d9b44a'},// Getreide-Träger
+  mill:{wcol:'#caa46e'},      // Brot-Träger
 };
 
 // ---- Terrain ----
