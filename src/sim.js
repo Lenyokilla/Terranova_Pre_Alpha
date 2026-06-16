@@ -23,12 +23,14 @@ function spawnCarrier(fp,cargo,color){const [sx,sy]=fp.path[0];
   walkers.push({x:sx,y:sy,path:fp.path,pi:0,dest:fp.dest,cargo,color,prog:0,dx:0,dy:0,from:null});}
 function deliverCargo(w){const [dx,dy]=w.dest;if(!inBounds(dx,dy))return;const t=grid[dy][dx];
   if(w.cargo==='clay'&&t.type==='pottery')t.clay=Math.min(8,(t.clay||0)+1);
-  else if(w.cargo==='cer'&&t.type==='market')t.cer=Math.min(8,(t.cer||0)+1);}
+  else if(w.cargo==='cer'&&t.type==='market')t.cer=Math.min(8,(t.cer||0)+1);
+  else if(w.cargo==='grain'&&t.type==='mill')t.grain=Math.min(8,(t.grain||0)+1);
+  else if(w.cargo==='bread'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);}
 
 // ---- Einwanderung vom Kartenrand ----
 function landWalk(x,y){ if(!inBounds(x,y))return false; const t=grid[y][x];
   if((TERR[t.terr]||TERR.grass).build===false) return false;             // Wasser/Berg blockieren
-  const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery') return false;
+  const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery'||b==='grainfield'||b==='mill') return false;
   return true; }
 function houseCap(h){return HOUSE[h.lvl].pop;}
 function needsResident(t){return t.type==='house'&&t.lvl>=1&&t.res<houseCap(t);}
@@ -60,7 +62,8 @@ function tick(){
     if(c.service){ c.spawn=(c.spawn||0)+1; const adj=adjRoad(x,y);
       if(adj&&c.spawn>=BUILD[c.type].every){ c.spawn=0;
         const w={x:adj[0],y:adj[1],from:null,service:c.service,color:B3D[c.type].wcol,life:34,prog:0,dx:0,dy:0};
-        if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--; }   // Markt verkauft Keramik aus Lager
+        if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--;       // Markt verkauft Keramik aus Lager
+                                  w.food=(c.bread||0)>0; if(w.food)c.bread--; }   // Nahrung nur mit Brot aus der Mühle
         walkers.push(w);
       }
     }
@@ -73,6 +76,15 @@ function tick(){
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.pottery.every&&(c.cer||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.spawn=0;c.cer--;spawnCarrier(fp,'cer','#3f9c8a');} else {c.spawn=BUILD.pottery.every;} } }
+    if(c.type==='grainfield'){ c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.grainfield.every){ const fp=findPath(x,y,'mill');
+        if(fp){c.spawn=0;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.grainfield.every;} } }
+    if(c.type==='mill'){
+      c.conv=(c.conv||0)+1;
+      if(c.conv>=8&&(c.grain||0)>0&&(c.bread||0)<8){c.conv=0;c.grain--;c.bread=(c.bread||0)+1;}
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.mill.every&&(c.bread||0)>0){ const fp=findPath(x,y,'market');
+        if(fp){c.spawn=0;c.bread--;spawnCarrier(fp,'bread','#caa46e');} else {c.spawn=BUILD.mill.every;} } }
   }
   // Zuwanderung vom Rand
   if(!lost && tickCount%IMMIG_EVERY===0 && money>LOSE_MONEY) spawnSettler();
@@ -87,7 +99,7 @@ function tick(){
         if(!inBounds(nx,ny))continue; const t=grid[ny][nx];
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
-          else if(w.service==='market'){t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE;}
+          else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
           else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ money+=t.res+(t.goods>0?GOODS_BONUS:0); t.taxed=SERVICE_LIFE; } }
         }
       }
