@@ -58,17 +58,40 @@ function terrainBlock(gx,gy,elev,top,sideL,sideR,outline){
 }
 function rng2(x,y){let h=(x*73856093 ^ y*19349663)>>>0; return ((h%1000)/1000);}
 function treeDeco(gx,gy,g){
-  const s=cam.scale, n=1+((gx*7+gy*3)%3);
+  const s=cam.scale, type=(grid[gy][gx]&&grid[gy][gx].forest)||'fir';
+  const n=1+((gx*7+gy*3)%2);                                   // 1-2 Bäume pro Feld
   for(let i=0;i<n;i++){
-    const ox=(rng2(gx*9+i,gy)-0.5)*TW*0.45*s;
-    const oy=(rng2(gx,gy*9+i)-0.5)*TH*0.35*s;
-    const x=g.cx+ox, y=g.cy+oy;
-    ctx.fillStyle='rgba(28,38,18,.20)';                                  // weicher Bodenschatten
-    ctx.beginPath();ctx.ellipse(x+2.4*s,y+0.5*s,5.2*s,2.3*s,0,0,7);ctx.fill();
-    const sway=Math.sin(animT*1.8 + (gx+gy)*0.6 + i*1.3)*2.6*s;   // Wind
-    ctx.fillStyle='#5a3d22'; ctx.fillRect(x-1*s,y-2*s,2*s,6*s);          // Stamm
-    ctx.fillStyle=i%2?'#39632c':'#447334';                               // Krone (Spitze schwingt)
-    ctx.beginPath();ctx.moveTo(x+sway,y-13*s);ctx.lineTo(x-6*s,y-1*s);ctx.lineTo(x+6*s,y-1*s);ctx.closePath();ctx.fill();
+    const x=g.cx+(rng2(gx*9+i,gy)-0.5)*TW*0.42*s;
+    const y=g.cy+(rng2(gx,gy*9+i)-0.5)*TH*0.42*s;
+    const sc=(0.85+rng2(gx+i,gy+i)*0.4)*s;                      // Größenvariation
+    drawTree(type,x,y,sc,gx+gy+i*2);
+  }
+}
+function drawTree(type,x,y,s,seed){
+  ctx.fillStyle='rgba(28,38,18,.20)';                          // Bodenschatten
+  ctx.beginPath();ctx.ellipse(x+3*s,y+1*s,7*s,3*s,0,0,7);ctx.fill();
+  const sway=Math.sin(animT*1.6+seed*0.7)*2.2*s;
+  if(type==='leaf'){                                           // Laubbaum: runde Krone
+    ctx.fillStyle='#6e4a2a';ctx.fillRect(x-1.7*s,y-12*s,3.4*s,13*s);
+    const cy=y-18*s; ctx.fillStyle='#3f7a30';
+    for(const [dx,dy,r] of [[-5,2,7],[5,2,6.5],[0,-3,8],[-3,-6,5.5],[4,-5,5.5]])
+      ctx.beginPath(),ctx.arc(x+dx*s+sway*0.3,cy+dy*s,r*s,0,7),ctx.fill();
+    ctx.fillStyle='#4f9639';
+    for(const [dx,dy,r] of [[-2,-6,4.5],[3,-7,4]]) ctx.beginPath(),ctx.arc(x+dx*s+sway*0.3,cy+dy*s,r*s,0,7),ctx.fill();
+  } else if(type==='pine'){                                    // Pinie: hoher Stamm + breite Schirmkrone
+    ctx.strokeStyle='#8a5a32';ctx.lineWidth=Math.max(2,2.6*s);ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+sway*0.4,y-14*s,x+sway,y-22*s);ctx.stroke();ctx.lineCap='butt';
+    const cx=x+sway, cy=y-24*s;
+    ctx.fillStyle='#43743a';ctx.beginPath();ctx.ellipse(cx,cy,12*s,5.2*s,0,0,7);ctx.fill();
+    ctx.fillStyle='#54914a';ctx.beginPath();ctx.ellipse(cx,cy-2.2*s,8.5*s,3.4*s,0,0,7);ctx.fill();
+  } else {                                                     // Tanne: hohe, geschichtete Spitzkrone
+    ctx.fillStyle='#5a3d22';ctx.fillRect(x-1.5*s,y-5*s,3*s,6*s);
+    ctx.fillStyle='#2f5a28';
+    const layers=[[y-3*s,9*s,y-16*s],[y-10*s,7*s,y-22*s],[y-16*s,5*s,y-28*s]];  // [baseY,half,apexY]
+    for(let k=0;k<layers.length;k++){const [by,half,ay]=layers[k], ax=x+sway*(k+1)/3;
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(x-half,by);ctx.lineTo(x+half,by);ctx.closePath();ctx.fill();}
+    ctx.fillStyle='#3a6e31';                                   // Lichtkante
+    const ax=x+sway;ctx.beginPath();ctx.moveTo(ax,y-28*s);ctx.lineTo(x-2.5*s,y-19*s);ctx.lineTo(x+1*s,y-19*s);ctx.closePath();ctx.fill();
   }
 }
 function peakDeco(g){const s=cam.scale;                                   // Schneegipfel
