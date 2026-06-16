@@ -38,6 +38,7 @@ function drawGround(x,y){
       ctx.fillStyle='rgba(156,186,102,.13)';                // helle Grasbüschel im Licht
       for(let i=0;i<2;i++){const rx=(rng2(x*11+i,y*7)-0.5)*TW*0.46*s, ry=(rng2(x*7,y*11+i)-0.5)*TH*0.46*s;
         ctx.beginPath();ctx.ellipse(g.cx+rx,g.cy+ry,2.3*s,1.2*s,0,0,7);ctx.fill();}
+      scatterProp(x,y,g);                                   // Büsche / Steine / Blumen
     }
     if(td.peak) peakDeco(g);
   }
@@ -159,6 +160,9 @@ function render(){
       const t=project(g.x,g.y),b=project(g.x+1,g.y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});
     } else drawGround(g.x,g.y);
   }
+  // Schilf an den Ufern (nach dem Wasser gezeichnet -> an allen Ufern sichtbar)
+  for(const g of ground){ const c=grid[g.y][g.x];
+    if(c.type==='empty'&&c.terr!=='water'&&c.terr!=='mountain') shoreReeds(g.x,g.y); }
   // Bau-Vorschau über dem Boden
   for(const c of previewCells){ if(!onScreen(c.x,c.y))continue;
     const tile=grid[c.y][c.x], e=(TERR[tile.terr]||TERR.grass).elev;
