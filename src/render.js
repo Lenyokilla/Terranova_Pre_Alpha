@@ -53,11 +53,11 @@ function drawObjects(x,y){
     dotAt(m.cx-sp*0.5,yy,c.food >0?'#b1542d':off);
     dotAt(m.cx+sp*0.5,yy,c.taxed>0?'#c9a227':off);
     dotAt(m.cx+sp*1.5,yy,c.goods>0?'#9c5bd0':off);
-  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'){
+  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'){
     drawBuilding(x,y,c.type,0,e*STEP);
   }
 }
-function hasObject(x,y){const t=grid[y][x].type; return t==='house'||t==='well'||t==='market'||t==='forum'||t==='claypit'||t==='pottery';}
+function hasObject(x,y){const t=grid[y][x].type; return t==='house'||t==='well'||t==='market'||t==='forum'||t==='claypit'||t==='pottery'||t==='grainfield'||t==='mill';}
 // ---- Träger-Figuren (Wuselfaktor) ----
 function amphora(x,y,s,col){
   ctx.fillStyle=col; ctx.beginPath();ctx.ellipse(x,y,2.1*s,2.9*s,0,0,7);ctx.fill();   // Bauch
@@ -75,6 +75,13 @@ function drawLoad(w,x,topY,s){
     ctx.fillStyle='#9c6a3a';ctx.beginPath();ctx.ellipse(x,topY,3.2*s,2.1*s,0,0,7);ctx.fill();
     ctx.fillStyle='#b78049';ctx.beginPath();ctx.ellipse(x-0.9*s,topY-0.7*s,1.1*s,0.8*s,0,0,7);ctx.fill();
   } else if(w.cargo==='cer'){ amphora(x,topY+0.5*s,s,'#3f9c8a');
+  } else if(w.cargo==='grain'){                                            // Getreidegarbe
+    ctx.fillStyle='#d9b44a';ctx.beginPath();ctx.ellipse(x,topY,3*s,2.1*s,0,0,7);ctx.fill();
+    ctx.strokeStyle='#b9962f';ctx.lineWidth=Math.max(1,0.6*s);
+    for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(x+i*1.2*s,topY-0.4*s);ctx.lineTo(x+i*1.6*s,topY-3*s);ctx.stroke();}
+  } else if(w.cargo==='bread'){                                            // Brote
+    ctx.fillStyle='#caa46e';ctx.beginPath();ctx.ellipse(x-1*s,topY,1.8*s,1.2*s,0,0,7);ctx.fill();
+    ctx.fillStyle='#b88a52';ctx.beginPath();ctx.ellipse(x+1.2*s,topY+0.3*s,1.7*s,1.1*s,0,0,7);ctx.fill();
   } else if(w.service==='water'){ amphora(x,topY+0.5*s,s,'#4f93b0');
   } else if(w.service==='market'){
     ctx.fillStyle='#b07a3c';ctx.beginPath();
