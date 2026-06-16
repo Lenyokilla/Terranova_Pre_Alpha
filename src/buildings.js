@@ -241,9 +241,6 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
     ctx.fillStyle = 'rgba(240, 100, 30, 0.35)';
     for(let i=0; i<4; i++) { ctx.beginPath(); ctx.arc(c.cx + (Math.sin(i)*4)*s, topY - (i*4)*s, (2+i)*s, 0, 7); ctx.fill(); }
   }
-  return { cx: c.cx, topY };
-}
-
 
   // ---- DYNAMISCHE STATUS-INDIKATOREN (VISUELLES FEEDBACK OVERLAYS) ----
   
