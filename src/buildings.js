@@ -213,12 +213,58 @@ function drawMarket(gx, gy, baseLift) {
   return { cx: c.cx, topY };
 }
 
+function drawGrainfield(gx, gy, baseLift) {
+  const s = cam.scale;
+  const c = isoCorners(gx, gy, baseLift, 0);
+  const I = p => ({ x: c.bx + (p.x - c.bx) * 0.94, y: c.by + (p.y - c.by) * 0.94 });
+  // goldene Beetfläche
+  ctx.fillStyle = '#caa53e'; poly([I(c.N), I(c.E), I(c.S), I(c.W)]);
+  ctx.strokeStyle = 'rgba(120,95,40,.5)'; ctx.lineWidth = 1;                       // Furchen
+  for (let t = 0.2; t < 1; t += 0.2) { const a = lerp(I(c.W), I(c.N), t), b = lerp(I(c.S), I(c.E), t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  // Weizenhalme mit Ähren (Windschwung)
+  for (let i = 0; i < 14; i++) {
+    const u = rng2(gx * 7 + i, gy * 3), v = rng2(gx * 3, gy * 7 + i);
+    const p = lerp(lerp(I(c.W), I(c.N), u), lerp(I(c.S), I(c.E), u), v);
+    const sway = Math.sin(animT * 1.6 + i) * 1.5 * s, hgt = (7 + rng2(i, gx) * 3) * s;
+    ctx.strokeStyle = '#b9962f'; ctx.lineWidth = Math.max(1, 1 * s);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + sway, p.y - hgt); ctx.stroke();
+    ctx.fillStyle = '#e6c75a'; ctx.beginPath(); ctx.ellipse(p.x + sway, p.y - hgt, 1.5 * s, 2.6 * s, 0, 0, 7); ctx.fill();
+  }
+  return { cx: c.cx, topY: c.N.y - 8 * s };
+}
+
+function drawMill(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#cfc4ad', roof = '#7a4a2c';
+  const c = isoCorners(gx, gy, baseLift, 18);
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
+  ctx.strokeStyle = 'rgba(40,30,16,.22)'; ctx.lineWidth = 1;                       // Steinbänder
+  for (const v of [0.42, 0.7]) { const a = lerp(c.W, c.Wt, v), b = lerp(c.S, c.St, v), d = lerp(c.E, c.Et, v);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(d.x, d.y); ctx.stroke(); }
+  const topY = hipRoof(c, roof, 12, false);
+  // Mühlenflügel (drehend) auf der SE-Wand
+  const hub = lerp(lerp(c.S, c.E, 0.5), lerp(c.St, c.Et, 0.5), 0.52);
+  const rot = animT * 0.6, R = 11 * s;
+  for (let k = 0; k < 4; k++) { const a = rot + k * Math.PI / 2;
+    const ex = hub.x + Math.cos(a) * R, ey = hub.y + Math.sin(a) * R * 0.7;
+    const px = hub.x + Math.cos(a + 0.35) * R * 0.5, py = hub.y + Math.sin(a + 0.35) * R * 0.5 * 0.7;
+    ctx.fillStyle = 'rgba(244,238,222,.9)'; ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.4, 1.8 * s); ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.stroke();
+  }
+  ctx.fillStyle = '#5a3d22'; ctx.beginPath(); ctx.arc(hub.x, hub.y, 2 * s, 0, 7); ctx.fill();
+  return { cx: c.cx, topY };
+}
+
 function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'forum') return drawForum(gx, gy, baseLift);
   if (kind === 'claypit') return drawClaypit(gx, gy, baseLift);
   if (kind === 'pottery') return drawPottery(gx, gy, baseLift);
   if (kind === 'well') return drawWell(gx, gy, baseLift);
   if (kind === 'market') return drawMarket(gx, gy, baseLift);
+  if (kind === 'grainfield') return drawGrainfield(gx, gy, baseLift);
+  if (kind === 'mill') return drawMill(gx, gy, baseLift);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
   const s = cam.scale;
