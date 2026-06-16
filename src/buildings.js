@@ -158,106 +158,92 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'claypit') return drawClaypit(gx, gy, baseLift);
   if (kind === 'pottery') return drawPottery(gx, gy, baseLift);
   
-  // Standard-Status-Effekte abfangen, falls nicht übergeben
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
-
-  let wall, roof, h, roofH;
-  let windows = false, door = false, awning = false, well = false, tiled = true;
-
-  if (kind === 'house') {
-    // ---- DIE VIER EVOLUTIONSSTUFEN DER INSULA ----
-    if (lvl === 0) { 
-      // STUFE 1: Provisorische Hütte (Zelt/Lehm/Stroh)
-      wall = '#b5915f';  // Grobes Holz/Lehm
-      roof = '#6f5535';  // Altes Stroh
-      h = 9; roofH = 6; 
-      tiled = false;     // Kein Ziegeldach
-    } 
-    else if (lvl === 1) { 
-      // STUFE 2: Basis-Mietshaus (Fachwerk)
-      wall = '#d7c69b';  // Helles Holz/Lehm-Gemisch
-      roof = '#b1542d';  // Billige rote Ziegel
-      h = 15; roofH = 10; 
-      windows = true; door = true;
-    } 
-    else if (lvl === 2) { 
-      // STUFE 3: Ziegel-Insula (Massiver dreistöckiger Bau)
-      wall = '#c9a380';  // Römischer Ziegelton (Opus Latericium)
-      roof = '#a8482a';  // Gute Terrakotta-Ziegel
-      h = 24; roofH = 12; 
-      windows = true; door = true;
-    } 
-    else { 
-      // STUFE 4: Luxus-Insula (Verputzt, Pompejanisch-Rot)
-      wall = '#b54134';  // Pompejanisch-Rot verputzt
-      roof = '#bd4022';  // Hochwertige Tegulae
-      h = 32; roofH = 14; 
-      windows = true; door = true;
-    }
-  } else if (kind === 'well') {
-    wall = '#a7adae'; roof = '#5e6e76'; h = 8; roofH = 5; well = true;
-  } else {
-    wall = '#c9b48a'; roof = '#cf6a3c'; h = 9; roofH = 7; awning = true; // Markt
-  }
-
-  // Modifikation der Wandfarbe bei Seuchengefahr (visuelles Feedback)
-  if (statusEffects.plagueRisk && kind === 'house') {
-    wall = shade(wall, -0.15); // Wand wirkt dreckig/verfärbt
-  }
-
-  const c = isoCorners(gx, gy, baseLift, h);
   const s = cam.scale;
+  let wallColor, roofColor, h, roofH, tiled = true, windows = false;
 
-  // 1. Weicher Schlagschatten nach Süd-Ost
-  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
-  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.42 * s, 0, 7); ctx.fill(); ctx.restore();
-
-  // 2. Wände zeichnen
-  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]); // SW-Fassade (Heller)
-  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]); // SE-Fassade (Dunkler)
-
-  // 2b. Visuelles Feedback: Risse bei hoher Brand-/Einsturzgefahr
-  if (statusEffects.fireRisk && kind === 'house') {
-    ctx.strokeStyle = 'rgba(60,30,30,0.6)'; ctx.lineWidth = Math.max(1, 0.8 * s);
-    ctx.beginPath(); // Riss auf der SW-Wand
-    const rStart = lerp(c.W, c.Wt, 0.3), rEnd = lerp(c.S, c.St, 0.2);
-    ctx.moveTo(rStart.x, rStart.y); ctx.lineTo(rEnd.x + 2 * s, rEnd.y - 4 * s); ctx.stroke();
+  // Farbpaletten & Dimensionen für die Evolution
+  if (kind === 'house') {
+    if (lvl === 0) { wallColor = '#b5915f'; roofColor = '#6f5535'; h = 10; roofH = 7; tiled = false; }
+    else if (lvl === 1) { wallColor = '#d7c69b'; roofColor = '#b1542d'; h = 16; roofH = 11; windows = true; }
+    else if (lvl === 2) { wallColor = '#c9a380'; roofColor = '#a8482a'; h = 26; roofH = 14; windows = true; }
+    else { wallColor = '#b54134'; roofColor = '#bd4022'; h = 34; roofH = 16; windows = true; }
+  } else {
+    wallColor = '#c9b48a'; roofColor = '#cf6a3c'; h = 10; roofH = 7; // Markt-Fallback
   }
 
-  // 3. Fenster & Türen (Skalieren dynamisch mit der Höhe über Stockwerke)
+  if (statusEffects.plagueRisk) wallColor = shade(wallColor, -0.18);
+  const c = isoCorners(gx, gy, baseLift, h);
+
+  // --- TRICK 1: ATMOSPHÄRISCHER SOFT-SCHATTEN (Canvas Filter) ---
+  ctx.save();
+  ctx.shadowColor = 'rgba(25, 15, 5, 0.25)';
+  ctx.shadowBlur = 8 * s;
+  ctx.shadowOffsetX = 12 * s;
+  ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; // Unsichtbarer Körper wirft echten Weichzeichner-Schatten
+  poly([c.W, c.S, c.E, c.N]);
+  ctx.restore();
+
+  // --- TRICK 2: GRADIENTEN STATT FLAT COLORS (Licht von oben-links) ---
+  // SW-Wand (Hellere Seite mit vertikalem Helligkeitsverlauf)
+  const gradSW = ctx.createLinearGradient(c.W.x, c.Wt.y, c.S.x, c.S.y);
+  gradSW.addColorStop(0, shade(wallColor, 0.05));
+  gradSW.addColorStop(1, shade(wallColor, -0.12));
+  ctx.fillStyle = gradSW; poly([c.W, c.S, c.St, c.Wt]);
+
+  // SE-Wand (Schattenseite mit tieferem Verlauf)
+  const gradSE = ctx.createLinearGradient(c.S.x, c.St.y, c.E.x, c.E.y);
+  gradSE.addColorStop(0, shade(wallColor, -0.22));
+  gradSE.addColorStop(1, shade(wallColor, -0.38));
+  ctx.fillStyle = gradSE; poly([c.S, c.E, c.Et, c.St]);
+
+  // --- TRICK 3: PROZEDURALE TEXTUR (Noise Overlay) ---
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  // Simuliere Putzstruktur durch winzige Punkte im Raster
+  for (let i = 0; i < 15; i++) {
+    ctx.fillRect(c.bx + (Math.random()-0.5)*30*s, c.by - (Math.random())*h*s, 1.2*s, 1.2*s);
+  }
+  ctx.restore();
+
+  // --- TRICK 4: TIEFE DURCH AMBIENT OCCLUSION (Eckenschattierung) ---
+  ctx.strokeStyle = 'rgba(40, 25, 10, 0.25)';
+  ctx.lineWidth = 1.5 * s;
+  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke(); // Vertikale Mittelkante
+
+  // Fenster mit leuchtenden Fensterbänken (3D-Effekt)
   if (windows) {
-    // Erdgeschoss-Fenster/Tabernae
-    wallPatch(c.W, c.S, c.Wt, c.St, 0.2, 0.4, 0.15, 0.4, '#303a47');
-    wallPatch(c.S, c.E, c.St, c.Et, 0.6, 0.8, 0.15, 0.4, '#242d38');
-    
-    // Obergeschoss-Fenster (Stufe 2+)
-    if (lvl >= 2) {
-      wallPatch(c.W, c.S, c.Wt, c.St, 0.2, 0.4, 0.55, 0.75, '#46566b');
-      wallPatch(c.W, c.S, c.Wt, c.St, 0.6, 0.8, 0.55, 0.75, '#46566b');
-      wallPatch(c.S, c.E, c.St, c.Et, 0.2, 0.4, 0.55, 0.75, '#3a4757');
-    }
-    // Höheres Obergeschoss (Stufe 3 Luxus-Insula)
-    if (lvl === 3) {
-      wallPatch(c.W, c.S, c.Wt, c.St, 0.2, 0.4, 0.82, 0.95, '#566982');
-      wallPatch(c.S, c.E, c.St, c.Et, 0.6, 0.8, 0.82, 0.95, '#435266');
-    }
-  }
-  if (door) {
-    wallPatch(c.S, c.E, c.St, c.Et, 0.25, 0.45, 0.0, 0.35, '#5a3d22'); // Haupteingang SE
+    const drawTier = (vBot, vTop) => {
+      // SW Fenster
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.22, 0.42, vBot, vTop, '#1e2530');
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.58, 0.78, vBot, vTop, '#1e2530');
+      // Fensterrahmen-Highlight unten
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(lerp(c.W,c.S,0.22).x, lerp(c.W,c.St,vBot).y); ctx.lineTo(lerp(c.W,c.S,0.42).x, lerp(c.W,c.St,vBot).y); ctx.stroke();
+
+      // SE Fenster
+      wallPatch(c.S, c.E, c.St, c.Et, 0.22, 0.42, vBot, vTop, '#141a21');
+      wallPatch(c.S, c.E, c.St, c.Et, 0.58, 0.78, vBot, vTop, '#141a21');
+    };
+
+    drawTier(0.15, 0.42); // Erdgeschoss
+    if (lvl >= 2) drawTier(0.55, 0.78); // 1. Stock
+    if (lvl === 3) drawTier(0.84, 0.96); // 2. Stock
   }
 
-  // 4. Dachkonstruktion
-  let topY;
-  if (awning) { topY = canopyRoof(c, roof, roofH); }
-  else if (well) {
-    ctx.fillStyle = '#3f7d9c'; poly([c.Nt, c.Et, c.St, c.Wt]);
-    ctx.strokeStyle = 'rgba(30,30,20,.35)'; ctx.lineWidth = Math.max(1, 1.4 * s);
-    ctx.beginPath(); ctx.moveTo(c.Nt.x, c.Nt.y); ctx.lineTo(c.Et.x, c.Et.y); ctx.lineTo(c.St.x, c.St.y); ctx.lineTo(c.Wt.x, c.Wt.y); ctx.closePath(); ctx.stroke();
-    topY = c.cy;
+  // Dach mit dimensionalen Kanten
+  let topY = hipRoof(c, roofColor, roofH, tiled);
+
+  // --- STATUS OVERLAYS ---
+  if (statusEffects.fireRisk) {
+    ctx.fillStyle = 'rgba(240, 100, 30, 0.35)';
+    for(let i=0; i<4; i++) { ctx.beginPath(); ctx.arc(c.cx + (Math.sin(i)*4)*s, topY - (i*4)*s, (2+i)*s, 0, 7); ctx.fill(); }
   }
-  else {
-    topY = hipRoof(c, roof, roofH, tiled);
-  }
+  return { cx: c.cx, topY };
+}
+
 
   // ---- DYNAMISCHE STATUS-INDIKATOREN (VISUELLES FEEDBACK OVERLAYS) ----
   
