@@ -52,9 +52,11 @@ function generateTerrain(){
   // Hügelketten
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     7+(Math.random()*8|0), isGrass, t=>t.terr='hill');
-  // Wälder
-  for(let i=0;i<Math.round(3*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
-    8+(Math.random()*10|0), isGrass, t=>t.terr='forest');
+  // Wälder verschiedener Art – je Hain ein einheitlicher Typ
+  const FT=['fir','leaf','pine'];
+  for(let i=0;i<Math.round(3*A);i++){ const ft=FT[(Math.random()*3)|0];
+    growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
+      8+(Math.random()*10|0), isGrass, t=>{t.terr='forest'; t.forest=ft;}); }
   // Felder (Kulturland)
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     6+(Math.random()*6|0), isGrass, t=>t.terr='field');
