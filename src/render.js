@@ -30,10 +30,14 @@ function drawGround(x,y){
     if(td.water) waterDeco(g);
     else if(td.furrow) furrowDeco(g);
     else if(td.trees) treeDeco(x,y,g);
-    else if(c.terr==='grass'||c.terr==='meadow'){           // dezente Bodentextur
-      ctx.fillStyle='rgba(58,86,38,.16)';
-      for(let i=0;i<3;i++){const rx=(rng2(x*5+i,y*3)-0.5)*TW*0.5*cam.scale, ry=(rng2(x*3,y*5+i)-0.5)*TH*0.5*cam.scale;
-        ctx.beginPath();ctx.arc(g.cx+rx,g.cy+ry,1.1*cam.scale,0,7);ctx.fill();}
+    else if(c.terr==='grass'||c.terr==='meadow'){           // lebendige Bodentextur
+      const s=cam.scale;
+      ctx.fillStyle='rgba(54,80,34,.15)';                   // dunkle Tupfer
+      for(let i=0;i<3;i++){const rx=(rng2(x*5+i,y*3)-0.5)*TW*0.5*s, ry=(rng2(x*3,y*5+i)-0.5)*TH*0.5*s;
+        ctx.beginPath();ctx.arc(g.cx+rx,g.cy+ry,1.2*s,0,7);ctx.fill();}
+      ctx.fillStyle='rgba(156,186,102,.13)';                // helle Grasbüschel im Licht
+      for(let i=0;i<2;i++){const rx=(rng2(x*11+i,y*7)-0.5)*TW*0.46*s, ry=(rng2(x*7,y*11+i)-0.5)*TH*0.46*s;
+        ctx.beginPath();ctx.ellipse(g.cx+rx,g.cy+ry,2.3*s,1.2*s,0,0,7);ctx.fill();}
     }
     if(td.peak) peakDeco(g);
   }
@@ -129,6 +133,17 @@ function waterBlob(x,y,k,col){
   ctx.quadraticCurveTo(T.x,T.y,m1.x,m1.y);
   ctx.closePath();ctx.fill();
 }
+// globaler Licht-/Atmosphäre-Overlay: warmes Sonnenlicht oben-links, kühler unten-rechts + Vignette
+function drawAtmosphere(w,h){
+  let g=ctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0.00,'rgba(255,243,210,0.20)');   // warmes Licht
+  g.addColorStop(0.50,'rgba(255,255,255,0.00)');
+  g.addColorStop(1.00,'rgba(40,62,96,0.14)');      // kühler Schatten
+  ctx.save(); ctx.globalCompositeOperation='soft-light'; ctx.fillStyle=g; ctx.fillRect(0,0,w,h); ctx.restore();
+  const v=ctx.createRadialGradient(w*0.5,h*0.46,Math.min(w,h)*0.32, w*0.5,h*0.52,Math.max(w,h)*0.74);
+  v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(18,22,30,0.24)');
+  ctx.save(); ctx.fillStyle=v; ctx.fillRect(0,0,w,h); ctx.restore();
+}
 function render(){
   const r=cv.parentElement.getBoundingClientRect();
   ctx.clearRect(0,0,r.width,r.height);
@@ -165,4 +180,5 @@ function render(){
   }
   drawBirds();
   drawWeather();
+  drawAtmosphere(r.width,r.height);
 }
