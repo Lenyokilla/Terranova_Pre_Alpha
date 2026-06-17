@@ -57,11 +57,21 @@ function drawObjects(x,y){
   } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'||c.type==='firehouse'||c.type==='engineer'){
     m=drawBuilding(x,y,c.type,0,e*STEP);
   }
-  if(m){                                   // Gefahren-Warnsymbole
+  if(m){                                   // Gefahren + Arbeitskräfte
     let wy=m.topY-13*cam.scale;
-    if(c.collapseRisk){ drawCollapseMark(m.cx,wy); wy-=13*cam.scale; }
-    if(c.fireRisk){ drawFireMark(m.cx,wy); }
+    if(c.collapseRisk){ drawCollapseMark(m.cx,wy); wy-=12*cam.scale; }
+    if(c.fireRisk){ drawFireMark(m.cx,wy); wy-=12*cam.scale; }
+    if(BUILD[c.type]&&BUILD[c.type].jobs) drawWorkerBadge(m.cx-11*cam.scale, m.topY-9*cam.scale, c.staffed);
   }
+}
+// Arbeitskräfte: grün = besetzt/arbeitet, grau mit rotem Strich = keine Arbeiter
+function drawWorkerBadge(cx,cy,ok){const s=cam.scale, col=ok?'#4f9e43':'#9a9a93';
+  ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.arc(cx,cy-1*s,6*s,0,7);ctx.fill();   // heller Kreis als Hintergrund
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.arc(cx,cy-3*s,1.9*s,0,7);ctx.fill();                                        // Kopf
+  ctx.beginPath();ctx.moveTo(cx-2.8*s,cy+3*s);ctx.quadraticCurveTo(cx,cy-1.2*s,cx+2.8*s,cy+3*s);ctx.closePath();ctx.fill(); // Körper
+  if(!ok){ ctx.strokeStyle='#d23a2a';ctx.lineWidth=Math.max(1.4,1.6*s);
+    ctx.beginPath();ctx.moveTo(cx-5*s,cy+4*s);ctx.lineTo(cx+5*s,cy-5*s);ctx.stroke(); }            // roter Schrägstrich
 }
 // Brand-Warnung: flackernde Flamme
 function drawFireMark(cx,cy){const s=cam.scale, fl=Math.sin(animT*9)*1.2*s;
