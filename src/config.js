@@ -20,7 +20,7 @@ const BUILD={
   mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2},
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['hand','road','house','well','market','forum','claypit','pottery','grainfield','mill','raze'];
+const ORDER=['road','house','well','market','forum','claypit','pottery','grainfield','mill','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5}];
 const SERVICE_LIFE=55;
