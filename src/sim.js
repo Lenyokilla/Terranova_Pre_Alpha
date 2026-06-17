@@ -58,9 +58,17 @@ function settlerArrive(w){ const [hx,hy]=w.dest; if(!inBounds(hx,hy))return; con
 
 function tick(){
   tickCount++;
+  // ---- Globale Arbeitskräfte (Einwohner = Arbeiter), ohne Straßenbindung ----
+  let labor=pop;
+  const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,claypit:6,pottery:7,mill:8};
+  const jobsT=[];
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x]; if(BUILD[c.type]&&BUILD[c.type].jobs)jobsT.push(c);}
+  jobsT.sort((a,b)=>(RANK[a.type]??9)-(RANK[b.type]??9));   // Überlebenswichtiges zuerst besetzen
+  for(const c of jobsT){ const need=BUILD[c.type].jobs; if(labor>=need){c.staffed=true;labor-=need;} else c.staffed=false; }
+  workersFree=labor; workersTotal=pop;
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x];
     // Versorger (wandernde Dienst-Läufer: Brunnen=Wasser, Forum=Steuer, Markt=Verkauf)
-    if(c.service){ c.spawn=(c.spawn||0)+1; const adj=adjRoad(x,y);
+    if(c.service&&c.staffed){ c.spawn=(c.spawn||0)+1; const adj=adjRoad(x,y);
       if(adj&&c.spawn>=BUILD[c.type].every){ c.spawn=0;
         const w={x:adj[0],y:adj[1],from:null,service:c.service,color:B3D[c.type].wcol,life:34,prog:0,dx:0,dy:0};
         if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--;       // Markt verkauft Keramik aus Lager
@@ -68,21 +76,21 @@ function tick(){
         walkers.push(w);
       }
     }
-    if(c.type==='claypit'){ c.spawn=(c.spawn||0)+1;
+    if(c.type==='claypit'&&c.staffed){ c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.claypit.every){ const fp=findPath(x,y,'pottery');
         if(fp){c.spawn=0;spawnCarrier(fp,'clay','#a9713f');} else {c.spawn=BUILD.claypit.every;} } }
-    if(c.type==='pottery'){
+    if(c.type==='pottery'&&c.staffed){
       c.conv=(c.conv||0)+1;
       if(c.conv>=8&&(c.clay||0)>0&&(c.cer||0)<8){c.conv=0;c.clay--;c.cer=(c.cer||0)+1;}
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.pottery.every&&(c.cer||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.spawn=0;c.cer--;spawnCarrier(fp,'cer','#3f9c8a');} else {c.spawn=BUILD.pottery.every;} } }
-    if(c.type==='grainfield'){
+    if(c.type==='grainfield'&&c.staffed){
       if((tickCount%SEASON_LEN)===HARVEST_TICK) c.grain=8;          // Ernte: Speicher voll (auch ohne Straße)
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.grainfield.every&&(c.grain||0)>0){ const fp=findPath(x,y,'mill');
         if(fp){c.spawn=0;c.grain--;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.grainfield.every;} } }
-    if(c.type==='mill'){
+    if(c.type==='mill'&&c.staffed){
       c.conv=(c.conv||0)+1;
       if(c.conv>=8&&(c.grain||0)>0&&(c.bread||0)<8){c.conv=0;c.grain--;c.bread=(c.bread||0)+1;}
       c.spawn=(c.spawn||0)+1;
