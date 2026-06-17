@@ -213,22 +213,77 @@ function drawMarket(gx, gy, baseLift) {
   return { cx: c.cx, topY };
 }
 
+// Farbmischung zweier Hex-Farben
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const r = Math.round((pa >> 16 & 255) + ((pb >> 16 & 255) - (pa >> 16 & 255)) * t);
+  const g = Math.round((pa >> 8 & 255) + ((pb >> 8 & 255) - (pa >> 8 & 255)) * t);
+  const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
+  return 'rgb(' + r + ',' + g + ',' + bl + ')';
+}
+// kleiner Erntehelfer mit schwingender Sichel
+function drawHarvester(x, y, s, seed) {
+  ctx.fillStyle = 'rgba(28,38,18,.18)'; ctx.beginPath(); ctx.ellipse(x + 1.5 * s, y + 1 * s, 4 * s, 1.8 * s, 0, 0, 7); ctx.fill();
+  const swing = Math.sin(animT * 3 + seed) * 0.9;
+  ctx.fillStyle = '#9c8048'; ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 2.4 * s, 4 * s, 0, 0, 7); ctx.fill();  // Tunika
+  ctx.fillStyle = '#caa06a'; ctx.beginPath(); ctx.arc(x, y - 9 * s, 1.9 * s, 0, 7); ctx.fill();                 // Kopf
+  ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1, 1.1 * s); ctx.lineCap = 'round';                     // Sichelstiel
+  const hx = x + Math.cos(swing) * 6 * s, hy = y - 5 * s + Math.sin(swing) * 4 * s;
+  ctx.beginPath(); ctx.moveTo(x, y - 5 * s); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.strokeStyle = '#c9c4ba'; ctx.beginPath(); ctx.arc(hx, hy, 3 * s, swing - 0.4, swing + 1.4); ctx.stroke();  // Klinge
+  ctx.lineCap = 'butt';
+}
 function drawGrainfield(gx, gy, baseLift) {
   const s = cam.scale;
   const c = isoCorners(gx, gy, baseLift, 0);
   const I = p => ({ x: c.bx + (p.x - c.bx) * 0.94, y: c.by + (p.y - c.by) * 0.94 });
-  // goldene Beetfläche
-  ctx.fillStyle = '#caa53e'; poly([I(c.N), I(c.E), I(c.S), I(c.W)]);
-  ctx.strokeStyle = 'rgba(120,95,40,.5)'; ctx.lineWidth = 1;                       // Furchen
+  // Saison-Phase 0..1 (synchron über tickCount)
+  const SL = (typeof SEASON_LEN !== 'undefined') ? SEASON_LEN : 80;
+  const tc = (typeof tickCount !== 'undefined') ? tickCount : 64;
+  const ph = ((tc % SL) + SL) % SL / SL;
+  let stage, g = 1, hp = 0;                                  // stage, Wachstum 0..1, Erntefortschritt
+  if (ph < 0.10) stage = 'sow';
+  else if (ph < 0.82) { stage = 'grow'; g = (ph - 0.10) / 0.72; }
+  else if (ph < 0.88) stage = 'ripe';
+  else { stage = 'harvest'; hp = (ph - 0.88) / 0.12; }
+
+  // Ackererde + Furchen
+  ctx.fillStyle = '#7c5a32'; poly([I(c.N), I(c.E), I(c.S), I(c.W)]);
+  ctx.strokeStyle = 'rgba(60,42,20,.5)'; ctx.lineWidth = 1;
   for (let t = 0.2; t < 1; t += 0.2) { const a = lerp(I(c.W), I(c.N), t), b = lerp(I(c.S), I(c.E), t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-  // Weizenhalme mit Ähren (Windschwung)
-  for (let i = 0; i < 14; i++) {
+
+  const N = 20;
+  for (let i = 0; i < N; i++) {
     const u = rng2(gx * 7 + i, gy * 3), v = rng2(gx * 3, gy * 7 + i);
     const p = lerp(lerp(I(c.W), I(c.N), u), lerp(I(c.S), I(c.E), u), v);
-    const sway = Math.sin(animT * 1.6 + i) * 1.5 * s, hgt = (7 + rng2(i, gx) * 3) * s;
-    ctx.strokeStyle = '#b9962f'; ctx.lineWidth = Math.max(1, 1 * s);
+    const sway = Math.sin(animT * 1.6 + i) * 1.4 * s;
+    if (stage === 'sow') {                                  // frisch gesät: Saatkörner
+      ctx.fillStyle = '#caa06a'; ctx.beginPath(); ctx.arc(p.x, p.y - 0.5 * s, 0.9 * s, 0, 7); ctx.fill();
+      continue;
+    }
+    const cut = stage === 'harvest' && (i / N) < hp;        // bereits abgeerntet?
+    if (cut) {                                              // Stoppeln
+      ctx.strokeStyle = '#b9962f'; ctx.lineWidth = Math.max(1, 1 * s);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 2 * s); ctx.stroke();
+      continue;
+    }
+    const ripe = (stage === 'ripe' || stage === 'harvest');
+    const gg = ripe ? 1 : g;
+    const hgt = (2 + gg * 9) * s;
+    const cf = ripe ? 1 : Math.max(0, (gg - 0.5) / 0.5);    // erst ab halber Reife vergolden
+    const col = mixHex('#5aa83f', '#caa53e', cf);           // kräftiges Grün -> Gold
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, 1.1 * s);
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + sway, p.y - hgt); ctx.stroke();
-    ctx.fillStyle = '#e6c75a'; ctx.beginPath(); ctx.ellipse(p.x + sway, p.y - hgt, 1.5 * s, 2.6 * s, 0, 0, 7); ctx.fill();
+    if (gg > 0.72) {                                        // Ähre erst spät
+      ctx.fillStyle = '#e6c75a';
+      ctx.beginPath(); ctx.ellipse(p.x + sway, p.y - hgt, 1.5 * s, 2.6 * s, 0, 0, 7); ctx.fill();
+    }
+  }
+  if (stage === 'harvest') {                                // Arbeiter auf dem Feld
+    const a = lerp(lerp(I(c.W), I(c.N), 0.35), lerp(I(c.S), I(c.E), 0.35), 0.5);
+    const b = lerp(lerp(I(c.W), I(c.N), 0.7), lerp(I(c.S), I(c.E), 0.7), 0.6);
+    drawHarvester(a.x, a.y, s, gx + gy);
+    drawHarvester(b.x, b.y, s, gx * 2 + gy + 3);
   }
   return { cx: c.cx, topY: c.N.y - 8 * s };
 }
@@ -317,10 +372,39 @@ function drawInsula(gx, gy, lvl, baseLift) {
   const r = isoCorners(gx, gy, baseLift, h + 4);
   ctx.fillStyle = shade(roofCol, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);   // Aufkantung SW
   ctx.fillStyle = shade(roofCol, -0.32); poly([c.St, c.Et, r.Et, r.St]);   // Aufkantung SE
-  ctx.fillStyle = roofCol; poly([r.Nt, r.Et, r.St, r.Wt]);                 // Dachfläche
-  ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);   // gerade Ziegelreihen
-  for (let t = 0.25; t < 1; t += 0.25) { const a = lerp(r.Wt, r.Nt, t), b = lerp(r.St, r.Et, t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-  ctx.strokeStyle = 'rgba(30,20,12,.25)'; ctx.lineWidth = 1;
+
+  if (floors >= 2) {
+    // Dach als Rahmen mit offenem Atrium (Innenhof) in der Mitte
+    const k = 0.42, ctr = { x: r.cx, y: r.cy };
+    const ins = p => ({ x: p.x + (ctr.x - p.x) * k, y: p.y + (ctr.y - p.y) * k });
+    const iN = ins(r.Nt), iE = ins(r.Et), iS = ins(r.St), iW = ins(r.Wt);
+    ctx.fillStyle = roofCol;                                  // Dachrahmen (4 Trapeze)
+    poly([r.Nt, r.Et, iE, iN]); poly([r.Et, r.St, iS, iE]); poly([r.St, r.Wt, iW, iS]); poly([r.Wt, r.Nt, iN, iW]);
+    ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);   // dezente Ziegelreihe
+    for (const [A, B] of [[r.Nt, r.Et], [r.Et, r.St], [r.St, r.Wt], [r.Wt, r.Nt]]) {
+      const a = lerp(A, ins(A), 0.5), b = lerp(B, ins(B), 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    // vertiefter Innenhof
+    const drop = 9 * s;
+    const fN = { x: iN.x, y: iN.y + drop }, fE = { x: iE.x, y: iE.y + drop }, fS = { x: iS.x, y: iS.y + drop }, fW = { x: iW.x, y: iW.y + drop };
+    ctx.fillStyle = shade(wallCol, -0.30); poly([iN, iE, fE, fN]);   // NE-Innenwand (sichtbar)
+    ctx.fillStyle = shade(wallCol, -0.44); poly([iN, iW, fW, fN]);   // NW-Innenwand (sichtbar)
+    ctx.fillStyle = '#cabfa4'; poly([fN, fE, fS, fW]);              // Hofboden (Stein)
+    // Impluvium (Wasserbecken) mittig
+    const c2 = { x: (fN.x + fS.x) / 2, y: (fN.y + fS.y) / 2 }, bs = 0.5;
+    const bi = p => ({ x: c2.x + (p.x - c2.x) * bs, y: c2.y + (p.y - c2.y) * bs });
+    ctx.fillStyle = '#9aa890'; poly([bi(fN), bi(fE), bi(fS), bi(fW)]);           // Beckenrand
+    const bs2 = 0.32, bi2 = p => ({ x: c2.x + (p.x - c2.x) * bs2, y: c2.y + (p.y - c2.y) * bs2 });
+    ctx.fillStyle = '#3f7d9c'; poly([bi2(fN), bi2(fE), bi2(fS), bi2(fW)]);       // Wasser
+    // Schattenfuge an der Atrium-Oberkante
+    ctx.strokeStyle = 'rgba(20,14,8,.35)'; ctx.lineWidth = Math.max(1, 1 * s);
+    ctx.beginPath(); ctx.moveTo(iN.x, iN.y); ctx.lineTo(iE.x, iE.y); ctx.lineTo(iS.x, iS.y); ctx.lineTo(iW.x, iW.y); ctx.closePath(); ctx.stroke();
+  } else {
+    ctx.fillStyle = roofCol; poly([r.Nt, r.Et, r.St, r.Wt]);                 // kleines Haus: volle Dachfläche
+    ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);
+    for (let t = 0.25; t < 1; t += 0.25) { const a = lerp(r.Wt, r.Nt, t), b = lerp(r.St, r.Et, t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  }
+  ctx.strokeStyle = 'rgba(30,20,12,.25)'; ctx.lineWidth = 1;                  // Dach-Außenkante
   ctx.beginPath(); ctx.moveTo(r.Nt.x, r.Nt.y); ctx.lineTo(r.Et.x, r.Et.y); ctx.lineTo(r.St.x, r.St.y); ctx.lineTo(r.Wt.x, r.Wt.y); ctx.closePath(); ctx.stroke();
 
   return { cx: c.cx, topY: r.Nt.y };
