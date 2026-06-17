@@ -76,9 +76,12 @@ function tick(){
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.pottery.every&&(c.cer||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.spawn=0;c.cer--;spawnCarrier(fp,'cer','#3f9c8a');} else {c.spawn=BUILD.pottery.every;} } }
-    if(c.type==='grainfield'){ c.spawn=(c.spawn||0)+1;
-      if(c.spawn>=BUILD.grainfield.every){ const fp=findPath(x,y,'mill');
-        if(fp){c.spawn=0;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.grainfield.every;} } }
+    if(c.type==='grainfield'){
+      c.conv=(c.conv||0)+1;                                       // wächst auch ohne Straßenanschluss
+      if(c.conv>=BUILD.grainfield.every&&(c.grain||0)<8){c.conv=0;c.grain=(c.grain||0)+1;}
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.grainfield.every&&(c.grain||0)>0){ const fp=findPath(x,y,'mill');
+        if(fp){c.spawn=0;c.grain--;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.grainfield.every;} } }
     if(c.type==='mill'){
       c.conv=(c.conv||0)+1;
       if(c.conv>=8&&(c.grain||0)>0&&(c.bread||0)<8){c.conv=0;c.grain--;c.bread=(c.bread||0)+1;}
