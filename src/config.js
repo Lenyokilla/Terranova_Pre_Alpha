@@ -30,6 +30,8 @@ const GOAL_POP=60;          // Ziel: so viele Einwohner
 const LOSE_MONEY=-60;       // darunter = Bankrott
 const MONTH=24;             // Ticks pro Unterhalts-Abrechnung
 const IMMIG_EVERY=8;        // Tick-Intervall für Zuwanderer-Versuch
+const SEASON_LEN=80;        // Ticks pro Wachstums-Saison (synchron für ALLE Felder)
+const HARVEST_TICK=70;      // Zeitpunkt im Zyklus, an dem geerntet wird (Speicher füllt sich)
 
 // 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
 const H3D=[
