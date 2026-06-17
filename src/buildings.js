@@ -410,6 +410,54 @@ function drawInsula(gx, gy, lvl, baseLift) {
   return { cx: c.cx, topY: r.Nt.y };
 }
 
+function drawFirehouse(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#c2bbab', roof = '#9c3f2c';
+  const c = isoCorners(gx, gy, baseLift, 20);
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
+  wallPatch(c.W, c.S, c.Wt, c.St, 0.38, 0.62, 0.05, 0.62, '#7a2e1e');     // rotes Tor
+  wallPatch(c.S, c.E, c.St, c.Et, 0.2, 0.4, 0.45, 0.7, '#2b231c');        // Fenster
+  const r = isoCorners(gx, gy, baseLift, 24);
+  ctx.fillStyle = shade(roof, -0.2); poly([c.Wt, c.St, r.St, r.Wt]);
+  ctx.fillStyle = shade(roof, -0.34); poly([c.St, c.Et, r.Et, r.St]);
+  ctx.fillStyle = roof; poly([r.Nt, r.Et, r.St, r.Wt]);
+  const c2 = { x: r.cx, y: r.cy };                                        // Wasserbottich (Löschwasser)
+  ctx.fillStyle = '#6f5535'; ctx.beginPath(); ctx.ellipse(c2.x, c2.y - 1 * s, 7 * s, 4 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3f7d9c'; ctx.beginPath(); ctx.ellipse(c2.x, c2.y - 2.4 * s, 5.4 * s, 3 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.beginPath(); ctx.ellipse(c2.x - 1.5 * s, c2.y - 3 * s, 1.8 * s, 1 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5a3d22'; ctx.fillRect(r.Et.x - 3 * s, r.Et.y - 2 * s, 3 * s, 3 * s);  // Eimer
+  return { cx: c.cx, topY: r.Nt.y };
+}
+function drawEngineer(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#cabd9b', roof = '#7a5a36';
+  const c = isoCorners(gx, gy, baseLift, 18);
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
+  wallPatch(c.W, c.S, c.Wt, c.St, 0.4, 0.6, 0.05, 0.6, '#3a2f24');        // Tür
+  const r = isoCorners(gx, gy, baseLift, 22);
+  ctx.fillStyle = shade(roof, -0.2); poly([c.Wt, c.St, r.St, r.Wt]);
+  ctx.fillStyle = shade(roof, -0.34); poly([c.St, c.Et, r.Et, r.St]);
+  ctx.fillStyle = roof; poly([r.Nt, r.Et, r.St, r.Wt]);
+  // Holzgerüst an der SE-Wand
+  ctx.strokeStyle = '#9c7842'; ctx.lineWidth = Math.max(1.4, 1.8 * s); ctx.lineCap = 'round';
+  const p0 = lerp(c.S, c.E, 0.25), p1 = lerp(c.S, c.E, 0.85);
+  const u0 = lerp(c.St, c.Et, 0.25), u1 = lerp(c.St, c.Et, 0.85);
+  ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(u0.x, u0.y - 4 * s); ctx.stroke();   // Pfosten
+  ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(u1.x, u1.y - 4 * s); ctx.stroke();
+  for (const v of [0.4, 0.75]) { const a = lerp(p0, u0, v), b = lerp(p1, u1, v); ctx.beginPath(); ctx.moveTo(a.x, a.y - 2 * s); ctx.lineTo(b.x, b.y - 2 * s); ctx.stroke(); }  // Querstreben
+  ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(u1.x, u1.y - 6 * s); ctx.stroke();   // Diagonale
+  ctx.lineCap = 'butt';
+  // Winkel-Schild über der Tür
+  ctx.strokeStyle = '#d8c9a0'; ctx.lineWidth = Math.max(1.4, 1.6 * s);
+  const sg = lerp(r.Wt, r.St, 0.5);
+  ctx.beginPath(); ctx.moveTo(sg.x - 3 * s, sg.y - 5 * s); ctx.lineTo(sg.x - 3 * s, sg.y - 10 * s); ctx.lineTo(sg.x + 3 * s, sg.y - 10 * s); ctx.stroke();
+  return { cx: c.cx, topY: r.Nt.y };
+}
+
 function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'house') return drawInsula(gx, gy, lvl, baseLift);
   if (kind === 'forum') return drawForum(gx, gy, baseLift);
@@ -417,6 +465,8 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'pottery') return drawPottery(gx, gy, baseLift);
   if (kind === 'well') return drawWell(gx, gy, baseLift);
   if (kind === 'market') return drawMarket(gx, gy, baseLift);
+  if (kind === 'firehouse') return drawFirehouse(gx, gy, baseLift);
+  if (kind === 'engineer') return drawEngineer(gx, gy, baseLift);
   if (kind === 'grainfield') return drawGrainfield(gx, gy, baseLift);
   if (kind === 'mill') return drawMill(gx, gy, baseLift);
   
