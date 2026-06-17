@@ -327,25 +327,78 @@ function drawInsula(gx, gy, lvl, baseLift) {
   ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
   ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
 
-  // Putzwände mit Verlauf (Licht oben-links)
-  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
-  gSW.addColorStop(0, shade(wallCol, 0.06)); gSW.addColorStop(1, shade(wallCol, -0.12));
-  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
-  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
-  gSE.addColorStop(0, shade(wallCol, -0.20)); gSE.addColorStop(1, shade(wallCol, -0.36));
-  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
-
-  // Putzstruktur (dezentes Noise)
+  // Putzstruktur (dezentes Noise) - Wird früh gezeichnet, damit Wände und Details drüberliegen
   ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.fillStyle = 'rgba(255,255,255,0.06)';
   for (let i = 0; i < 12; i++) ctx.fillRect(c.bx + (Math.random() - 0.5) * 30 * s, c.by - Math.random() * h * s, 1.1 * s, 1.1 * s);
   ctx.restore();
 
-  // Fensterreihen je Stockwerk (+ Tür im Erdgeschoss)
-  const winSW = '#2c2620', winSE = '#221d18', sill = 'rgba(255,255,255,.12)';
+  // Geschoss-Gesims Linien (Basis-Rasterung der Stockwerke vorziehen)
+  for (let f = 1; f < floors; f++) {
+    const b0 = f / floors;
+    const swA = lerp(c.W, c.Wt, b0), swB = lerp(c.S, c.St, b0), seB = lerp(c.E, c.Et, b0);
+    ctx.strokeStyle = 'rgba(40,28,14,.16)'; ctx.lineWidth = Math.max(1, 1 * s);
+    ctx.beginPath(); ctx.moveTo(swA.x, swA.y); ctx.lineTo(swB.x, swB.y); ctx.lineTo(seB.x, seB.y); ctx.stroke();
+  }
+
+  // --- RENDERING DES DACHES & INNENHOFS (Hintergrund-Ebenen zuerst) ---
+  const r = isoCorners(gx, gy, baseLift, h + 4);
+
+  if (floors >= 2) {
+    // Dach als Rahmen mit offenem Atrium (Innenhof) in der Mitte
+    const k = 0.42, ctr = { x: r.cx, y: r.cy };
+    const ins = p => ({ x: p.x + (ctr.x - p.x) * k, y: p.y + (ctr.y - p.y) * k });
+    const iN = ins(r.Nt), iE = ins(r.Et), iS = ins(r.St), iW = ins(r.Wt);
+    
+    // Vertiefter Innenhof
+    const drop = 9 * s;
+    const fN = { x: iN.x, y: iN.y + drop }, fE = { x: iE.x, y: iE.y + drop }, fS = { x: iS.x, y: iS.y + drop }, fW = { x: iW.x, y: iW.y + drop };
+    ctx.fillStyle = shade(wallCol, -0.30); poly([iN, iE, fE, fN]);   // NE-Innenwand (sichtbar im Loch)
+    ctx.fillStyle = shade(wallCol, -0.44); poly([iN, iW, fW, fN]);   // NW-Innenwand (sichtbar im Loch)
+    ctx.fillStyle = '#cabfa4'; poly([fN, fE, fS, fW]);              // Hofboden (Stein)
+    
+    // Impluvium (Wasserbecken) mittig
+    const c2 = { x: (fN.x + fS.x) / 2, y: (fN.y + fS.y) / 2 }, bs = 0.5;
+    const bi = p => ({ x: c2.x + (p.x - c2.x) * bs, y: c2.y + (p.y - c2.y) * bs });
+    ctx.fillStyle = '#9aa890'; poly([bi(fN), bi(fE), bi(fS), bi(fW)]);           // Beckenrand
+    const bs2 = 0.32, bi2 = p => ({ x: c2.x + (p.x - c2.x) * bs2, y: c2.y + (p.y - c2.y) * bs2 });
+    ctx.fillStyle = '#3f7d9c'; poly([bi2(fN), bi2(fE), bi2(fS), bi2(fW)]);       // Wasser
+    
+    // Schattenfuge an der Atrium-Oberkante
+    ctx.strokeStyle = 'rgba(20,14,8,.35)'; ctx.lineWidth = Math.max(1, 1 * s);
+    ctx.beginPath(); ctx.moveTo(iN.x, iN.y); ctx.lineTo(iE.x, iE.y); ctx.lineTo(iS.x, iS.y); ctx.lineTo(iW.x, iW.y); ctx.closePath(); ctx.stroke();
+
+    // Dachrahmen selbst (4 Trapeze, die nach innen führen)
+    ctx.fillStyle = roofCol;
+    poly([r.Nt, r.Et, iE, iN]); poly([r.Et, r.St, iS, iE]); poly([r.St, r.Wt, iW, iS]); poly([r.Wt, r.Nt, iN, iW]);
+    
+    // Dezente Ziegelreihen-Andeutung auf dem Rahmen
+    ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);
+    for (const [A, B] of [[r.Nt, r.Et], [r.Et, r.St], [r.St, r.Wt], [r.Wt, r.Nt]]) {
+      const a = lerp(A, ins(A), 0.5), b = lerp(B, ins(B), 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = roofCol; poly([r.Nt, r.Et, r.St, r.Wt]);                 // kleines Haus: volle Dachfläche
+    ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);
+    for (let t = 0.25; t < 1; t += 0.25) { const a = lerp(r.Wt, r.Nt, t), b = lerp(r.St, r.Et, t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  }
+
+  // --- RENDERING DER VORDERWÄNDE (Überdecken jetzt das Atrium sauber nach vorne hin!) ---
+  // SW-Wand (Hellere Seite mit vertikalem Helligkeitsverlauf)
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wallCol, 0.06)); gSW.addColorStop(1, shade(wallCol, -0.12));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+
+  // SE-Wand (Schattenseite mit tieferem Verlauf)
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wallCol, -0.20)); gSE.addColorStop(1, shade(wallCol, -0.36));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+
+  // Fensterreihen und Türen auf die Außenwände aufbringen
+  const winSW = '#2c2620', winSE = '#221d18';
   for (let f = 0; f < floors; f++) {
-    const b0 = f / floors, bh = 1 / floors, v0 = b0 + 0.20 * bh, v1 = b0 + 0.70 * bh;
+    const bh = 1 / floors, v0 = (f / floors) + 0.20 * bh, v1 = (f / floors) + 0.70 * bh;
     if (f === 0) {                                    // Erdgeschoss: Tür + Fenster (SW)
-      wallPatch(c.W, c.S, c.Wt, c.St, 0.40, 0.60, b0 + 0.04 * bh, b0 + 0.82 * bh, winSW); // Tür
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.40, 0.60, (f / floors) + 0.04 * bh, (f / floors) + 0.82 * bh, winSW); // Tür
       wallPatch(c.W, c.S, c.Wt, c.St, 0.70, 0.86, v0, v1, winSW);
     } else {
       wallPatch(c.W, c.S, c.Wt, c.St, 0.16, 0.34, v0, v1, winSW);
@@ -355,56 +408,23 @@ function drawInsula(gx, gy, lvl, baseLift) {
     wallPatch(c.S, c.E, c.St, c.Et, 0.18, 0.36, v0, v1, winSE);   // SE-Wand
     wallPatch(c.S, c.E, c.St, c.Et, 0.50, 0.68, v0, v1, winSE);
     wallPatch(c.S, c.E, c.St, c.Et, 0.78, 0.92, v0, v1, winSE);
-    if (f > 0) {                                      // Geschoss-Gesims (gerade Linie)
-      const swA = lerp(c.W, c.Wt, b0), swB = lerp(c.S, c.St, b0), seB = lerp(c.E, c.Et, b0);
-      ctx.strokeStyle = 'rgba(40,28,14,.16)'; ctx.lineWidth = Math.max(1, 1 * s);
-      ctx.beginPath(); ctx.moveTo(swA.x, swA.y); ctx.lineTo(swB.x, swB.y); ctx.lineTo(seB.x, seB.y); ctx.stroke();
-    }
   }
-  // senkrechte Eckkante (Tiefe)
+
+  // --- TIEFENKANTEN UND FINISHING ---
+  // FLACHES Terrakottadach (Aufkantung an den vorderen Sichtkanten)
+  ctx.fillStyle = shade(roofCol, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);   // Aufkantung SW
+  ctx.fillStyle = shade(roofCol, -0.32); poly([c.St, c.Et, r.Et, r.St]);   // Aufkantung SE
+
+  // senkrechte Eckkante (Tiefe der Gebäudefront)
   ctx.strokeStyle = 'rgba(40,25,10,.22)'; ctx.lineWidth = 1.4 * s;
   ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
+  
   // Kranzgesims oben
   ctx.strokeStyle = 'rgba(30,20,12,.30)'; ctx.lineWidth = Math.max(1.5, 2 * s);
   ctx.beginPath(); ctx.moveTo(c.Wt.x, c.Wt.y); ctx.lineTo(c.St.x, c.St.y); ctx.lineTo(c.Et.x, c.Et.y); ctx.stroke();
 
-  // FLACHES Terrakottadach (geringe Aufkantung) — kein Spitzdach, keine Wellenlinien
-  const r = isoCorners(gx, gy, baseLift, h + 4);
-  ctx.fillStyle = shade(roofCol, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);   // Aufkantung SW
-  ctx.fillStyle = shade(roofCol, -0.32); poly([c.St, c.Et, r.Et, r.St]);   // Aufkantung SE
-
-  if (floors >= 2) {
-    // Dach als Rahmen mit offenem Atrium (Innenhof) in der Mitte
-    const k = 0.42, ctr = { x: r.cx, y: r.cy };
-    const ins = p => ({ x: p.x + (ctr.x - p.x) * k, y: p.y + (ctr.y - p.y) * k });
-    const iN = ins(r.Nt), iE = ins(r.Et), iS = ins(r.St), iW = ins(r.Wt);
-    ctx.fillStyle = roofCol;                                  // Dachrahmen (4 Trapeze)
-    poly([r.Nt, r.Et, iE, iN]); poly([r.Et, r.St, iS, iE]); poly([r.St, r.Wt, iW, iS]); poly([r.Wt, r.Nt, iN, iW]);
-    ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);   // dezente Ziegelreihe
-    for (const [A, B] of [[r.Nt, r.Et], [r.Et, r.St], [r.St, r.Wt], [r.Wt, r.Nt]]) {
-      const a = lerp(A, ins(A), 0.5), b = lerp(B, ins(B), 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    // vertiefter Innenhof
-    const drop = 9 * s;
-    const fN = { x: iN.x, y: iN.y + drop }, fE = { x: iE.x, y: iE.y + drop }, fS = { x: iS.x, y: iS.y + drop }, fW = { x: iW.x, y: iW.y + drop };
-    ctx.fillStyle = shade(wallCol, -0.30); poly([iN, iE, fE, fN]);   // NE-Innenwand (sichtbar)
-    ctx.fillStyle = shade(wallCol, -0.44); poly([iN, iW, fW, fN]);   // NW-Innenwand (sichtbar)
-    ctx.fillStyle = '#cabfa4'; poly([fN, fE, fS, fW]);              // Hofboden (Stein)
-    // Impluvium (Wasserbecken) mittig
-    const c2 = { x: (fN.x + fS.x) / 2, y: (fN.y + fS.y) / 2 }, bs = 0.5;
-    const bi = p => ({ x: c2.x + (p.x - c2.x) * bs, y: c2.y + (p.y - c2.y) * bs });
-    ctx.fillStyle = '#9aa890'; poly([bi(fN), bi(fE), bi(fS), bi(fW)]);           // Beckenrand
-    const bs2 = 0.32, bi2 = p => ({ x: c2.x + (p.x - c2.x) * bs2, y: c2.y + (p.y - c2.y) * bs2 });
-    ctx.fillStyle = '#3f7d9c'; poly([bi2(fN), bi2(fE), bi2(fS), bi2(fW)]);       // Wasser
-    // Schattenfuge an der Atrium-Oberkante
-    ctx.strokeStyle = 'rgba(20,14,8,.35)'; ctx.lineWidth = Math.max(1, 1 * s);
-    ctx.beginPath(); ctx.moveTo(iN.x, iN.y); ctx.lineTo(iE.x, iE.y); ctx.lineTo(iS.x, iS.y); ctx.lineTo(iW.x, iW.y); ctx.closePath(); ctx.stroke();
-  } else {
-    ctx.fillStyle = roofCol; poly([r.Nt, r.Et, r.St, r.Wt]);                 // kleines Haus: volle Dachfläche
-    ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);
-    for (let t = 0.25; t < 1; t += 0.25) { const a = lerp(r.Wt, r.Nt, t), b = lerp(r.St, r.Et, t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-  }
-  ctx.strokeStyle = 'rgba(30,20,12,.25)'; ctx.lineWidth = 1;                  // Dach-Außenkante
+  // Dach-Außenkante Konturlinie
+  ctx.strokeStyle = 'rgba(30,20,12,.25)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(r.Nt.x, r.Nt.y); ctx.lineTo(r.Et.x, r.Et.y); ctx.lineTo(r.St.x, r.St.y); ctx.lineTo(r.Wt.x, r.Wt.y); ctx.closePath(); ctx.stroke();
 
   return { cx: c.cx, topY: r.Nt.y };
@@ -430,6 +450,7 @@ function drawFirehouse(gx, gy, baseLift) {
   ctx.fillStyle = '#5a3d22'; ctx.fillRect(r.Et.x - 3 * s, r.Et.y - 2 * s, 3 * s, 3 * s);  // Eimer
   return { cx: c.cx, topY: r.Nt.y };
 }
+
 function drawEngineer(gx, gy, baseLift) {
   const s = cam.scale, wall = '#cabd9b', roof = '#7a5a36';
   const c = isoCorners(gx, gy, baseLift, 18);
@@ -474,7 +495,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   const s = cam.scale;
   let wallColor, roofColor, h, roofH, tiled = true, windows = false;
 
-  // Farbpaletten & Dimensionen für die Evolution
+  // Farbpaletten & Dimensionen für die Evolution (Fallback-Zweige für drawBuilding direkt)
   if (kind === 'house') {
     if (lvl === 0) { wallColor = '#b5915f'; roofColor = '#6f5535'; h = 10; roofH = 7; tiled = false; }
     else if (lvl === 1) { wallColor = '#d7c69b'; roofColor = '#b1542d'; h = 16; roofH = 11; windows = true; }
@@ -498,13 +519,13 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   ctx.restore();
 
   // --- TRICK 2: GRADIENTEN STATT FLAT COLORS (Licht von oben-links) ---
-  // SW-Wand (Hellere Seite mit vertikalem Helligkeitsverlauf)
+  // SW-Wand
   const gradSW = ctx.createLinearGradient(c.W.x, c.Wt.y, c.S.x, c.S.y);
   gradSW.addColorStop(0, shade(wallColor, 0.05));
   gradSW.addColorStop(1, shade(wallColor, -0.12));
   ctx.fillStyle = gradSW; poly([c.W, c.S, c.St, c.Wt]);
 
-  // SE-Wand (Schattenseite mit tieferem Verlauf)
+  // SE-Wand
   const gradSE = ctx.createLinearGradient(c.S.x, c.St.y, c.E.x, c.E.y);
   gradSE.addColorStop(0, shade(wallColor, -0.22));
   gradSE.addColorStop(1, shade(wallColor, -0.38));
@@ -514,7 +535,6 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  // Simuliere Putzstruktur durch winzige Punkte im Raster
   for (let i = 0; i < 15; i++) {
     ctx.fillRect(c.bx + (Math.random()-0.5)*30*s, c.by - (Math.random())*h*s, 1.2*s, 1.2*s);
   }
@@ -523,29 +543,24 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   // --- TRICK 4: TIEFE DURCH AMBIENT OCCLUSION (Eckenschattierung) ---
   ctx.strokeStyle = 'rgba(40, 25, 10, 0.25)';
   ctx.lineWidth = 1.5 * s;
-  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke(); // Vertikale Mittelkante
+  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
 
   // Fenster mit leuchtenden Fensterbänken (3D-Effekt)
   if (windows) {
     const drawTier = (vBot, vTop) => {
-      // SW Fenster
       wallPatch(c.W, c.S, c.Wt, c.St, 0.22, 0.42, vBot, vTop, '#1e2530');
       wallPatch(c.W, c.S, c.Wt, c.St, 0.58, 0.78, vBot, vTop, '#1e2530');
-      // Fensterrahmen-Highlight unten
       ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(lerp(c.W,c.S,0.22).x, lerp(c.W,c.St,vBot).y); ctx.lineTo(lerp(c.W,c.S,0.42).x, lerp(c.W,c.St,vBot).y); ctx.stroke();
 
-      // SE Fenster
       wallPatch(c.S, c.E, c.St, c.Et, 0.22, 0.42, vBot, vTop, '#141a21');
       wallPatch(c.S, c.E, c.St, c.Et, 0.58, 0.78, vBot, vTop, '#141a21');
     };
-
-    drawTier(0.15, 0.42); // Erdgeschoss
-    if (lvl >= 2) drawTier(0.55, 0.78); // 1. Stock
-    if (lvl === 3) drawTier(0.84, 0.96); // 2. Stock
+    drawTier(0.15, 0.42);
+    if (lvl >= 2) drawTier(0.55, 0.78);
+    if (lvl === 3) drawTier(0.84, 0.96);
   }
 
-  // Dach mit dimensionalen Kanten
   let topY = hipRoof(c, roofColor, roofH, tiled);
 
   // --- STATUS OVERLAYS ---
@@ -554,9 +569,6 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
     for(let i=0; i<4; i++) { ctx.beginPath(); ctx.arc(c.cx + (Math.sin(i)*4)*s, topY - (i*4)*s, (2+i)*s, 0, 7); ctx.fill(); }
   }
 
-  // ---- DYNAMISCHE STATUS-INDIKATOREN (VISUELLES FEEDBACK OVERLAYS) ----
-  
-  // A. Funken/Rauch bei akuter Brandgefahr
   if (statusEffects.fireRisk && kind === 'house') {
     ctx.fillStyle = 'rgba(230, 90, 40, 0.4)';
     for (let i = 0; i < 3; i++) {
@@ -564,25 +576,22 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
     }
   }
 
-  // B. Fliegen/Dunstwolke bei Seuchengefahr
   if (statusEffects.plagueRisk && kind === 'house') {
-    ctx.fillStyle = 'rgba(80, 110, 60, 0.25)'; // Grünlich-brauner Dunst über dem Dach
+    ctx.fillStyle = 'rgba(80, 110, 60, 0.25)';
     ctx.beginPath(); ctx.arc(c.cx, topY - 5 * s, 12 * s, 0, 7); ctx.fill();
   }
 
-  // C. Durstige Bürger-Icons / Partikel bei Wassermangel
   if (statusEffects.waterShortage && kind === 'house') {
-    ctx.fillStyle = '#4fa3e3'; // Blaue "Wassertropfen"-Partikel
+    ctx.fillStyle = '#4fa3e3';
     ctx.beginPath(); ctx.arc(c.cx - 8 * s, topY - 12 * s, 1.5 * s, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.arc(c.cx - 6 * s, topY - 15 * s, 1.2 * s, 0, 7); ctx.fill();
   }
 
-  // D. Herumsitzende Figuren bei Arbeitslosigkeit
   if (statusEffects.unemployed && kind === 'house') {
-    ctx.fillStyle = '#8a7663'; // Kleine "Toga"-Punkte am Boden (Stufen/Eingang)
+    ctx.fillStyle = '#8a7663';
     ctx.beginPath(); ctx.arc(c.S.x - 3 * s, c.S.y - 1 * s, 2 * s, 0, 7); ctx.fill();
     ctx.fillStyle = '#b0a090';
-    ctx.fillRect(c.S.x - 4.5 * s, c.S.y, 3 * s, 4 * s); // Körper der sitzenden Person
+    ctx.fillRect(c.S.x - 4.5 * s, c.S.y, 3 * s, 4 * s);
   }
 
   return { cx: c.cx, topY };
