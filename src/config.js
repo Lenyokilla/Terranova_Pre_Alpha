@@ -14,13 +14,15 @@ const BUILD={
   well:    {label:'Brunnen',  glyph:'💧', cost:30, service:'water', every:13, up:1},
   market:  {label:'Markt',    glyph:'🧺', cost:55, service:'market', every:15, up:2},
   forum:   {label:'Forum',    glyph:'🏛️', cost:80, service:'tax',   every:18, up:3},
+  firehouse:{label:'Feuerwache',glyph:'🧯', cost:45, service:'fire', every:16, up:2},
+  engineer: {label:'Bauingenieur',glyph:'🛠', cost:50, service:'eng', every:18, up:2},
   claypit: {label:'Lehmgrube',glyph:'🕳️', cost:35, every:14, up:2},
   pottery: {label:'Töpferei', glyph:'🏺', cost:60, every:11, up:2},
   grainfield:{label:'Getreidefeld',glyph:'🌾', cost:30, every:14, up:1},
   mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2},
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['road','house','well','market','forum','claypit','pottery','grainfield','mill','raze'];
+const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','mill','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5}];
 const SERVICE_LIFE=55;
@@ -32,6 +34,10 @@ const MONTH=24;             // Ticks pro Unterhalts-Abrechnung
 const IMMIG_EVERY=8;        // Tick-Intervall für Zuwanderer-Versuch
 const SEASON_LEN=80;        // Ticks pro Wachstums-Saison (synchron für ALLE Felder)
 const HARVEST_TICK=70;      // Zeitpunkt im Zyklus, an dem geerntet wird (Speicher füllt sich)
+// ---- Gefahren (Brand / Einsturz) ----
+const RISK_GRACE=40;        // Ticks ohne Abdeckung, bis Gefahr sichtbar wird
+const FIRE_CHANCE=0.005;    // Wahrscheinlichkeit/Tick für Brand bei bestehender Gefahr
+const COLLAPSE_CHANCE=0.0035;// Wahrscheinlichkeit/Tick für Einsturz bei bestehender Gefahr
 
 // 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
 const H3D=[
@@ -43,6 +49,8 @@ const B3D={
   well:  {top:'#4f93b0',left:'#2f6580',right:'#3f7c98',h:18,glyph:'💧', wcol:'#3a7d9c'},
   market:{top:'#c46a40',left:'#8f4526',right:'#ad5733',h:20,glyph:'🧺', wcol:'#b1542d'},
   forum: {top:'#d8b84a',left:'#a98a2c',right:'#c2a23b',h:30,glyph:'🏛️', wcol:'#c9a227'},
+  firehouse:{wcol:'#c0533a'},   // Feuerwehr-Läufer (rot)
+  engineer:{wcol:'#5b7da8'},    // Bauingenieur-Läufer (blau)
   claypit:{wcol:'#a9713f'},   // Lehm-Träger
   pottery:{wcol:'#3f9c8a'},   // Keramik-Träger
   grainfield:{wcol:'#d9b44a'},// Getreide-Träger
