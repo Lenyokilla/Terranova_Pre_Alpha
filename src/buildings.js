@@ -25,7 +25,7 @@ function wallPatch(Pb0, Pb1, Pt0, Pt1, u0, u1, v0, v1, col) {
   ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.lineTo(D.x, D.y); ctx.closePath(); ctx.fill();
 }
 
-// Gewellte Linie mit gleichmäßiger Wellenlänge (sanft, nicht zackig)
+// gewellte Linie mit gleichmäßiger Wellenlänge (sanft, nicht zackig)
 function wavyLine(a, b, amp, col) {
   const len = Math.hypot(b.x - a.x, b.y - a.y); if (len < 5) return;
   const cycles = Math.max(1, Math.round(len / (14 * cam.scale)));
@@ -60,48 +60,6 @@ function hipRoof(c, color, roofH, tiled) {
   return apex.y;
 }
 
-// Hilfsfunktion zur Erzeugung der neuen 3D-Gradientenwände
-function drawGradWalls(c, wallColor, h) {
-  const s = cam.scale;
-  // SW-Wand (Hellere Seite mit vertikalem Helligkeitsverlauf)
-  const gradSW = ctx.createLinearGradient(c.W.x, c.Wt.y, c.S.x, c.S.y);
-  gradSW.addColorStop(0, shade(wallColor, 0.05));
-  gradSW.addColorStop(1, shade(wallColor, -0.12));
-  ctx.fillStyle = gradSW; poly([c.W, c.S, c.St, c.Wt]);
-
-  // SE-Wand (Schattenseite mit tieferem Verlauf)
-  const gradSE = ctx.createLinearGradient(c.S.x, c.St.y, c.E.x, c.E.y);
-  gradSE.addColorStop(0, shade(wallColor, -0.22));
-  gradSE.addColorStop(1, shade(wallColor, -0.38));
-  ctx.fillStyle = gradSE; poly([c.S, c.E, c.Et, c.St]);
-
-  // Prozedurale Textur (Noise Overlay)
-  ctx.save();
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  for (let i = 0; i < 15; i++) {
-    ctx.fillRect(c.bx + (Math.random() - 0.5) * 30 * s, c.by - (Math.random()) * h * s, 1.2 * s, 1.2 * s);
-  }
-  ctx.restore();
-
-  // Ambient Occlusion Mittelkante
-  ctx.strokeStyle = 'rgba(40, 25, 10, 0.25)';
-  ctx.lineWidth = 1.5 * s;
-  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
-}
-
-// Hilfsfunktion für den atmosphärischen Soft-Schatten
-function drawSoftShadow(c) {
-  ctx.save();
-  ctx.shadowColor = 'rgba(25, 15, 5, 0.25)';
-  ctx.shadowBlur = 8 * cam.scale;
-  ctx.shadowOffsetX = 12 * cam.scale;
-  ctx.shadowOffsetY = 6 * cam.scale;
-  ctx.fillStyle = 'rgba(0,0,0,0.01)'; // Unsichtbarer Körper wirft echten Weichzeichner-Schatten
-  poly([c.W, c.S, c.E, c.N]);
-  ctx.restore();
-}
-
 // Eine Tempelsäule (senkrechter Schaft mit Kapitell, Basis, Kanneluren)
 function column(base, hpx) {
   const s = cam.scale, w = 4.6 * s, ch = hpx * s, x = base.x, topY = base.y - ch;
@@ -118,32 +76,29 @@ function drawForum(gx, gy, baseLift) {
   const s = cam.scale, stone = '#e7ddc6', marble = '#efe7d4';
   const hBase = 6, colH = 18, entH = 4, roofH = 12;
   const b0 = isoCorners(gx, gy, baseLift, 0), b1 = isoCorners(gx, gy, baseLift, hBase);
-  
-  // Neuer atmosphärischer Soft-Schatten anstelle des harten Kreises
-  drawSoftShadow(b0);
-
-  // Stufenpodest mit verbesserten Gradienten-Wänden
-  drawGradWalls(b0, stone, hBase);
-  
+  // Schatten
+  ctx.save(); ctx.translate(b0.bx + 7 * s, b0.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.44 * s, 0, 7); ctx.fill(); ctx.restore();
+  // Stufenpodest
+  ctx.fillStyle = shade(stone, -0.10); poly([b0.W, b0.S, b1.St, b1.Wt]);
+  ctx.fillStyle = shade(stone, -0.26); poly([b0.S, b0.E, b1.Et, b1.St]);
+  ctx.strokeStyle = 'rgba(60,46,26,.30)'; ctx.lineWidth = 1;                       // Stufenkante
+  ctx.beginPath(); ctx.moveTo(b0.W.x, (b0.W.y + b1.Wt.y) / 2); ctx.lineTo(b0.S.x, (b0.S.y + b1.St.y) / 2); ctx.lineTo(b0.E.x, (b0.E.y + b1.Et.y) / 2); ctx.stroke();
   ctx.fillStyle = stone; poly([b1.Nt, b1.Et, b1.St, b1.Wt]);                       // Stylobat-Oberfläche
-  
   // Säulen entlang der beiden vorderen Kanten (SW: Wt->St, SE: St->Et)
   const us = [0.16, 0.5, 0.84];
   for (const u of us) column(lerp(b1.Wt, b1.St, u), colH);                        // SW
   for (let i = us.length - 1; i >= 0; i--) column(lerp(b1.St, b1.Et, us[i]), colH);       // SE (hinten zuerst)
   column(b1.St, colH);                                                         // Ecksäule vorne
-  
   // Gebälk auf den Säulen
   const e2 = isoCorners(gx, gy, baseLift, hBase + colH), e3 = isoCorners(gx, gy, baseLift, hBase + colH + entH);
   ctx.fillStyle = shade(stone, -0.04); poly([e2.Wt, e2.St, e3.St, e3.Wt]);
   ctx.fillStyle = shade(stone, -0.20); poly([e2.St, e2.Et, e3.Et, e3.St]);
-  
   // Dach + Giebel (Tympanon)
   const apex = { x: (e3.Nt.x + e3.Et.x + e3.St.x + e3.Wt.x) / 4, y: (e3.Nt.y + e3.Et.y + e3.St.y + e3.Wt.y) / 4 - roofH * s };
   ctx.fillStyle = shade(marble, -0.30); poly([e3.Nt, e3.Wt, apex]); poly([e3.Nt, e3.Et, apex]);
   ctx.fillStyle = shade(marble, 0.06); poly([e3.Wt, e3.St, apex]);                // SW Giebelfläche
   ctx.fillStyle = shade(marble, -0.10); poly([e3.St, e3.Et, apex]);               // SE Giebelfläche
-  
   // Tympanon-Vertiefung vorne (SE) + Gesims
   const ctr = { x: (e3.St.x + e3.Et.x + apex.x) / 3, y: (e3.St.y + e3.Et.y + apex.y) / 3 };
   const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.62, y: ctr.y + (p.y - ctr.y) * 0.62 });
@@ -168,15 +123,13 @@ function canopyRoof(c, color, roofH) {            // flaches überstehendes Vord
 function drawClaypit(gx, gy, baseLift) {
   const s = cam.scale, rim = '#9c7b4e';
   const g0 = isoCorners(gx, gy, baseLift, 0), gr = isoCorners(gx, gy, baseLift, 3);
-  
-  drawSoftShadow(g0);
-  drawGradWalls(g0, rim, 3);
-
+  ctx.fillStyle = shade(rim, -0.10); poly([g0.W, g0.S, gr.St, gr.Wt]);              // Randwall SW
+  ctx.fillStyle = shade(rim, -0.26); poly([g0.S, g0.E, gr.Et, gr.St]);              // Randwall SE
   ctx.fillStyle = rim; poly([gr.Nt, gr.Et, gr.St, gr.Wt]);                          // Rand-Oberfläche
   const ctr = { x: (gr.Nt.x + gr.St.x) / 2, y: (gr.Nt.y + gr.St.y) / 2 + 2 * s };               // eingelassene Grube
   const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.62, y: ctr.y + (p.y - ctr.y) * 0.62 + 2 * s });
   ctx.fillStyle = '#6f5433'; poly([I(gr.Nt), I(gr.Et), I(gr.St), I(gr.Wt)]);
-  ctx.fillStyle = '#a9713f';                                                                    // Lehmhaufen
+  ctx.fillStyle = '#a9713f';                                                     // Lehmhaufen
   for (const [dx, dy] of [[-4, 1], [5, 2], [1, -3]]) {
     ctx.beginPath(); ctx.ellipse(ctr.x + dx * s, ctr.y + dy * s, 3.4 * s, 2 * s, 0, 0, 7); ctx.fill();
   }
@@ -186,10 +139,10 @@ function drawClaypit(gx, gy, baseLift) {
 function drawPottery(gx, gy, baseLift) {
   const s = cam.scale, wall = '#caa46e', roof = '#7a4a2c';
   const c = isoCorners(gx, gy, baseLift, 13);
-  
-  drawSoftShadow(c);
-  drawGradWalls(c, wall, 13);
-
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
   const kb = lerp(c.S, c.E, 0.5), kt = lerp(c.St, c.Et, 0.5);                          // Brennofen-Kuppel (SE)
   const kx = (kb.x + kt.x) / 2, ky = (kb.y + kt.y) / 2 + 1 * s;
   ctx.fillStyle = '#8a5230'; ctx.beginPath(); ctx.arc(kx, ky, 5.5 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
@@ -205,21 +158,13 @@ function drawWell(gx, gy, baseLift) {
   const c = isoCorners(gx, gy, baseLift, 0);
   const ctr = { x: c.bx, y: c.by };
   const I  = p => ({ x: ctr.x + (p.x - ctr.x) * 0.52, y: ctr.y + (p.y - ctr.y) * 0.52 });   // kleiner als die Kachel
-  const Ih = p => ({ x: I(p).x, y: I(p).y - 7 * s });                                       // Oberkante der Brunnenmauer
-  
-  drawSoftShadow(c);
-
-  // Brunnenmauer (zwei sichtbare Seiten) mit 3D-Verläufen
-  const wallGradSW = ctx.createLinearGradient(I(c.W).x, Ih(c.W).y, I(c.S).x, I(c.S).y);
-  wallGradSW.addColorStop(0, shade(stone, -0.04));
-  wallGradSW.addColorStop(1, shade(stone, -0.12));
-  ctx.fillStyle = wallGradSW; poly([I(c.W), I(c.S), Ih(c.S), Ih(c.W)]);
-
-  const wallGradSE = ctx.createLinearGradient(I(c.S).x, Ih(c.S).y, I(c.E).x, I(c.E).y);
-  wallGradSE.addColorStop(0, shade(stone, -0.22));
-  wallGradSE.addColorStop(1, shade(stone, -0.32));
-  ctx.fillStyle = wallGradSE; poly([I(c.S), I(c.E), Ih(c.E), Ih(c.S)]);
-
+  const Ih = p => ({ x: I(p).x, y: I(p).y - 7 * s });                                        // Oberkante der Brunnenmauer
+  // Schatten
+  ctx.save(); ctx.translate(c.bx + 6 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.3 * s, 0, 7); ctx.fill(); ctx.restore();
+  // Brunnenmauer (zwei sichtbare Seiten)
+  ctx.fillStyle = shade(stone, -0.08); poly([I(c.W), I(c.S), Ih(c.S), Ih(c.W)]);
+  ctx.fillStyle = shade(stone, -0.26); poly([I(c.S), I(c.E), Ih(c.E), Ih(c.S)]);
   // Wasseroberfläche
   ctx.fillStyle = '#3f7d9c'; poly([Ih(c.N), Ih(c.E), Ih(c.S), Ih(c.W)]);
   ctx.fillStyle = 'rgba(255,255,255,.22)';
@@ -235,9 +180,9 @@ function drawWell(gx, gy, baseLift) {
   const mx = (pL.x + pR.x) / 2, my = (pL.y + pR.y) / 2 - postH;
   ctx.beginPath(); ctx.moveTo(pL.x, pL.y - postH); ctx.lineTo(pR.x, pR.y - postH); ctx.stroke();
   ctx.lineCap = 'butt';
-  ctx.fillStyle = '#8a4a2c';                                                                                  // kleines Satteldach
+  ctx.fillStyle = '#8a4a2c';                                                                 // kleines Satteldach
   ctx.beginPath(); ctx.moveTo(pL.x - 3 * s, my); ctx.lineTo(mx, my - 9 * s); ctx.lineTo(pR.x + 3 * s, my); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(60,50,40,.7)'; ctx.lineWidth = 1;                                                   // Seil + Eimer
+  ctx.strokeStyle = 'rgba(60,50,40,.7)'; ctx.lineWidth = 1;                                   // Seil + Eimer
   ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx, my + 7 * s); ctx.stroke();
   ctx.fillStyle = '#7a5230'; ctx.fillRect(mx - 2.4 * s, my + 7 * s, 4.8 * s, 4 * s);
   return { cx: c.cx, topY: my - 9 * s };
@@ -246,10 +191,12 @@ function drawWell(gx, gy, baseLift) {
 function drawMarket(gx, gy, baseLift) {
   const s = cam.scale, wall = '#cdb78c';
   const c = isoCorners(gx, gy, baseLift, 9);
-  
-  drawSoftShadow(c);
-  drawGradWalls(c, wall, 9);
-
+  // Schatten
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  // niedriger Verkaufsstand (zwei Wände + Theke)
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
   ctx.fillStyle = shade(wall, 0.05);  poly([c.Nt, c.Et, c.St, c.Wt]);     // Theke (Oberseite)
   ctx.strokeStyle = 'rgba(40,30,16,.30)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
@@ -273,7 +220,7 @@ function drawGrainfield(gx, gy, baseLift) {
   // goldene Beetfläche
   ctx.fillStyle = '#caa53e'; poly([I(c.N), I(c.E), I(c.S), I(c.W)]);
   ctx.strokeStyle = 'rgba(120,95,40,.5)'; ctx.lineWidth = 1;                       // Furchen
-  for (let t = 0; t < 1; t += 0.2) { const a = lerp(I(c.W), I(c.N), t), b = lerp(I(c.S), I(c.E), t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  for (let t = 0.2; t < 1; t += 0.2) { const a = lerp(I(c.W), I(c.N), t), b = lerp(I(c.S), I(c.E), t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
   // Weizenhalme mit Ähren (Windschwung)
   for (let i = 0; i < 14; i++) {
     const u = rng2(gx * 7 + i, gy * 3), v = rng2(gx * 3, gy * 7 + i);
@@ -289,10 +236,10 @@ function drawGrainfield(gx, gy, baseLift) {
 function drawMill(gx, gy, baseLift) {
   const s = cam.scale, wall = '#cfc4ad', roof = '#7a4a2c';
   const c = isoCorners(gx, gy, baseLift, 18);
-  
-  drawSoftShadow(c);
-  drawGradWalls(c, wall, 18);
-
+  ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
   ctx.strokeStyle = 'rgba(40,30,16,.22)'; ctx.lineWidth = 1;                       // Steinbänder
   for (const v of [0.42, 0.7]) { const a = lerp(c.W, c.Wt, v), b = lerp(c.S, c.St, v), d = lerp(c.E, c.Et, v);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(d.x, d.y); ctx.stroke(); }
@@ -310,7 +257,77 @@ function drawMill(gx, gy, baseLift) {
   return { cx: c.cx, topY };
 }
 
+// Römisches Mietshaus (Insula): hoher Putzbau, Fensterreihen je Stockwerk, flaches Terrakottadach
+function drawInsula(gx, gy, lvl, baseLift) {
+  const s = cam.scale;
+  const L = Math.max(0, Math.min(3, lvl | 0));
+  const floors  = [1, 2, 3, 4][L];
+  const h       = [15, 26, 37, 46][L];
+  const wallCol = ['#b58a5c', '#cbae84', '#dccaa6', '#e6d8b8'][L];
+  const roofCol = '#b15f3a';
+  const c = isoCorners(gx, gy, baseLift, h);
+
+  // weicher Schlagschatten
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+
+  // Putzwände mit Verlauf (Licht oben-links)
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wallCol, 0.06)); gSW.addColorStop(1, shade(wallCol, -0.12));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wallCol, -0.20)); gSE.addColorStop(1, shade(wallCol, -0.36));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+
+  // Putzstruktur (dezentes Noise)
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  for (let i = 0; i < 12; i++) ctx.fillRect(c.bx + (Math.random() - 0.5) * 30 * s, c.by - Math.random() * h * s, 1.1 * s, 1.1 * s);
+  ctx.restore();
+
+  // Fensterreihen je Stockwerk (+ Tür im Erdgeschoss)
+  const winSW = '#2c2620', winSE = '#221d18', sill = 'rgba(255,255,255,.12)';
+  for (let f = 0; f < floors; f++) {
+    const b0 = f / floors, bh = 1 / floors, v0 = b0 + 0.20 * bh, v1 = b0 + 0.70 * bh;
+    if (f === 0) {                                    // Erdgeschoss: Tür + Fenster (SW)
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.40, 0.60, b0 + 0.04 * bh, b0 + 0.82 * bh, winSW); // Tür
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.70, 0.86, v0, v1, winSW);
+    } else {
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.16, 0.34, v0, v1, winSW);
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.46, 0.64, v0, v1, winSW);
+      wallPatch(c.W, c.S, c.Wt, c.St, 0.74, 0.90, v0, v1, winSW);
+    }
+    wallPatch(c.S, c.E, c.St, c.Et, 0.18, 0.36, v0, v1, winSE);   // SE-Wand
+    wallPatch(c.S, c.E, c.St, c.Et, 0.50, 0.68, v0, v1, winSE);
+    wallPatch(c.S, c.E, c.St, c.Et, 0.78, 0.92, v0, v1, winSE);
+    if (f > 0) {                                      // Geschoss-Gesims (gerade Linie)
+      const swA = lerp(c.W, c.Wt, b0), swB = lerp(c.S, c.St, b0), seB = lerp(c.E, c.Et, b0);
+      ctx.strokeStyle = 'rgba(40,28,14,.16)'; ctx.lineWidth = Math.max(1, 1 * s);
+      ctx.beginPath(); ctx.moveTo(swA.x, swA.y); ctx.lineTo(swB.x, swB.y); ctx.lineTo(seB.x, seB.y); ctx.stroke();
+    }
+  }
+  // senkrechte Eckkante (Tiefe)
+  ctx.strokeStyle = 'rgba(40,25,10,.22)'; ctx.lineWidth = 1.4 * s;
+  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
+  // Kranzgesims oben
+  ctx.strokeStyle = 'rgba(30,20,12,.30)'; ctx.lineWidth = Math.max(1.5, 2 * s);
+  ctx.beginPath(); ctx.moveTo(c.Wt.x, c.Wt.y); ctx.lineTo(c.St.x, c.St.y); ctx.lineTo(c.Et.x, c.Et.y); ctx.stroke();
+
+  // FLACHES Terrakottadach (geringe Aufkantung) — kein Spitzdach, keine Wellenlinien
+  const r = isoCorners(gx, gy, baseLift, h + 4);
+  ctx.fillStyle = shade(roofCol, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);   // Aufkantung SW
+  ctx.fillStyle = shade(roofCol, -0.32); poly([c.St, c.Et, r.Et, r.St]);   // Aufkantung SE
+  ctx.fillStyle = roofCol; poly([r.Nt, r.Et, r.St, r.Wt]);                 // Dachfläche
+  ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);   // gerade Ziegelreihen
+  for (let t = 0.25; t < 1; t += 0.25) { const a = lerp(r.Wt, r.Nt, t), b = lerp(r.St, r.Et, t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(30,20,12,.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(r.Nt.x, r.Nt.y); ctx.lineTo(r.Et.x, r.Et.y); ctx.lineTo(r.St.x, r.St.y); ctx.lineTo(r.Wt.x, r.Wt.y); ctx.closePath(); ctx.stroke();
+
+  return { cx: c.cx, topY: r.Nt.y };
+}
+
 function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
+  if (kind === 'house') return drawInsula(gx, gy, lvl, baseLift);
   if (kind === 'forum') return drawForum(gx, gy, baseLift);
   if (kind === 'claypit') return drawClaypit(gx, gy, baseLift);
   if (kind === 'pottery') return drawPottery(gx, gy, baseLift);
@@ -336,9 +353,43 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (statusEffects.plagueRisk) wallColor = shade(wallColor, -0.18);
   const c = isoCorners(gx, gy, baseLift, h);
 
-  // --- TRICKS 1 - 4 INKLUSIVE NOISE & AO ---
-  drawSoftShadow(c);
-  drawGradWalls(c, wallColor, h);
+  // --- TRICK 1: ATMOSPHÄRISCHER SOFT-SCHATTEN (Canvas Filter) ---
+  ctx.save();
+  ctx.shadowColor = 'rgba(25, 15, 5, 0.25)';
+  ctx.shadowBlur = 8 * s;
+  ctx.shadowOffsetX = 12 * s;
+  ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; // Unsichtbarer Körper wirft echten Weichzeichner-Schatten
+  poly([c.W, c.S, c.E, c.N]);
+  ctx.restore();
+
+  // --- TRICK 2: GRADIENTEN STATT FLAT COLORS (Licht von oben-links) ---
+  // SW-Wand (Hellere Seite mit vertikalem Helligkeitsverlauf)
+  const gradSW = ctx.createLinearGradient(c.W.x, c.Wt.y, c.S.x, c.S.y);
+  gradSW.addColorStop(0, shade(wallColor, 0.05));
+  gradSW.addColorStop(1, shade(wallColor, -0.12));
+  ctx.fillStyle = gradSW; poly([c.W, c.S, c.St, c.Wt]);
+
+  // SE-Wand (Schattenseite mit tieferem Verlauf)
+  const gradSE = ctx.createLinearGradient(c.S.x, c.St.y, c.E.x, c.E.y);
+  gradSE.addColorStop(0, shade(wallColor, -0.22));
+  gradSE.addColorStop(1, shade(wallColor, -0.38));
+  ctx.fillStyle = gradSE; poly([c.S, c.E, c.Et, c.St]);
+
+  // --- TRICK 3: PROZEDURALE TEXTUR (Noise Overlay) ---
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  // Simuliere Putzstruktur durch winzige Punkte im Raster
+  for (let i = 0; i < 15; i++) {
+    ctx.fillRect(c.bx + (Math.random()-0.5)*30*s, c.by - (Math.random())*h*s, 1.2*s, 1.2*s);
+  }
+  ctx.restore();
+
+  // --- TRICK 4: TIEFE DURCH AMBIENT OCCLUSION (Eckenschattierung) ---
+  ctx.strokeStyle = 'rgba(40, 25, 10, 0.25)';
+  ctx.lineWidth = 1.5 * s;
+  ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke(); // Vertikale Mittelkante
 
   // Fenster mit leuchtenden Fensterbänken (3D-Effekt)
   if (windows) {
@@ -363,18 +414,19 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   // Dach mit dimensionalen Kanten
   let topY = hipRoof(c, roofColor, roofH, tiled);
 
-  // ---- DYNAMISCHE STATUS-INDIKATOREN (VISUELLES FEEDBACK OVERLAYS) ----
-  
-  // A. Funken/Rauch bei akuter Brandgefahr
+  // --- STATUS OVERLAYS ---
   if (statusEffects.fireRisk) {
     ctx.fillStyle = 'rgba(240, 100, 30, 0.35)';
     for(let i=0; i<4; i++) { ctx.beginPath(); ctx.arc(c.cx + (Math.sin(i)*4)*s, topY - (i*4)*s, (2+i)*s, 0, 7); ctx.fill(); }
-    
-    if (kind === 'house') {
-      ctx.fillStyle = 'rgba(230, 90, 40, 0.4)';
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath(); ctx.arc(c.cx + (i - 1) * 4 * s, topY + (i * 2) * s, (1.5 + i) * s, 0, 7); ctx.fill();
-      }
+  }
+
+  // ---- DYNAMISCHE STATUS-INDIKATOREN (VISUELLES FEEDBACK OVERLAYS) ----
+  
+  // A. Funken/Rauch bei akuter Brandgefahr
+  if (statusEffects.fireRisk && kind === 'house') {
+    ctx.fillStyle = 'rgba(230, 90, 40, 0.4)';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath(); ctx.arc(c.cx + (i - 1) * 4 * s, topY + (i * 2) * s, (1.5 + i) * s, 0, 7); ctx.fill();
     }
   }
 
@@ -406,4 +458,3 @@ function onScreen(gx, gy) {
   const p = project(gx, gy); const r = cv.parentElement.getBoundingClientRect();
   return p.x > -80 && p.x < r.width + 80 && p.y > -120 && p.y < r.height + 80;
 }
-
