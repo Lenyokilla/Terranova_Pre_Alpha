@@ -193,6 +193,12 @@ function renderPanel(){
   if(!selectedTile)return;
   const {x,y}=selectedTile;
   const d=describeTile(x,y);
+  const tt=grid[y][x];
+  if(BUILD[tt.type]&&BUILD[tt.type].jobs){                       // globale Arbeitskräfte
+    d.rows.push({k:'Arbeitskräfte', v: tt.staffed?('besetzt ('+BUILD[tt.type].jobs+')'):'keine', cls: tt.staffed?'ok':'bad'});
+    d.rows.push({k:'Arbeiter (Stadt)', v: workersFree+' frei / '+workersTotal+' gesamt'});
+    if(!tt.staffed) d.warns.push('Keine freien Arbeitskräfte — mehr Einwohner/Häuser bringen Arbeiter.');
+  }
   _infoGlyph().textContent=d.glyph;
   _infoHead().textContent=d.title;
   _infoBody().innerHTML=d.rows.map(r=>
