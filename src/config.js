@@ -11,15 +11,15 @@ const BUILD={
   hand:    {label:'Hand',     glyph:'✥',  cost:0,  util:true},
   road:    {label:'Straße',   glyph:'⌗',  cost:4,  up:0},
   house:   {label:'Haus',     glyph:'🛖', cost:12, up:0},
-  well:    {label:'Brunnen',  glyph:'💧', cost:30, service:'water', every:13, up:1},
-  market:  {label:'Markt',    glyph:'🧺', cost:55, service:'market', every:15, up:2},
-  forum:   {label:'Forum',    glyph:'🏛️', cost:80, service:'tax',   every:18, up:3},
-  firehouse:{label:'Feuerwache',glyph:'🧯', cost:45, service:'fire', every:16, up:2},
-  engineer: {label:'Bauingenieur',glyph:'🛠', cost:50, service:'eng', every:18, up:2},
-  claypit: {label:'Lehmgrube',glyph:'🕳️', cost:35, every:14, up:2},
-  pottery: {label:'Töpferei', glyph:'🏺', cost:60, every:11, up:2},
-  grainfield:{label:'Getreidefeld',glyph:'🌾', cost:30, every:14, up:1},
-  mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2},
+  well:    {label:'Brunnen',  glyph:'💧', cost:30, service:'water', every:13, up:1, jobs:1},
+  market:  {label:'Markt',    glyph:'🧺', cost:55, service:'market', every:15, up:2, jobs:2},
+  forum:   {label:'Forum',    glyph:'🏛️', cost:80, service:'tax',   every:18, up:3, jobs:2},
+  firehouse:{label:'Feuerwache',glyph:'🧯', cost:45, service:'fire', every:16, up:2, jobs:2},
+  engineer: {label:'Bauingenieur',glyph:'🛠', cost:50, service:'eng', every:18, up:2, jobs:2},
+  claypit: {label:'Lehmgrube',glyph:'🕳️', cost:35, every:14, up:2, jobs:2},
+  pottery: {label:'Töpferei', glyph:'🏺', cost:60, every:11, up:2, jobs:2},
+  grainfield:{label:'Getreidefeld',glyph:'🌾', cost:30, every:14, up:1, jobs:1},
+  mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2, jobs:2},
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
 const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','mill','raze'];
@@ -38,6 +38,8 @@ const HARVEST_TICK=70;      // Zeitpunkt im Zyklus, an dem geerntet wird (Speich
 const RISK_GRACE=40;        // Ticks ohne Abdeckung, bis Gefahr sichtbar wird
 const FIRE_CHANCE=0.005;    // Wahrscheinlichkeit/Tick für Brand bei bestehender Gefahr
 const COLLAPSE_CHANCE=0.0035;// Wahrscheinlichkeit/Tick für Einsturz bei bestehender Gefahr
+// ---- Arbeitskräfte (global, ohne Straße): Gebäude -> [benötigte Arbeiter, Priorität (klein=zuerst)] ----
+const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], mill:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3] };
 
 // 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
 const H3D=[
