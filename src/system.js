@@ -97,10 +97,14 @@ function describeTile(x,y){
       {k:'Wasser',      v:t.water>0?'versorgt':'fehlt', cls:t.water>0?'ok':'bad'},
       {k:'Nahrung',     v:t.food >0?'versorgt':'fehlt', cls:t.food >0?'ok':'bad'},
       {k:'Luxus',       v:t.goods>0?('Keramik (+'+GOODS_BONUS+' Steuer)'):'keine'},
+      {k:'Brandschutz', v:t.fireSafe>0?'gesichert':'ungeschützt', cls:t.fireSafe>0?'ok':'bad'},
+      {k:'Statik',      v:t.engSafe>0?'geprüft':'ungeprüft', cls:t.engSafe>0?'ok':'bad'},
     ];
     const warns=[];
     if(t.water<=0) warns.push('Kein Wasser — Bewohner ziehen nach und nach weg.');
     else if(t.food<=0) warns.push('Ohne Nahrung steigt das Haus nicht zur höchsten Stufe auf.');
+    if(t.fireRisk) warns.push('🔥 Brandgefahr — eine Feuerwache in der Nähe (an einer Straße) schützt.');
+    if(t.collapseRisk) warns.push('🏚 Einsturzgefahr — ein Bauingenieur in der Nähe sichert die Statik.');
     if(cap>0&&t.res>=cap) warns.push('Voll belegt — neue Häuser schaffen mehr Platz.');
     return {glyph:(H3D[t.lvl]||H3D[0]).glyph, title:'Haus', rows, warns};
   }
@@ -167,6 +171,20 @@ function describeTile(x,y){
       {k:'Wandelt', v:'Getreide → Brot'},
       {k:'Liefert an', v:'Markt (über Straße)'},
     ], warns:w};
+  }
+  if(t.type==='firehouse'){
+    return {glyph:'🧯', title:'Feuerwache', rows:[
+      {k:'Funktion', v:'Schützt nahe Gebäude vor Brand'},
+      {k:'Reichweite', v:'entlang der Straße (Läufer)'},
+      {k:'Trägerintervall', v:'alle '+BUILD.firehouse.every+' Ticks'},
+    ], warns: adjRoad(x,y)?[]:['Keine angrenzende Straße — der Brandschutz-Läufer kann nicht losziehen.']};
+  }
+  if(t.type==='engineer'){
+    return {glyph:'🛠', title:'Bauingenieur', rows:[
+      {k:'Funktion', v:'Sichert nahe Gebäude gegen Einsturz'},
+      {k:'Reichweite', v:'entlang der Straße (Läufer)'},
+      {k:'Trägerintervall', v:'alle '+BUILD.engineer.every+' Ticks'},
+    ], warns: adjRoad(x,y)?[]:['Keine angrenzende Straße — der Ingenieur kann nicht losziehen.']};
   }
   return {glyph:'❔', title:'Gebäude', rows:[], warns:[]};
 }
