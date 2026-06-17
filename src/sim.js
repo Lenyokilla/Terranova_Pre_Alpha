@@ -1,6 +1,7 @@
 /* TERRA · sim.js */
 // ---- Simulation ----
 function neighbors(x,y){return [[x,y-1],[x+1,y],[x,y+1],[x-1,y]];}
+function riskable(tp){return tp==='house'||tp==='market'||tp==='forum'||tp==='pottery'||tp==='claypit'||tp==='mill';}
 function adjRoad(x,y){return neighbors(x,y).find(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].type==='road');}
 // kürzester Straßenweg vom Quellgebäude zum nächsten Zielgebäude (BFS)
 function findPath(sx,sy,destType){
@@ -99,6 +100,8 @@ function tick(){
     } else {                                                 // Dienst-Läufer: Umgebung versorgen + wandern
       for(const [nx,ny] of neighbors(w.x,w.y)){
         if(!inBounds(nx,ny))continue; const t=grid[ny][nx];
+        if(w.service==='fire'){ if(riskable(t.type))t.fireSafe=SERVICE_LIFE; continue; }   // Brandschutz
+        if(w.service==='eng'){ if(riskable(t.type))t.engSafe=SERVICE_LIFE; continue; }      // Statik
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
@@ -114,6 +117,16 @@ function tick(){
     }
   }
   walkers=next;
+  // Gefahren: Brand & Einsturz (Abdeckung durch Feuerwache / Bauingenieur)
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ const t=grid[y][x]; if(!riskable(t.type))continue;
+    if(t.fireSafe>0)t.fireSafe--; if(t.engSafe>0)t.engSafe--;
+    if(t.fireSafe>0){ t.rF=0; t.fireRisk=false; }
+    else { t.rF=(t.rF||0)+1; if(t.rF>=RISK_GRACE){ t.fireRisk=true;
+      if(Math.random()<FIRE_CHANCE){ razeTile(t); if(typeof flash==='function')flash('🔥 Brand: ein Gebäude ist abgebrannt!'); continue; } } }
+    if(t.engSafe>0){ t.rC=0; t.collapseRisk=false; }
+    else { t.rC=(t.rC||0)+1; if(t.rC>=RISK_GRACE){ t.collapseRisk=true;
+      if(Math.random()<COLLAPSE_CHANCE){ razeTile(t); if(typeof flash==='function')flash('🏚 Einsturz: ein Gebäude ist eingestürzt!'); continue; } } }
+  }
   // Bewohner-Dynamik
   pop=0;
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const h=grid[y][x]; if(h.type!=='house')continue;
