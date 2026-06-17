@@ -77,8 +77,7 @@ function tick(){
       if(c.spawn>=BUILD.pottery.every&&(c.cer||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.spawn=0;c.cer--;spawnCarrier(fp,'cer','#3f9c8a');} else {c.spawn=BUILD.pottery.every;} } }
     if(c.type==='grainfield'){
-      c.conv=(c.conv||0)+1;                                       // wächst auch ohne Straßenanschluss
-      if(c.conv>=BUILD.grainfield.every&&(c.grain||0)<8){c.conv=0;c.grain=(c.grain||0)+1;}
+      if((tickCount%SEASON_LEN)===HARVEST_TICK) c.grain=8;          // Ernte: Speicher voll (auch ohne Straße)
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.grainfield.every&&(c.grain||0)>0){ const fp=findPath(x,y,'mill');
         if(fp){c.spawn=0;c.grain--;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.grainfield.every;} } }
