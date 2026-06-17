@@ -151,10 +151,11 @@ function describeTile(x,y){
   if(t.type==='grainfield'){
     const link=!!findPath(x,y,'mill');
     return {glyph:'🌾', title:'Getreidefeld', rows:[
-      {k:'Funktion', v:'Baut Getreide an'},
+      {k:'Funktion', v:'Baut Getreide an (auch ohne Straße)'},
+      {k:'Getreide-Lager', v:(t.grain||0)+' / 8'},
       {k:'Liefert an', v:'Mühle (über Straße)'},
       {k:'Verbindung', v:link?'ja':'keine', cls:link?'ok':'bad'},
-    ], warns: link?[]:['Keine Straßenverbindung zu einer Mühle — das Getreide bleibt liegen.']};
+    ], warns: link?[]:['Ohne Straße zur Mühle füllt sich nur das Lager — angebaut wird trotzdem.']};
   }
   if(t.type==='mill'){
     const link=!!findPath(x,y,'market'); const w=[];
