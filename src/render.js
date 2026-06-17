@@ -46,18 +46,40 @@ function drawGround(x,y){
 // Objekt-Pass: Gebäude + Status-Punkte (tiefen-sortiert über dem Boden)
 function drawObjects(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
+  let m=null;
   if(c.type==='house'){
-    const m=drawBuilding(x,y,'house',c.lvl,e*STEP);
+    m=drawBuilding(x,y,'house',c.lvl,e*STEP);
     const yy=m.topY-6*cam.scale, sp=7*cam.scale, off='#5b4a3288';
     dotAt(m.cx-sp*1.5,yy,c.water>0?'#3a7d9c':off);
     dotAt(m.cx-sp*0.5,yy,c.food >0?'#b1542d':off);
     dotAt(m.cx+sp*0.5,yy,c.taxed>0?'#c9a227':off);
     dotAt(m.cx+sp*1.5,yy,c.goods>0?'#9c5bd0':off);
-  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'){
-    drawBuilding(x,y,c.type,0,e*STEP);
+  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'||c.type==='firehouse'||c.type==='engineer'){
+    m=drawBuilding(x,y,c.type,0,e*STEP);
+  }
+  if(m){                                   // Gefahren-Warnsymbole
+    let wy=m.topY-13*cam.scale;
+    if(c.collapseRisk){ drawCollapseMark(m.cx,wy); wy-=13*cam.scale; }
+    if(c.fireRisk){ drawFireMark(m.cx,wy); }
   }
 }
-function hasObject(x,y){const t=grid[y][x].type; return t==='house'||t==='well'||t==='market'||t==='forum'||t==='claypit'||t==='pottery'||t==='grainfield'||t==='mill';}
+// Brand-Warnung: flackernde Flamme
+function drawFireMark(cx,cy){const s=cam.scale, fl=Math.sin(animT*9)*1.2*s;
+  for(const [dx,sc,col] of [[0,1,'#e8521f'],[0,0.6,'#f4b32e']]){
+    ctx.fillStyle=col;ctx.beginPath();
+    ctx.moveTo(cx+dx, cy-7*s*sc+fl);
+    ctx.quadraticCurveTo(cx+dx+4*s*sc, cy-1*s, cx+dx, cy+3*s*sc);
+    ctx.quadraticCurveTo(cx+dx-4*s*sc, cy-1*s, cx+dx, cy-7*s*sc+fl);
+    ctx.fill();
+  }
+}
+// Einsturz-Warnung: gelbes Warndreieck mit Ausrufezeichen
+function drawCollapseMark(cx,cy){const s=cam.scale;
+  ctx.fillStyle='#e7b53a';ctx.strokeStyle='#7a5512';ctx.lineWidth=Math.max(1,1*s);
+  ctx.beginPath();ctx.moveTo(cx,cy-6*s);ctx.lineTo(cx+5.5*s,cy+3*s);ctx.lineTo(cx-5.5*s,cy+3*s);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle='#3a2a08';ctx.fillRect(cx-0.7*s,cy-3.5*s,1.4*s,4*s);ctx.fillRect(cx-0.7*s,cy+1.6*s,1.4*s,1.4*s);
+}
+function hasObject(x,y){const t=grid[y][x].type; return t==='house'||t==='well'||t==='market'||t==='forum'||t==='claypit'||t==='pottery'||t==='grainfield'||t==='mill'||t==='firehouse'||t==='engineer';}
 // ---- Träger-Figuren (Wuselfaktor) ----
 function amphora(x,y,s,col){
   ctx.fillStyle=col; ctx.beginPath();ctx.ellipse(x,y,2.1*s,2.9*s,0,0,7);ctx.fill();   // Bauch
