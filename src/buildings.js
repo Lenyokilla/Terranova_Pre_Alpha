@@ -1,5 +1,4 @@
 /* TERRA · buildings.js */
-
 // ---- Gezeichnete Iso-Gebäude (Sonne oben-links) ----
 
 function lerp(a, b, t) {
@@ -29,14 +28,13 @@ function wallPatch(Pb0, Pb1, Pt0, Pt1, u0, u1, v0, v1, col) {
 function wallArch(Pb0, Pb1, Pt0, Pt1, u0, u1, v0, vTop, fillCol, brickCol, s) {
   const b0 = lerp(Pb0, Pb1, u0), b1 = lerp(Pb0, Pb1, u1);
   const t0 = lerp(Pt0, Pt1, u0), t1 = lerp(Pt0, Pt1, u1);
-  
   // Basispunkte am Boden/Unterkante
   const A = lerp(b0, t0, v0), B = lerp(b1, t1, v0);
   // Höhe, ab der die Rundung beginnt (z.B. 70% der Gesamthöhe)
   const vSpring = v0 + (vTop - v0) * 0.65;
   const S0 = lerp(b0, t0, vSpring), S1 = lerp(b1, t1, vSpring);
   const C = lerp(b1, t1, vTop), D = lerp(b0, t0, vTop);
-  
+
   // 1. Das dunkle Innere des Tors zeichnen
   ctx.fillStyle = fillCol;
   ctx.beginPath();
@@ -69,7 +67,6 @@ function wallBrickLines(Pb0, Pb1, Pt0, Pt1, floors, col, s) {
     const v2 = (f / floors) + fh * 0.40;
     const v3 = (f / floors) + fh * 0.75;
     const v4 = (f / floors) + fh * 0.80;
-    
     for (const v of [v1, v2, v3, v4]) {
       const start = lerp(Pb0, Pt0, v);
       const end = lerp(Pb1, Pt1, v);
@@ -104,9 +101,9 @@ function tileFace(P0, P1, apex, color) {
 function hipRoof(c, color, roofH, tiled) {
   const apex = { x: (c.Nt.x + c.Et.x + c.St.x + c.Wt.x) / 4, y: (c.Nt.y + c.Et.y + c.St.y + c.Wt.y) / 4 - roofH * cam.scale };
   const cl = shade(color, 0.10), cr = shade(color, -0.22), cb = shade(color, -0.36);
-  ctx.fillStyle = cb; poly([c.Nt, c.Wt, apex]); poly([c.Nt, c.Et, apex]);   // hintere Flächen
-  ctx.fillStyle = cl; poly([c.Wt, c.St, apex]);                           // SW (hell)
-  ctx.fillStyle = cr; poly([c.St, c.Et, apex]);                           // SE (dunkel)
+  ctx.fillStyle = cb; poly([c.Nt, c.Wt, apex]); poly([c.Nt, c.Et, apex]); // hintere Flächen
+  ctx.fillStyle = cl; poly([c.Wt, c.St, apex]); // SW (hell)
+  ctx.fillStyle = cr; poly([c.St, c.Et, apex]); // SE (dunkel)
   if (tiled) { tileFace(c.Wt, c.St, apex, cl); tileFace(c.St, c.Et, apex, cr); }
   ctx.strokeStyle = 'rgba(30,20,12,.30)'; ctx.lineWidth = Math.max(1, 1.2 * cam.scale); // First/Grat
   ctx.beginPath(); ctx.moveTo(c.Wt.x, c.Wt.y); ctx.lineTo(apex.x, apex.y); ctx.lineTo(c.St.x, c.St.y); ctx.lineTo(c.Et.x, c.Et.y); ctx.stroke();
@@ -116,13 +113,13 @@ function hipRoof(c, color, roofH, tiled) {
 // Eine Tempelsäule (senkrechter Schaft mit Kapitell, Basis, Kanneluren)
 function column(base, hpx) {
   const s = cam.scale, w = 4.6 * s, ch = hpx * s, x = base.x, topY = base.y - ch;
-  ctx.fillStyle = '#efe7d2'; ctx.fillRect(x - w / 2, topY, w, ch);                     // Schaft
+  ctx.fillStyle = '#efe7d2'; ctx.fillRect(x - w / 2, topY, w, ch); // Schaft
   ctx.fillStyle = 'rgba(110,98,74,.40)'; ctx.fillRect(x + w / 2 - 1.4 * s, topY, 1.4 * s, ch); // Schattenkante
   ctx.strokeStyle = 'rgba(150,135,100,.45)'; ctx.lineWidth = 1;
   for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(x + i * 1.4 * s, topY + 2 * s); ctx.lineTo(x + i * 1.4 * s, base.y - 2 * s); ctx.stroke(); }
   ctx.fillStyle = '#f4eddb';
-  ctx.fillRect(x - w / 2 - 1.4 * s, topY - 2.6 * s, w + 2.8 * s, 2.6 * s);                         // Kapitell
-  ctx.fillRect(x - w / 2 - 1.4 * s, base.y - 1.8 * s, w + 2.8 * s, 1.8 * s);                       // Basis
+  ctx.fillRect(x - w / 2 - 1.4 * s, topY - 2.6 * s, w + 2.8 * s, 2.6 * s); // Kapitell
+  ctx.fillRect(x - w / 2 - 1.4 * s, base.y - 1.8 * s, w + 2.8 * s, 1.8 * s); // Basis
 }
 
 function drawForum(gx, gy, baseLift) {
@@ -204,7 +201,7 @@ function drawWell(gx, gy, baseLift) {
   const s = cam.scale, stone = '#b9b3a6';
   const c = isoCorners(gx, gy, baseLift, 0);
   const ctr = { x: c.bx, y: c.by };
-  const I  = p => ({ x: ctr.x + (p.x - ctr.x) * 0.52, y: ctr.y + (p.y - ctr.y) * 0.52 });
+  const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.52, y: ctr.y + (p.y - ctr.y) * 0.52 });
   const Ih = p => ({ x: I(p).x, y: I(p).y - 7 * s });
   ctx.save(); ctx.translate(c.bx + 6 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
   ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.3 * s, 0, 7); ctx.fill(); ctx.restore();
@@ -237,7 +234,7 @@ function drawMarket(gx, gy, baseLift) {
   ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
   ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
-  ctx.fillStyle = shade(wall, 0.05);  poly([c.Nt, c.Et, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, 0.05); poly([c.Nt, c.Et, c.St, c.Wt]);
   ctx.strokeStyle = 'rgba(40,30,16,.30)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
   const goods = [['#b9742f', -5, 1], ['#9c5b2b', 4, 2], ['#d8a24a', 0, -2], ['#8a5230', -1, 4]];
@@ -330,16 +327,19 @@ function drawMill(gx, gy, baseLift) {
   ctx.fillStyle = shade(wall, -0.08); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.28); poly([c.S, c.E, c.Et, c.St]);
   ctx.strokeStyle = 'rgba(40,30,16,.22)'; ctx.lineWidth = 1;
-  for (const v of [0.42, 0.7]) { const a = lerp(c.W, c.Wt, v), b = lerp(c.S, c.St, v), d = lerp(c.E, c.Et, v);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(d.x, d.y); ctx.stroke(); }
+  for (const v of [0.42, 0.7]) {
+    const a = lerp(c.W, c.Wt, v), b = lerp(c.S, c.St, v), d = lerp(c.E, c.Et, v);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+  }
   const topY = hipRoof(c, roof, 12, false);
   const hub = lerp(lerp(c.S, c.E, 0.5), lerp(c.St, c.Et, 0.5), 0.52);
   const rot = animT * 0.6, R = 11 * s;
-  for (let k = 0; k < 4; k++) { const a = rot + k * Math.PI / 2;
+  for (let k = 0; k < 4; k++) {
+    const a = rot + k * Math.PI / 2;
     const ex = hub.x + Math.cos(a) * R, ey = hub.y + Math.sin(a) * R * 0.7;
     const px = hub.x + Math.cos(a + 0.35) * R * 0.5, py = hub.y + Math.sin(a + 0.35) * R * 0.5 * 0.7;
     ctx.fillStyle = 'rgba(244,238,222,.9)'; ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.4, 1.8 * s); ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); stroke();
+    ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.4, 1.8 * s); ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.stroke();
   }
   ctx.fillStyle = '#5a3d22'; ctx.beginPath(); ctx.arc(hub.x, hub.y, 2 * s, 0, 7); ctx.fill();
   return { cx: c.cx, topY };
@@ -349,8 +349,8 @@ function drawMill(gx, gy, baseLift) {
 function drawInsula(gx, gy, lvl, baseLift) {
   const s = cam.scale;
   const L = Math.max(0, Math.min(3, lvl | 0));
-  const floors  = [1, 2, 3, 4][L];
-  const h       = [15, 26, 37, 46][L];
+  const floors = [1, 2, 3, 4][L];
+  const h = [15, 26, 37, 46][L];
   const wallCol = ['#b58a5c', '#cbae84', '#dccaa6', '#e6d8b8'][L];
   const roofCol = '#b15f3a';
   const c = isoCorners(gx, gy, baseLift, h);
@@ -375,30 +375,24 @@ function drawInsula(gx, gy, lvl, baseLift) {
 
   // --- RENDERING DES INNENHOFS & DACHES ---
   const r = isoCorners(gx, gy, baseLift, h + 4);
-
   if (floors >= 2) {
     const k = 0.42, ctr = { x: r.cx, y: r.cy };
     const ins = p => ({ x: p.x + (ctr.x - p.x) * k, y: p.y + (ctr.y - p.y) * k });
     const iN = ins(r.Nt), iE = ins(r.Et), iS = ins(r.St), iW = ins(r.Wt);
-    
     const drop = 9 * s;
     const fN = { x: iN.x, y: iN.y + drop }, fE = { x: iE.x, y: iE.y + drop }, fS = { x: iS.x, y: iS.y + drop }, fW = { x: iW.x, y: iW.y + drop };
     ctx.fillStyle = shade(wallCol, -0.30); poly([iN, iE, fE, fN]);
     ctx.fillStyle = shade(wallCol, -0.44); poly([iN, iW, fW, fN]);
     ctx.fillStyle = '#cabfa4'; poly([fN, fE, fS, fW]);
-    
     const c2 = { x: (fN.x + fS.x) / 2, y: (fN.y + fS.y) / 2 }, bs = 0.5;
     const bi = p => ({ x: c2.x + (p.x - c2.x) * bs, y: c2.y + (p.y - c2.y) * bs });
     ctx.fillStyle = '#9aa890'; poly([bi(fN), bi(fE), bi(fS), bi(fW)]);
     const bs2 = 0.32, bi2 = p => ({ x: c2.x + (p.x - c2.x) * bs2, y: c2.y + (p.y - c2.y) * bs2 });
     ctx.fillStyle = '#3f7d9c'; poly([bi2(fN), bi2(fE), bi2(fS), bi2(fW)]);
-    
     ctx.strokeStyle = 'rgba(20,14,8,.35)'; ctx.lineWidth = Math.max(1, 1 * s);
     ctx.beginPath(); ctx.moveTo(iN.x, iN.y); ctx.lineTo(iE.x, iE.y); ctx.lineTo(iS.x, iS.y); ctx.lineTo(iW.x, iW.y); ctx.closePath(); ctx.stroke();
-
     ctx.fillStyle = roofCol;
     poly([r.Nt, r.Et, iE, iN]); poly([r.Et, r.St, iS, iE]); poly([r.St, r.Wt, iW, iS]); poly([r.Wt, r.Nt, iN, iW]);
-    
     ctx.strokeStyle = shade(roofCol, -0.18); ctx.lineWidth = Math.max(1, 0.8 * s);
     for (const [A, B] of [[r.Nt, r.Et], [r.Et, r.St], [r.St, r.Wt], [r.Wt, r.Nt]]) {
       const a = lerp(A, ins(A), 0.5), b = lerp(B, ins(B), 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
@@ -413,7 +407,6 @@ function drawInsula(gx, gy, lvl, baseLift) {
   const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
   gSW.addColorStop(0, shade(wallCol, 0.06)); gSW.addColorStop(1, shade(wallCol, -0.12));
   ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
-
   const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
   gSE.addColorStop(0, shade(wallCol, -0.20)); gSE.addColorStop(1, shade(wallCol, -0.36));
   ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
@@ -427,15 +420,12 @@ function drawInsula(gx, gy, lvl, baseLift) {
   const winSW = '#201a14', winSE = '#18130f';
   const archBrickSW = '#9a4e35', archBrickSE = '#763a25';
   const bh = 1 / floors;
-
   for (let f = 0; f < floors; f++) {
     const v0 = (f / floors) + 0.20 * bh, v1 = (f / floors) + 0.70 * bh;
-    
     if (f === 0) {
       // Erdgeschoss: Römische Laden-Torbögen (Fornices) statt eckiger Fenster
       wallArch(c.W, c.S, c.Wt, c.St, 0.22, 0.48, 0.02 * bh, 0.82 * bh, winSW, archBrickSW, s); // Laden-Eingang 1 (SW)
       wallArch(c.W, c.S, c.Wt, c.St, 0.62, 0.88, 0.02 * bh, 0.82 * bh, winSW, archBrickSW, s); // Laden-Eingang 2 (SW)
-      
       wallArch(c.S, c.E, c.St, c.Et, 0.22, 0.48, 0.02 * bh, 0.82 * bh, winSE, archBrickSE, s); // Laden-Eingang 3 (SE)
       wallArch(c.S, c.E, c.St, c.Et, 0.62, 0.88, 0.02 * bh, 0.82 * bh, winSE, archBrickSE, s); // Laden-Eingang 4 (SE)
     } else {
@@ -443,7 +433,6 @@ function drawInsula(gx, gy, lvl, baseLift) {
       wallPatch(c.W, c.S, c.Wt, c.St, 0.16, 0.34, v0, v1, winSW);
       wallPatch(c.W, c.S, c.Wt, c.St, 0.46, 0.64, v0, v1, winSW);
       wallPatch(c.W, c.S, c.Wt, c.St, 0.74, 0.90, v0, v1, winSW);
-      
       wallPatch(c.S, c.E, c.St, c.Et, 0.18, 0.36, v0, v1, winSE);
       wallPatch(c.S, c.E, c.St, c.Et, 0.50, 0.68, v0, v1, winSE);
       wallPatch(c.S, c.E, c.St, c.Et, 0.78, 0.92, v0, v1, winSE);
@@ -453,16 +442,12 @@ function drawInsula(gx, gy, lvl, baseLift) {
   // --- TIEFENKANTEN UND FINISHING ---
   ctx.fillStyle = shade(roofCol, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);
   ctx.fillStyle = shade(roofCol, -0.32); poly([c.St, c.Et, r.Et, r.St]);
-
   ctx.strokeStyle = 'rgba(40,25,10,.22)'; ctx.lineWidth = 1.4 * s;
   ctx.beginPath(); ctx.moveTo(c.S.x, c.S.y); ctx.lineTo(c.St.x, c.St.y); ctx.stroke();
-  
   ctx.strokeStyle = 'rgba(30,20,12,.30)'; ctx.lineWidth = Math.max(1.5, 2 * s);
   ctx.beginPath(); ctx.moveTo(c.Wt.x, c.Wt.y); ctx.lineTo(c.St.x, c.St.y); ctx.lineTo(c.Et.x, c.Et.y); ctx.stroke();
-
   ctx.strokeStyle = 'rgba(30,20,12,.25)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(r.Nt.x, r.Nt.y); ctx.lineTo(r.Et.x, r.Et.y); ctx.lineTo(r.St.x, r.St.y); ctx.lineTo(r.Wt.x, r.Wt.y); ctx.closePath(); ctx.stroke();
-
   return { cx: c.cx, topY: r.Nt.y };
 }
 
@@ -524,11 +509,10 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'engineer') return drawEngineer(gx, gy, baseLift);
   if (kind === 'grainfield') return drawGrainfield(gx, gy, baseLift);
   if (kind === 'mill') return drawMill(gx, gy, baseLift);
-  
+
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
   const s = cam.scale;
   let wallColor, roofColor, h, roofH, tiled = true, windows = false;
-
   if (kind === 'house') {
     if (lvl === 0) { wallColor = '#b5915f'; roofColor = '#6f5535'; h = 10; roofH = 7; tiled = false; }
     else if (lvl === 1) { wallColor = '#d7c69b'; roofColor = '#b1542d'; h = 16; roofH = 11; windows = true; }
@@ -537,10 +521,9 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   } else {
     wallColor = '#c9b48a'; roofColor = '#cf6a3c'; h = 10; roofH = 7;
   }
-
   if (statusEffects.plagueRisk) wallColor = shade(wallColor, -0.18);
-  const c = isoCorners(gx, gy, baseLift, h);
 
+  const c = isoCorners(gx, gy, baseLift, h);
   ctx.save();
   ctx.shadowColor = 'rgba(25, 15, 5, 0.25)';
   ctx.shadowBlur = 8 * s;
@@ -564,7 +547,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   for (let i = 0; i < 15; i++) {
-    ctx.fillRect(c.bx + (Math.random()-0.5)*30*s, c.by - (Math.random())*h*s, 1.2*s, 1.2*s);
+    ctx.fillRect(c.bx + (Math.random() - 0.5) * 30 * s, c.by - (Math.random()) * h * s, 1.2 * s, 1.2 * s);
   }
   ctx.restore();
 
@@ -577,8 +560,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
       wallPatch(c.W, c.S, c.Wt, c.St, 0.22, 0.42, vBot, vTop, '#1e2530');
       wallPatch(c.W, c.S, c.Wt, c.St, 0.58, 0.78, vBot, vTop, '#1e2530');
       ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(lerp(c.W,c.S,0.22).x, lerp(c.W,c.St,vBot).y); ctx.lineTo(lerp(c.W,c.S,0.42).x, lerp(c.W,c.St,vBot).y); ctx.stroke();
-
+      ctx.beginPath(); ctx.moveTo(lerp(c.W, c.S, 0.22).x, lerp(c.W, c.St, vBot).y); ctx.lineTo(lerp(c.W, c.S, 0.42).x, lerp(c.W, c.St, vBot).y); ctx.stroke();
       wallPatch(c.S, c.E, c.St, c.Et, 0.22, 0.42, vBot, vTop, '#141a21');
       wallPatch(c.S, c.E, c.St, c.Et, 0.58, 0.78, vBot, vTop, '#141a21');
     };
@@ -591,7 +573,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
 
   if (statusEffects.fireRisk) {
     ctx.fillStyle = 'rgba(240, 100, 30, 0.35)';
-    for(let i=0; i<4; i++) { ctx.beginPath(); ctx.arc(c.cx + (Math.sin(i)*4)*s, topY - (i*4)*s, (2+i)*s, 0, 7); ctx.fill(); }
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(c.cx + (Math.sin(i) * 4) * s, topY - (i * 4) * s, (2 + i) * s, 0, 7); ctx.fill(); }
   }
 
   if (statusEffects.fireRisk && kind === 'house') {
