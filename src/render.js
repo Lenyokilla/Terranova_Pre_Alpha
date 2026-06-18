@@ -46,6 +46,7 @@ function drawGround(x,y){
 }
 // Objekt-Pass: Gebäude + Status-Punkte (tiefen-sortiert über dem Boden)
 function drawObjects(x,y){
+ try{
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
   let m=null;
   if(c.type==='house'){
@@ -64,6 +65,7 @@ function drawObjects(x,y){
     if(c.fireRisk){ drawFireMark(m.cx,wy); wy-=12*cam.scale; }
     if(BUILD[c.type]&&BUILD[c.type].jobs) drawWorkerBadge(m.cx-11*cam.scale, m.topY-9*cam.scale, c.staffed);
   }
+ }catch(err){ /* ein fehlerhaftes Gebäude darf nie die ganze Karte ausblenden */ }
 }
 // Arbeitskräfte: grün = besetzt/arbeitet, grau mit rotem Strich = keine Arbeiter
 function drawWorkerBadge(cx,cy,ok){const s=cam.scale, col=ok?'#4f9e43':'#9a9a93';
@@ -225,8 +227,8 @@ function render(){
   drawAllWildlife();
   drawWeather();
   drawAtmosphere(r.width,r.height);
-  drawFloaters();
-  drawGoals();
+  try{ drawFloaters(); }catch(e){}
+  try{ drawGoals(); }catch(e){}
 }
 // ---- Schwebende Feedback-Texte (+Denar) ----
 function floatText(gx,gy,text,color){ floaters.push({gx,gy,text,color:color||'#ffd24a',age:0,ttl:1.3}); if(floaters.length>40)floaters.shift(); }
