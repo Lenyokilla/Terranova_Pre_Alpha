@@ -8,6 +8,8 @@ function place(gx,gy){
   if(c.type!=='empty'){flash('Feld belegt');return;}
   if(money<def.cost){flash('Zu wenig Denar — nutze +100');return;}
   money-=def.cost; buildOn(c,tool,def.service); updateHUD();
+  if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
+  if(typeof sfxBuild==='function')sfxBuild();
 }
 function flash(msg){hint.textContent=msg;hint.classList.remove('hide');
   clearTimeout(flash._t);flash._t=setTimeout(()=>hint.classList.add('hide'),1500);}
@@ -29,6 +31,7 @@ ORDER.forEach(key=>{const d=BUILD[key];const b=document.createElement('button');
   b.innerHTML='<span class="glyph">'+d.glyph+'</span><span class="nm">'+d.label+'</span>'+
     (d.util?'<span class="cost">'+(key==='hand'?'∞':'—')+'</span>':'<span class="cost">'+d.cost+'</span>');
   b.onclick=()=>{
+    if(typeof audioInit==='function')audioInit(); if(typeof sfxClick==='function')sfxClick();
     tool = (tool===key && key!=='hand') ? 'hand' : key;   // erneutes Tippen -> zurück zur Navigation
     if(tool!=='hand'&&typeof closePanel==='function')closePanel();
     document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key===tool));
@@ -67,6 +70,7 @@ function commitRoad(cells){
 }
 
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);
+  if(typeof audioInit==='function')audioInit(); if(typeof sfxClick==='function')sfxClick();
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===1){panLast={x:e.clientX,y:e.clientY};
     if(tool==='road'){roadDrag=cellAt(e);previewCells=linePath(roadDrag,roadDrag);}
@@ -91,6 +95,7 @@ function endPtr(e){pointers.delete(e.pointerId);
   if(tool==='road'&&roadDrag&&pointers.size===0){
     const n=commitRoad(previewCells);
     flash(n?('Straße gebaut: '+n+' Felder'):'Keine freien Felder');
+    if(n&&typeof sfxBuild==='function')sfxBuild();
     roadDrag=null;previewCells=[];}
   if(tool==='hand'&&pointers.size===0&&tapInfo){
     if(!tapInfo.moved){const {gx,gy}=cellAt(e);
