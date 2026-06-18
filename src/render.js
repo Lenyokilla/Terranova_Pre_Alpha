@@ -225,6 +225,55 @@ function render(){
   drawAllWildlife();
   drawWeather();
   drawAtmosphere(r.width,r.height);
+  drawFloaters();
+  drawGoals();
+}
+// ---- Schwebende Feedback-Texte (+Denar) ----
+function floatText(gx,gy,text,color){ floaters.push({gx,gy,text,color:color||'#ffd24a',age:0,ttl:1.3}); if(floaters.length>40)floaters.shift(); }
+function updateFloaters(dt){ for(let i=floaters.length-1;i>=0;i--){ floaters[i].age+=dt; if(floaters[i].age>=floaters[i].ttl)floaters.splice(i,1); } }
+function drawFloaters(){ if(!floaters.length)return; const s=cam.scale;
+  ctx.save(); ctx.textAlign='center'; ctx.font='700 13px system-ui,-apple-system,sans-serif'; ctx.lineJoin='round';
+  for(const f of floaters){ const p=project(f.gx+0.5,f.gy+0.5); const k=f.age/f.ttl;
+    const y=p.y-16*s-k*30, a=k<0.65?1:1-(k-0.65)/0.35;
+    ctx.globalAlpha=Math.max(0,a); ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.55)';
+    ctx.strokeText(f.text,p.x,y); ctx.fillStyle=f.color; ctx.fillText(f.text,p.x,y); }
+  ctx.restore();
+}
+// ---- Zieleübersicht (erreichte Ziele werden abgehakt und verschwinden) ----
+const GOALS=[
+  {id:'g1', t:'Erste Siedler: 8 Einwohner', f:()=>pop>=8,         p:()=>pop/8},
+  {id:'g2', t:'Einen Markt errichten',       f:()=>anyType('market')},
+  {id:'g3', t:'Brot: eine Mühle bauen',      f:()=>anyType('mill')},
+  {id:'g4', t:'Wachsende Stadt: 30 Einwohner',f:()=>pop>=30,       p:()=>pop/30},
+  {id:'g5', t:GOAL_POP+' Einwohner — Sieg!',  f:()=>pop>=GOAL_POP,  p:()=>pop/GOAL_POP},
+];
+const _goalAt={};
+function anyType(tp){ for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++)if(grid[y][x].type===tp)return true; return false; }
+function _rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function drawGoals(){
+  const now=animT, rows=[];
+  for(const g of GOALS){ const done=g.f();
+    if(done && _goalAt[g.id]===undefined){ _goalAt[g.id]=now; if(typeof flash==='function')flash('✓ Ziel erreicht: '+g.t); }
+    if(!done) rows.push({g,done:false});
+    else if(now-_goalAt[g.id]<2.6) rows.push({g,done:true});
+  }
+  const show=[]; for(const r of rows){ if(r.done||show.filter(s=>!s.done).length<3) show.push(r); }
+  if(!show.length) return;
+  const x=10, y0=52, w=206, rh=21, pad=9, h=pad+18+show.length*rh+2;
+  ctx.save();
+  ctx.fillStyle='rgba(18,22,18,.55)'; _rr(x,y0,w,h,9); ctx.fill();
+  ctx.textAlign='left'; ctx.fillStyle='#d9d3c4'; ctx.font='700 11px system-ui,sans-serif';
+  ctx.fillText('ZIELE', x+pad, y0+pad+8);
+  let yy=y0+pad+26;
+  for(const r of show){ const g=r.g;
+    ctx.font='600 12px system-ui,sans-serif'; ctx.fillStyle=r.done?'#82d27c':'#ece8dc';
+    ctx.fillText((r.done?'✓ ':'• ')+g.t, x+pad, yy);
+    if(!r.done && g.p){ const pr=Math.max(0,Math.min(1,g.p()));
+      ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(x+pad,yy+4,w-pad*2,3);
+      ctx.fillStyle='#ffd24a'; ctx.fillRect(x+pad,yy+4,(w-pad*2)*pr,3); }
+    yy+=rh;
+  }
+  ctx.restore();
 }
 // goldener, leicht pulsierender Ring um das ausgewählte Gebäude (Info-Panel)
 function drawSelectionRing(x,y){
