@@ -7,6 +7,7 @@ let speed=1;                 // 0=Pause · 1× · 2× · 3× (Zeitraffer)
 let workersFree=0, workersTotal=0;   // globale Arbeitskräfte
 let selectedTile=null;       // {x,y} des im Info-Panel angezeigten Gebäudes
 let animT=0; const clouds=[];   // Wetter-Animation
+const floaters=[];              // schwebende Feedback-Texte (+Denar)
 const sheep=[]; const birds=[]; let herdAnchor=null;   // Tierwelt
 function blankTile(){return {type:'empty',terr:'grass',lvl:0,water:0,food:0,taxed:0,goods:0,res:0,decay:0,spawn:0};}
 function buildOn(t,type,service){t.type=type;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.conv=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;t.service=service||undefined;}
