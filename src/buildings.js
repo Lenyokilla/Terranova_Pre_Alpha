@@ -1,5 +1,77 @@
 /* TERRA · buildings.js */
 
+// ==========================================
+// 1. GEBÄUDE LOGIK (Klassen & Datenmodell)
+// ==========================================
+
+class Building {
+    constructor(id, x, y, type = 'residential') {
+        this.id = id;
+        this.x = x; // Gitter-Koordinate gx
+        this.y = y; // Gitter-Koordinate gy
+        this.type = type;
+        
+        // Die interne Logik-Stufe startet bei 1. 
+        // Für die Zeichenfunktion (drawInsula) wird das später auf 0-3 gemappt.
+        this.level = 1; 
+        
+        // Dynamische Status-Effekte für die grafischen Overlays
+        this.statusEffects = {
+            fireRisk: false,
+            plagueRisk: false,
+            waterShortage: false,
+            unemployed: false
+        };
+        
+        this.stats = this.initStats();
+    }
+
+    initStats() {
+        const baseStats = {
+            residential: {
+                name: 'Insula',
+                population: 10,
+                maxPopulation: 10,
+                taxRate: 5
+            }
+            // Weitere Gebäudetypen hier...
+        };
+        return baseStats[this.type] || baseStats['residential'];
+    }
+
+    // Erhöht das Level (maximal auf Stufe 4, was lvl 3 in drawInsula entspricht)
+    upgrade() {
+        if (this.level < 4) {
+            this.level += 1;
+            this.stats.maxPopulation = Math.floor(this.stats.maxPopulation * 1.5);
+            this.stats.taxRate = Math.floor(this.stats.taxRate * 1.3);
+            console.log(`${this.stats.name} auf Stufe ${this.level} verbessert.`);
+        }
+    }
+
+    update(gameTime) {
+        if (this.type === 'residential' && this.stats.population > 0) {
+            return {
+                goldGenerated: this.stats.taxRate * this.level
+            };
+        }
+        return null;
+    }
+
+    // Schnittstelle zum Renderer
+    draw(baseLift = 0) {
+        if (this.type === 'residential') {
+            const drawLevel = this.level - 1;
+            return drawBuilding(this.x, this.y, 'house', drawLevel, baseLift, this.statusEffects);
+        }
+    }
+}
+
+
+// ==========================================
+// 2. RENDERING HELFER & MATHE
+// ==========================================
+
 // ---- Gezeichnete Iso-Gebäude (Sonne oben-links) ----
 
 function lerp(a, b, t) {
@@ -72,7 +144,6 @@ function column(base, hpx) {
   ctx.fillRect(x - w / 2 - 1.4 * s, base.y - 1.8 * s, w + 2.8 * s, 1.8 * s);                       // Basis
 }
 
-
 function canopyRoof(c, color, roofH) {            // flaches überstehendes Vordach (Markt)
   const k = roofH * cam.scale, f = 1.28, cc = { x: (c.Nt.x + c.Et.x + c.St.x + c.Wt.x) / 4, y: (c.Nt.y + c.Et.y + c.St.y + c.Wt.y) / 4 };
   const R = p => ({ x: cc.x + (p.x - cc.x) * f, y: cc.y + (p.y - cc.y) * f - k });
@@ -85,10 +156,6 @@ function canopyRoof(c, color, roofH) {            // flaches überstehendes Vord
   return N.y;
 }
 
-
-
-
-
 // Farbmischung zweier Hex-Farben
 function mixHex(a, b, t) {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
@@ -97,6 +164,35 @@ function mixHex(a, b, t) {
   const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
   return 'rgb(' + r + ',' + g + ',' + bl + ')';
 }
+
+function wallBrickLines(bl, br, tl, tr, count, color, s) {
+  ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, 0.9 * s);
+  for (let i = 1; i <= count; i++) { const v = i / (count + 1);
+    const a = lerp(bl, tl, v), b = lerp(br, tr, v);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+}
+
+function wallArch(bl, br, tl, tr, u0, u1, v0, v1, darkCol, archCol, s) {
+  const P = (u, v) => { const b = lerp(bl, br, u), t = lerp(tl, tr, u); return lerp(b, t, v); };
+  function arch(a0, a1, vb, vs, vp) {
+    ctx.beginPath();
+    let p = P(a0, vb); ctx.moveTo(p.x, p.y);
+    p = P(a1, vb); ctx.lineTo(p.x, p.y);
+    p = P(a1, vs); ctx.lineTo(p.x, p.y);
+    const N = 12; for (let i = 1; i <= N; i++) { const tt = i / N, u = a1 + (a0 - a1) * tt, v = vs + (vp - vs) * Math.sin(tt * Math.PI); p = P(u, v); ctx.lineTo(p.x, p.y); }
+    p = P(a0, vs); ctx.lineTo(p.x, p.y); ctx.closePath();
+  }
+  const vs = v0 + (v1 - v0) * 0.5;
+  ctx.fillStyle = archCol; arch(u0, u1, v0, vs, v1); ctx.fill();                 // Bogenrahmen
+  const du = (u1 - u0) * 0.18, vsi = v0 + (v1 - v0) * 0.52;
+  ctx.fillStyle = darkCol; arch(u0 + du, u1 - du, v0, vsi, v1 - (v1 - vs) * 0.16); ctx.fill();  // Öffnung
+}
+
+
+// ==========================================
+// 3. GEBÄUDE RENDERING (Die eigentlichen Modelle)
+// ==========================================
+
 // kleiner Erntehelfer mit schwingender Sichel
 function drawHarvester(x, y, s, seed) {
   ctx.fillStyle = 'rgba(28,38,18,.18)'; ctx.beginPath(); ctx.ellipse(x + 1.5 * s, y + 1 * s, 4 * s, 1.8 * s, 0, 0, 7); ctx.fill();
@@ -109,6 +205,7 @@ function drawHarvester(x, y, s, seed) {
   ctx.strokeStyle = '#c9c4ba'; ctx.beginPath(); ctx.arc(hx, hy, 3 * s, swing - 0.4, swing + 1.4); ctx.stroke();  // Klinge
   ctx.lineCap = 'butt';
 }
+
 function drawGrainfield(gx, gy, baseLift) {
   const s = cam.scale;
   const c = isoCorners(gx, gy, baseLift, 0);
@@ -163,7 +260,6 @@ function drawGrainfield(gx, gy, baseLift) {
   }
   return { cx: c.cx, topY: c.N.y - 8 * s };
 }
-
 
 // Römisches Mietshaus (Insula): hoher Putzbau, Fensterreihen je Stockwerk, flaches Terrakottadach
 function drawInsula(gx, gy, lvl, baseLift) {
@@ -263,7 +359,7 @@ function drawInsula(gx, gy, lvl, baseLift) {
   return { cx: c.cx, topY: r.Nt.y };
 }
 
-
+// ==== HAUPT-RENDERING FUNKTION (mit Status-Effekten für Häuser) ====
 function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'house') return drawInsula(gx, gy, lvl, baseLift);
   if (kind === 'forum') return drawForum(gx, gy, baseLift);
@@ -304,13 +400,11 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   ctx.restore();
 
   // --- TRICK 2: GRADIENTEN STATT FLAT COLORS (Licht von oben-links) ---
-  // SW-Wand (Hellere Seite mit vertikalem Helligkeitsverlauf)
   const gradSW = ctx.createLinearGradient(c.W.x, c.Wt.y, c.S.x, c.S.y);
   gradSW.addColorStop(0, shade(wallColor, 0.05));
   gradSW.addColorStop(1, shade(wallColor, -0.12));
   ctx.fillStyle = gradSW; poly([c.W, c.S, c.St, c.Wt]);
 
-  // SE-Wand (Schattenseite mit tieferem Verlauf)
   const gradSE = ctx.createLinearGradient(c.S.x, c.St.y, c.E.x, c.E.y);
   gradSE.addColorStop(0, shade(wallColor, -0.22));
   gradSE.addColorStop(1, shade(wallColor, -0.38));
@@ -320,7 +414,6 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  // Simuliere Putzstruktur durch winzige Punkte im Raster
   for (let i = 0; i < 15; i++) {
     ctx.fillRect(c.bx + (Math.random()-0.5)*30*s, c.by - (Math.random())*h*s, 1.2*s, 1.2*s);
   }
@@ -334,14 +427,11 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   // Fenster mit leuchtenden Fensterbänken (3D-Effekt)
   if (windows) {
     const drawTier = (vBot, vTop) => {
-      // SW Fenster
       wallPatch(c.W, c.S, c.Wt, c.St, 0.22, 0.42, vBot, vTop, '#1e2530');
       wallPatch(c.W, c.S, c.Wt, c.St, 0.58, 0.78, vBot, vTop, '#1e2530');
-      // Fensterrahmen-Highlight unten
       ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(lerp(c.W,c.S,0.22).x, lerp(c.W,c.St,vBot).y); ctx.lineTo(lerp(c.W,c.S,0.42).x, lerp(c.W,c.St,vBot).y); ctx.stroke();
 
-      // SE Fenster
       wallPatch(c.S, c.E, c.St, c.Et, 0.22, 0.42, vBot, vTop, '#141a21');
       wallPatch(c.S, c.E, c.St, c.Et, 0.58, 0.78, vBot, vTop, '#141a21');
     };
@@ -399,30 +489,9 @@ function onScreen(gx, gy) {
   return p.x > -80 && p.x < r.width + 80 && p.y > -120 && p.y < r.height + 80;
 }
 
-// ===== Fehlende Helfer (von Geminis Gebäuden benötigt) =====
-function wallBrickLines(bl, br, tl, tr, count, color, s) {
-  ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, 0.9 * s);
-  for (let i = 1; i <= count; i++) { const v = i / (count + 1);
-    const a = lerp(bl, tl, v), b = lerp(br, tr, v);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-}
-function wallArch(bl, br, tl, tr, u0, u1, v0, v1, darkCol, archCol, s) {
-  const P = (u, v) => { const b = lerp(bl, br, u), t = lerp(tl, tr, u); return lerp(b, t, v); };
-  function arch(a0, a1, vb, vs, vp) {
-    ctx.beginPath();
-    let p = P(a0, vb); ctx.moveTo(p.x, p.y);
-    p = P(a1, vb); ctx.lineTo(p.x, p.y);
-    p = P(a1, vs); ctx.lineTo(p.x, p.y);
-    const N = 12; for (let i = 1; i <= N; i++) { const tt = i / N, u = a1 + (a0 - a1) * tt, v = vs + (vp - vs) * Math.sin(tt * Math.PI); p = P(u, v); ctx.lineTo(p.x, p.y); }
-    p = P(a0, vs); ctx.lineTo(p.x, p.y); ctx.closePath();
-  }
-  const vs = v0 + (v1 - v0) * 0.5;
-  ctx.fillStyle = archCol; arch(u0, u1, v0, vs, v1); ctx.fill();                 // Bogenrahmen
-  const du = (u1 - u0) * 0.18, vsi = v0 + (v1 - v0) * 0.52;
-  ctx.fillStyle = darkCol; arch(u0 + du, u1 - du, v0, vsi, v1 - (v1 - vs) * 0.16); ctx.fill();  // Öffnung
-}
 
-// ===== Römische Gebäude im antiken Stil (Gemini) =====
+// ===== Römische Gebäude im antiken Stil =====
+
 function drawForum(gx, gy, baseLift) {
   const s = cam.scale, marbleLight = '#efe7d4', stone = '#e7ddc6';
   const hBase = 6, colH = 20, entH = 5, roofH = 14;
@@ -449,7 +518,7 @@ function drawForum(gx, gy, baseLift) {
   ctx.fillStyle = gEntSW; poly([e2.Wt, e2.St, e3.St, e3.Wt]);
   const gEntSE = ctx.createLinearGradient(e2.St.x, e3.St.y, e2.E.x, e2.E.y);
   gEntSE.addColorStop(0, shade(marbleLight, -0.24)); gEntSE.addColorStop(1, shade(marbleLight, -0.38));
-  ctx.fillStyle = gEntSE; poly([e2.St, e2.Et, e3.Et, e3.St]);   // FIX: e3.St statt e2.St
+  ctx.fillStyle = gEntSE; poly([e2.St, e2.Et, e3.Et, e3.St]);
   wallBrickLines(e2.Wt, e2.St, e3.Wt, e3.St, 1, 'rgba(140,70,50,0.4)', s);
   wallBrickLines(e2.St, e2.Et, e3.St, e3.Et, 1, 'rgba(100,50,35,0.4)', s);
   const apex = { x: (e3.Nt.x + e3.Et.x + e3.St.x + e3.Wt.x) / 4, y: (e3.Nt.y + e3.Et.y + e3.St.y + e3.Wt.y) / 4 - roofH * s };
