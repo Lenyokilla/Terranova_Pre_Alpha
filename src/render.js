@@ -20,6 +20,7 @@ function drawRoad(x,y,g){
 // Boden-Pass: Terrain, Straßen, flache Deko (keine Gebäude)
 function drawGround(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
+  if(c.terr==='mountain'){ drawMountain(x,y); return; }   // echte Bergform statt Kasten
   const topCol = c.type==='road' ? '#b9ad95' : td.top[0];
   const sL = td.side? td.side[1] : shade(topCol,-0.10);   // SW (links) heller
   const sR = td.side? td.side[0] : shade(topCol,-0.26);   // SE (rechts) dunkler
