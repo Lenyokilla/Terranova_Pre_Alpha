@@ -34,7 +34,7 @@ function landWalk(x,y){ if(!inBounds(x,y))return false; const t=grid[y][x];
   const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery'||b==='grainfield'||b==='mill') return false;
   return true; }
 function houseCap(h){return HOUSE[h.lvl].pop;}
-function needsResident(t){return t.type==='house'&&t.lvl>=1&&t.res<houseCap(t);}
+function needsResident(t){return t.type==='house'&&t.res<houseCap(t);}  // auch Stufe 0 (Hütte) -> Anschub für Arbeitskräfte
 // BFS von begehbaren Randfeldern zum nächsten Haus mit freiem Platz
 function findImmigrantPath(){
   const q=[],prev={},seen=new Set();
@@ -130,10 +130,10 @@ function tick(){
     if(t.fireSafe>0)t.fireSafe--; if(t.engSafe>0)t.engSafe--;
     if(t.fireSafe>0){ t.rF=0; t.fireRisk=false; }
     else { t.rF=(t.rF||0)+1; if(t.rF>=RISK_GRACE){ t.fireRisk=true;
-      if(Math.random()<FIRE_CHANCE){ razeTile(t); if(typeof flash==='function')flash('🔥 Brand: ein Gebäude ist abgebrannt!'); continue; } } }
+      if(t.rF>=RISK_GRACE+RISK_FUSE && Math.random()<FIRE_CHANCE){ razeTile(t); if(typeof flash==='function')flash('🔥 Brand: ein Gebäude ist abgebrannt!'); continue; } } }
     if(t.engSafe>0){ t.rC=0; t.collapseRisk=false; }
     else { t.rC=(t.rC||0)+1; if(t.rC>=RISK_GRACE){ t.collapseRisk=true;
-      if(Math.random()<COLLAPSE_CHANCE){ razeTile(t); if(typeof flash==='function')flash('🏚 Einsturz: ein Gebäude ist eingestürzt!'); continue; } } }
+      if(t.rC>=RISK_GRACE+RISK_FUSE && Math.random()<COLLAPSE_CHANCE){ razeTile(t); if(typeof flash==='function')flash('🏚 Einsturz: ein Gebäude ist eingestürzt!'); continue; } } }
   }
   // Bewohner-Dynamik
   pop=0;
