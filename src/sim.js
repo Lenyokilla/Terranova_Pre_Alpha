@@ -113,7 +113,7 @@ function tick(){
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ money+=t.res+(t.goods>0?GOODS_BONUS:0); t.taxed=SERVICE_LIFE; } }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
         }
       }
       w.life--; if(w.life<=0)continue;
@@ -165,6 +165,8 @@ function loop(now){
   const k=speed>0?speed:0;                 // Pause friert ein, Zeitraffer beschleunigt
   const adt=rawdt*k;
   animT+=adt; updateClouds(adt); updateAllWildlife(adt);
+  if(typeof updateFloaters==='function') updateFloaters(rawdt);   // UI-Feedback in Echtzeit
+  if(typeof updateAmbient==='function') updateAmbient(rawdt);     // Ambient-Sound
   if(speed>0){                             // Läufer nur bei laufender Zeit interpolieren
     const curTick=TICK/speed, frac=Math.min((now-lastTick)/curTick,1);
     for(const w of walkers)w.prog=frac;
