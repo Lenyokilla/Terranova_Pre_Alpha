@@ -1,20 +1,12 @@
 // =========================================================================
-// ---- INTERNE HILFSFUNKTIONEN & ENGINE-FALLBACKS (Verhindert Abstürze) ----
+// ---- INTERNE HILFSFUNKTIONEN FÜR RÖMISCHE GRAFIKEN ----
 // =========================================================================
 
-// Fallbacks für globale Konfigurationen (falls im Hauptskript anders benannt)
-const _s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-const _TW = typeof TW !== 'undefined' ? TW : 64;  // Kachelbreite (Tile Width)
-const _TH = typeof TH !== 'undefined' ? TH : 32;  // Kachelhöhe (Tile Height)
-const _animT = typeof animT !== 'undefined' ? animT : 0; // Animations-Timer
-
-// Berechnet die isometrischen Eckpunkte eines Blocks im Raum
+// Berechnet die isometrischen Eckpunkte eines Blocks im Raum anhand der config.js-Maße
 function isoCorners(gx, gy, baseLift, height) {
-    const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-    const TW = typeof TW !== 'undefined' ? TW : 64;
-    const TH = typeof TH !== 'undefined' ? TH : 32;
-
-    // Projektion der Kachel-Mitte auf dem Boden
+    const s = cam.scale;
+    
+    // Projektion der Kachel-Mitte auf dem Canvas
     const cx = (gx - gy) * (TW / 2) * s;
     const cy = (gx + gy) * (TH / 2) * s - (baseLift * s);
     const h = height * s;
@@ -24,12 +16,12 @@ function isoCorners(gx, gy, baseLift, height) {
         cy: cy - h,
         bx: cx,
         by: cy,
-        // Bodenpunkte
+        // Bodenpunkte der Kachel
         N: { x: cx, y: cy - (TH / 2) * s },
         E: { x: cx + (TW / 2) * s, y: cy },
         S: { x: cx, y: cy + (TH / 2) * s },
         W: { x: cx - (TW / 2) * s, y: cy },
-        // Top-Punkte (mit Höhe)
+        // Top-Punkte (inklusive Gebäudehöhe)
         Nt: { x: cx, y: cy - (TH / 2) * s - h },
         Et: { x: cx + (TW / 2) * s, y: cy - h },
         St: { x: cx, y: cy + (TH / 2) * s - h },
@@ -37,7 +29,7 @@ function isoCorners(gx, gy, baseLift, height) {
     };
 }
 
-// Zeichnet einen geschlossenen Pfad aus Punkten
+// Zeichnet einen geschlossenen, gefüllten Pfad aus Punkten
 function poly(points) {
     if (!points || points.length < 2) return;
     ctx.beginPath();
@@ -49,7 +41,7 @@ function poly(points) {
     ctx.fill();
 }
 
-// Lineare Interpolation zwischen zwei Punkten
+// Lineare Interpolation zwischen zwei Punkten (für Säulen/Tore)
 function lerp(p1, p2, t) {
     return {
         x: p1.x + (p2.x - p1.x) * t,
@@ -66,7 +58,7 @@ function shade(color, percent) {
     return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
 }
 
-// Zeichnet horizontale Ziegelschichten auf eine Wandseite
+// Zeichnet Mauerstrukturen / horizontale Linien auf eine Wand
 function wallBrickLines(pBotL, pBotR, pTopL, pTopR, count, strokeCol, scale) {
     ctx.save();
     ctx.strokeStyle = strokeCol;
@@ -83,7 +75,7 @@ function wallBrickLines(pBotL, pBotR, pTopL, pTopR, count, strokeCol, scale) {
     ctx.restore();
 }
 
-// Zeichnet ein rechteckiges Wand-Element (z.B. Fenster)
+// Zeichnet ein Wand-Element (z.B. Fensterluken)
 function wallPatch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, fillCol) {
     const bl = lerp(pBotL, pBotR, tL);
     const br = lerp(pBotL, pBotR, tR);
@@ -99,7 +91,7 @@ function wallPatch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, fillCol) {
     ]);
 }
 
-// Zeichnet einen römischen Rundbogen (Tor/Ofen) auf eine Wandfläche
+// Zeichnet einen römischen Rundbogen (Tore, Brennöfen)
 function wallArch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, innerCol, archCol, scale) {
     const bl = lerp(pBotL, pBotR, tL);
     const br = lerp(pBotL, pBotR, tR);
@@ -112,7 +104,6 @@ function wallArch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, innerCol, arch
     const p3 = lerp(bl, tl, hTop * 0.7);
     const topM = lerp(lerp(bl, tl, hTop), lerp(br, tr, hTop), 0.5);
 
-    // Inneres Torloch
     ctx.fillStyle = innerCol;
     ctx.beginPath();
     ctx.moveTo(p0.x, p0.y);
@@ -122,7 +113,6 @@ function wallArch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, innerCol, arch
     ctx.closePath();
     ctx.fill();
 
-    // Ton-Bogen (Architrav-Rahmen)
     ctx.strokeStyle = archCol;
     ctx.lineWidth = Math.max(1.5, 2 * scale);
     ctx.beginPath();
@@ -131,32 +121,31 @@ function wallArch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, innerCol, arch
     ctx.stroke();
 }
 
-// Einzelne Säule für den Tempel/Forum
+// Zeichnet eine einzelne römische Tempelsäule
 function column(baseCenter, height) {
-    const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
+    const s = cam.scale;
     const w = 2.2 * s;
     const h = height * s;
     
     ctx.fillStyle = '#efe7d4';
     ctx.fillRect(baseCenter.x - w/2, baseCenter.y - h, w, h);
     
-    // Kanneluren (Säulenrillen Schatten)
     ctx.fillStyle = 'rgba(40,30,20,0.15)';
     ctx.fillRect(baseCenter.x + w/6, baseCenter.y - h, w/3, h);
 }
 
-// Isometrisches Walmdach (Hip Roof)
+// Isometrisches Walmdach (Ziegeldach)
 function hipRoof(c, color, roofH, drawFacies) {
-    const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
+    const s = cam.scale;
     const apex = { x: c.cx, y: c.cy - roofH * s };
 
-    ctx.fillStyle = shade(color, 0.05);  // SW Seite
+    ctx.fillStyle = shade(color, 0.05);  
     poly([c.Wt, c.St, apex]);
     
-    ctx.fillStyle = shade(color, -0.18); // SE Seite
+    ctx.fillStyle = shade(color, -0.18); 
     poly([c.St, c.Et, apex]);
     
-    ctx.fillStyle = shade(color, -0.35); // Rückseiten Schatten
+    ctx.fillStyle = shade(color, -0.35); 
     poly([c.Et, c.Nt, apex]);
     poly([c.Nt, c.Wt, apex]);
 
@@ -168,18 +157,16 @@ function hipRoof(c, color, roofH, drawFacies) {
     return apex.y;
 }
 
-// Gestreifte römische Stoffmarkise (Canopy) für den Markt
+// Gestreifte römische Marktmarkise
 function canopyRoof(c, color, roofH) {
-    const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
+    const s = cam.scale;
     const apex = { x: c.cx, y: c.cy - roofH * s };
 
-    // Grundflächen
     ctx.fillStyle = color;
     poly([c.Wt, c.St, apex]);
     ctx.fillStyle = shade(color, -0.2);
     poly([c.St, c.Et, apex]);
 
-    // Antike Streifen-Andeutung
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     for (let t = 0.15; t < 1; t += 0.3) {
         poly([lerp(c.Wt, c.St, t), lerp(c.Wt, c.St, t + 0.1), apex]);
@@ -204,8 +191,7 @@ function tileFace(p1, p2, pApex, strokeCol) {
 // =========================================================================
 
 function drawForum(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const marbleLight = '#efe7d4', marbleShadow = '#caa680', stone = '#e7ddc6';
+  const s = cam.scale, marbleLight = '#efe7d4', stone = '#e7ddc6';
   const hBase = 6, colH = 20, entH = 5, roofH = 14;
   
   const b0 = isoCorners(gx, gy, baseLift, 0), b1 = isoCorners(gx, gy, baseLift, hBase);
@@ -266,8 +252,7 @@ function drawForum(gx, gy, baseLift) {
 }
 
 function drawClaypit(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const rim = '#9c7b4e', brickCol = '#a4593d';
+  const s = cam.scale, rim = '#9c7b4e', brickCol = '#a4593d';
   const g0 = isoCorners(gx, gy, baseLift, 0), gr = isoCorners(gx, gy, baseLift, 4);
   
   ctx.save();
@@ -293,14 +278,13 @@ function drawClaypit(gx, gy, baseLift) {
 
   ctx.fillStyle = '#b67f4c';
   for (const [dx, dy] of [[-5, 1], [4, 3], [1, -2]]) {
-    ctx.beginPath(); ctx.ellipse(ctr.x + dx * s, ctr.y + dy * s, 4 * s, 2.2 * s, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ctr.x + dx * s, ctr.y + dy * s, 4 * s, 2.2 * s, 0, 0, 2 * Math.PI); ctx.fill();
   }
   return { cx: gr.cx, topY: gr.Nt.y };
 }
 
 function drawPottery(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const wall = '#caa46e', roof = '#b15f3a';
+  const s = cam.scale, wall = '#caa46e', roof = '#b15f3a';
   const h = 14;
   const c = isoCorners(gx, gy, baseLift, h);
 
@@ -323,28 +307,25 @@ function drawPottery(gx, gy, baseLift) {
 
   const kb = lerp(c.S, c.E, 0.6), kt = lerp(c.St, c.Et, 0.6);
   const kx = (kb.x + kt.x) / 2, ky = (kb.y + kt.y) / 2 + 1 * s;
-  ctx.fillStyle = '#a85834'; ctx.beginPath(); ctx.arc(kx, ky, 3 * s, 0, 7); ctx.fill(); 
+  ctx.fillStyle = '#a85834'; ctx.beginPath(); ctx.arc(kx, ky, 3 * s, 0, 2 * Math.PI); ctx.fill(); 
 
   const topY = hipRoof(c, roof, 9, true);
 
   ctx.fillStyle = 'rgba(100,95,90,0.35)';
-  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(c.cx + (i - 1) * 3 * s, topY - (4 + i * 4) * s, (2 + i * 1.2) * s, 0, 7); ctx.fill(); }
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(c.cx + (i - 1) * 3 * s, topY - (4 + i * 4) * s, (2 + i * 1.2) * s, 0, 2 * Math.PI); ctx.fill(); }
 
   return { cx: c.cx, topY };
 }
 
 function drawWell(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const TW = typeof TW !== 'undefined' ? TW : 64;
-  const TH = typeof TH !== 'undefined' ? TH : 32;
-  const marble = '#efe7d4', brick = '#b15f3a';
+  const s = cam.scale, marble = '#efe7d4', brick = '#b15f3a';
   const c = isoCorners(gx, gy, baseLift, 0);
   const ctr = { x: c.bx, y: c.by };
   const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.58, y: ctr.y + (p.y - ctr.y) * 0.58 });
   const Ih = p => ({ x: I(p).x, y: I(p).y - 8 * s });
   
   ctx.save(); ctx.translate(c.bx + 6 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
-  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.34 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.34 * s, 0, 2 * Math.PI); ctx.fill(); ctx.restore();
 
   const gSW = ctx.createLinearGradient(I(c.W).x, Ih(c.W).y, I(c.S).x, I(c.S).y);
   gSW.addColorStop(0, marble); gSW.addColorStop(1, shade(marble, -0.12));
@@ -358,7 +339,7 @@ function drawWell(gx, gy, baseLift) {
   wallBrickLines(I(c.S), I(c.E), Ih(c.S), Ih(c.E), 1, 'rgba(80,70,60,0.35)', s);
 
   ctx.fillStyle = '#3a82a6'; poly([Ih(c.N), Ih(c.E), Ih(c.S), Ih(c.W)]);
-  ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.ellipse((Ih(c.N).x + Ih(c.S).x) / 2, (Ih(c.N).y + Ih(c.S).y) / 2, 4.5 * s, 1.8 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.ellipse((Ih(c.N).x + Ih(c.S).x) / 2, (Ih(c.N).y + Ih(c.S).y) / 2, 4.5 * s, 1.8 * s, 0, 0, 2 * Math.PI); ctx.fill();
 
   ctx.strokeStyle = 'rgba(40,30,16,.30)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(Ih(c.W).x, Ih(c.W).y); ctx.lineTo(Ih(c.S).x, Ih(c.S).y); ctx.lineTo(Ih(c.E).x, Ih(c.E).y); ctx.stroke();
@@ -386,14 +367,11 @@ function drawWell(gx, gy, baseLift) {
 }
 
 function drawMarket(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const TW = typeof TW !== 'undefined' ? TW : 64;
-  const TH = typeof TH !== 'undefined' ? TH : 32;
-  const wall = '#cdb78c', roofAwn = '#c0533a';
+  const s = cam.scale, wall = '#cdb78c', roofAwn = '#c0533a';
   const c = isoCorners(gx, gy, baseLift, 9);
 
   ctx.save(); ctx.translate(c.bx + 7 * s, c.by + 3 * s); ctx.scale(1, TH / TW);
-  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.42 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.42 * s, 0, 2 * Math.PI); ctx.fill(); ctx.restore();
 
   const gSW = ctx.createLinearGradient(c.W.x, c.Wt.y, c.S.x, c.S.y);
   gSW.addColorStop(0, shade(wall, 0.05)); gSW.addColorStop(1, shade(wall, -0.12));
@@ -410,8 +388,8 @@ function drawMarket(gx, gy, baseLift) {
 
   const goods = [['#b9742f', -5, 1], ['#4e6b36', 4, 2], ['#d8a24a', 0, -2], ['#8a5230', -1, 4]];
   for (const [col, dx, dy] of goods) {
-    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(c.cx + dx * s, c.cy + dy * s, 3.2 * s, 2.4 * s, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.20)'; ctx.beginPath(); ctx.ellipse(c.cx + dx * s - 0.8 * s, c.cy + dy * s - 0.8 * s, 1.2 * s, 0.8 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(c.cx + dx * s, c.cy + dy * s, 3.2 * s, 2.4 * s, 0, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.20)'; ctx.beginPath(); ctx.ellipse(c.cx + dx * s - 0.8 * s, c.cy + dy * s - 0.8 * s, 1.2 * s, 0.8 * s, 0, 0, 2 * Math.PI); ctx.fill();
   }
 
   const topY = canopyRoof(c, roofAwn, 10);
@@ -419,8 +397,7 @@ function drawMarket(gx, gy, baseLift) {
 }
 
 function drawFirehouse(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const wall = '#c2bbab', roof = '#b15f3a';
+  const s = cam.scale, wall = '#c2bbab', roof = '#b15f3a';
   const h = 22;
   const c = isoCorners(gx, gy, baseLift, h);
 
@@ -448,15 +425,14 @@ function drawFirehouse(gx, gy, baseLift) {
   ctx.fillStyle = roof; poly([r.Nt, r.Et, r.St, r.Wt]);
 
   const c2 = r;
-  ctx.fillStyle = '#5a4530'; ctx.beginPath(); ctx.ellipse(c2.cx, c2.cy - 1 * s, 7 * s, 4 * s, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#3a7da1'; ctx.beginPath(); ctx.ellipse(c2.cx, c2.cy - 2.2 * s, 5.5 * s, 3 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5a4530'; ctx.beginPath(); ctx.ellipse(c2.cx, c2.cy - 1 * s, 7 * s, 4 * s, 0, 0, 2 * Math.PI); ctx.fill();
+  ctx.fillStyle = '#3a7da1'; ctx.beginPath(); ctx.ellipse(c2.cx, c2.cy - 2.2 * s, 5.5 * s, 3 * s, 0, 0, 2 * Math.PI); ctx.fill();
 
   return { cx: c.cx, topY: r.Nt.y };
 }
 
 function drawEngineer(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const wall = '#cabd9b', roof = '#b15f3a';
+  const s = cam.scale, wall = '#cabd9b', roof = '#b15f3a';
   const h = 18;
   const c = isoCorners(gx, gy, baseLift, h);
 
@@ -466,7 +442,7 @@ function drawEngineer(gx, gy, baseLift) {
 
   const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
   gSW.addColorStop(0, shade(wall, 0.06)); gSW.addColorStop(1, shade(wall, -0.12));
-  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, r.Wt]); // Fix: r.Wt -> c.Wt
 
   const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
   gSE.addColorStop(0, shade(wall, -0.20)); gSE.addColorStop(1, shade(wall, -0.36));
@@ -494,9 +470,7 @@ function drawEngineer(gx, gy, baseLift) {
 }
 
 function drawMill(gx, gy, baseLift) {
-  const s = (typeof cam !== 'undefined' && cam.scale) ? cam.scale : 1;
-  const animT = typeof animT !== 'undefined' ? animT : 0;
-  const wall = '#cfc4ad', roof = '#b15f3a';
+  const s = cam.scale, wall = '#cfc4ad', roof = '#b15f3a';
   const h = 18;
   const c = isoCorners(gx, gy, baseLift, h);
 
@@ -519,8 +493,10 @@ function drawMill(gx, gy, baseLift) {
 
   const topY = hipRoof(c, roof, 10, true);
 
+  // Falls animT nicht existiert, nutzen wir stattdessen 0 als Fallback
+  const currentAnim = typeof animT !== 'undefined' ? animT : 0;
   const hub = lerp(lerp(c.S, c.E, 0.5), lerp(c.St, c.Et, 0.5), 0.48);
-  const rot = animT * 0.5, R = 12 * s;
+  const rot = currentAnim * 0.5, R = 12 * s;
   for (let k = 0; k < 4; k++) {
     const a = rot + k * Math.PI / 2;
     const ex = hub.x + Math.cos(a) * R, ey = hub.y + Math.sin(a) * R * 0.7;
@@ -528,7 +504,7 @@ function drawMill(gx, gy, baseLift) {
     ctx.fillStyle = 'rgba(235,225,200,0.85)'; ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = Math.max(1.5, 1.8 * s); ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.stroke();
   }
-  ctx.fillStyle = '#3a2412'; ctx.beginPath(); ctx.arc(hub.x, hub.y, 2.2 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a2412'; ctx.beginPath(); ctx.arc(hub.x, hub.y, 2.2 * s, 0, 2 * Math.PI); ctx.fill();
 
   return { cx: c.cx, topY };
 }
