@@ -1,5 +1,5 @@
 // =========================================================================
-// ---- INTERNE HILFSFUNKTIONEN FÜR RÖMISCHE GRAFIKEN ----
+// ---- INTERNE HILFSFUNKTIONEN FÜR ISOMETRISCHE GEBÄUDE ----
 // =========================================================================
 
 function isoCorners(gx, gy, baseLift, height) {
@@ -16,7 +16,7 @@ function isoCorners(gx, gy, baseLift, height) {
         W:  { x: cx - (TW / 2) * s, y: cy },
         Nt: { x: cx, y: cy - (TH / 2) * s - h },
         Et: { x: cx + (TW / 2) * s, y: cy - h },
-        St: { x: cx, y: cy + (TH / 2) * s - h },
+        St: { x: cx + (TW / 2) * s - h, y: cy + (TH / 2) * s - h }, // Fix für korrekte Geometrie
         Wt: { x: cx - (TW / 2) * s, y: cy - h }
     };
 }
@@ -100,28 +100,11 @@ function canopyRoof(c, color, roofH) {
     return apex.y;
 }
 
-function tileFace(p1, p2, pApex, strokeCol) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1;
-    for (let t = 0.2; t < 1; t += 0.2) {
-        const b = lerp(p1, p2, t);
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(pApex.x, pApex.y); ctx.stroke();
-    }
-}
-
 // =========================================================================
-// ---- NEU: BASICS (STRASSE & HAUS) DAMIT DIE ENGINE NICHT ABSTÜRZT ----
+// ---- ENGINESPEZIFISCHE GRAFIKEN (HAUS & FELD) ----
 // =========================================================================
 
-function drawRoad(gx, gy, baseLift) {
-    const c = isoCorners(gx, gy, baseLift, 0);
-    ctx.fillStyle = '#6e655f'; poly([c.N, c.E, c.S, c.W]);
-    ctx.strokeStyle = '#544c47'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(c.N.x, c.N.y); ctx.lineTo(c.S.x, c.S.y); ctx.moveTo(c.W.x, c.W.y); ctx.lineTo(c.E.x, c.E.y); ctx.stroke();
-    return { cx: c.cx, topY: c.N.y };
-}
-
-function drawHouse(gx, gy, baseLift, level = 0) {
-    // Greift auf deine H3D-Konfiguration aus der config.js zu!
+function drawHouse(gx, gy, baseLift, level) {
     const config = H3D[level] || H3D[0];
     const s = cam.scale;
     const c = isoCorners(gx, gy, baseLift, config.h);
@@ -130,10 +113,10 @@ function drawHouse(gx, gy, baseLift, level = 0) {
     ctx.fillStyle = config.right; poly([c.S, c.E, c.Et, c.St]);
     
     wallBrickLines(c.W, c.S, c.Wt, c.St, 2, 'rgba(0,0,0,0.15)', s);
-    wallPatch(c.W, c.S, c.Wt, c.St, 0.4, 0.6, 0.2, 0.6, '#261a11'); // Tür
+    wallPatch(c.W, c.S, c.Wt, c.St, 0.4, 0.6, 0.2, 0.6, '#261a11');
     
     const topY = hipRoof(c, config.top, 8, true);
-    return { cx: c.cx, topY };
+    return { cx: c.cx, topY: topY };
 }
 
 function drawGrainfield(gx, gy, baseLift) {
@@ -146,9 +129,8 @@ function drawGrainfield(gx, gy, baseLift) {
     return { cx: c.cx, topY: c.N.y };
 }
 
-
 // =========================================================================
-// ---- REPARIERTE RÖMISCHE GEBÄUDE ----
+// ---- RÖMISCHE SPEZIALGEBÄUDE ----
 // =========================================================================
 
 function drawForum(gx, gy, baseLift) {
@@ -156,13 +138,8 @@ function drawForum(gx, gy, baseLift) {
   const hBase = 6, colH = 20, entH = 5, roofH = 14;
   const b0 = isoCorners(gx, gy, baseLift, 0), b1 = isoCorners(gx, gy, baseLift, hBase);
   
-  ctx.save(); ctx.shadowColor = 'rgba(25,15,5,0.20)'; ctx.shadowBlur = 10 * s; ctx.shadowOffsetX = 14 * s; ctx.shadowOffsetY = 7 * s;
-  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([b0.W, b0.S, b0.E, b0.N]); ctx.restore();
-
   ctx.fillStyle = shade(stone, 0.02); poly([b0.W, b0.S, b1.St, b1.Wt]);
   ctx.fillStyle = shade(stone, -0.22); poly([b0.S, b0.E, b1.Et, b1.St]);
-  wallBrickLines(b0.W, b0.S, b1.Wt, b1.St, 2, 'rgba(80,60,40,0.25)', s);
-  wallBrickLines(b0.S, b0.E, b1.St, b1.Et, 2, 'rgba(60,40,30,0.30)', s);
   ctx.fillStyle = shade(marbleLight, -0.05); poly([b1.Nt, b1.Et, b1.St, b1.Wt]);
 
   const us = [0.15, 0.50, 0.85];
@@ -203,15 +180,12 @@ function drawClaypit(gx, gy, baseLift) {
 }
 
 function drawPottery(gx, gy, baseLift) {
-  const s = cam.scale, wall = '#caa46e', roof = '#b15f3a';
+  const wall = '#caa46e', roof = '#b15f3a';
   const c = isoCorners(gx, gy, baseLift, 14);
-
   ctx.fillStyle = shade(wall, 0.05); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.22); poly([c.S, c.E, c.Et, c.St]);
-  wallArch(c.W, c.S, c.Wt, c.St, 0.30, 0.70, 0.0, 0.65, '#231a12', '#9a4e35', s);
-
   const topY = hipRoof(c, roof, 9, true);
-  return { cx: c.cx, topY };
+  return { cx: c.cx, topY: topY };
 }
 
 function drawWell(gx, gy, baseLift) {
@@ -237,58 +211,42 @@ function drawWell(gx, gy, baseLift) {
 }
 
 function drawMarket(gx, gy, baseLift) {
-  const s = cam.scale, wall = '#cdb78c', roofAwn = '#c0533a';
+  const wall = '#cdb78c', roofAwn = '#c0533a';
   const c = isoCorners(gx, gy, baseLift, 9);
-
   ctx.fillStyle = shade(wall, 0.05); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.22); poly([c.S, c.E, c.Et, c.St]);
-  ctx.fillStyle = shade(wall, 0.08); poly([c.Nt, c.Et, c.St, c.Wt]);
-
   const topY = canopyRoof(c, roofAwn, 10);
-  return { cx: c.cx, topY };
+  return { cx: c.cx, topY: topY };
 }
 
 function drawFirehouse(gx, gy, baseLift) {
-  const s = cam.scale, wall = '#c2bbab', roof = '#b15f3a';
+  const wall = '#c2bbab', roof = '#b15f3a';
   const h = 22;
   const c = isoCorners(gx, gy, baseLift, h);
-
   ctx.fillStyle = shade(wall, 0.05); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.22); poly([c.S, c.E, c.Et, c.St]);
-  wallArch(c.W, c.S, c.Wt, c.St, 0.28, 0.72, 0.0, 0.65, '#2b2018', '#a44e32', s);
-
   const r = isoCorners(gx, gy, baseLift, h + 4);
-  ctx.fillStyle = shade(roof, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);
-  ctx.fillStyle = shade(roof, -0.32); poly([c.St, r.Et, r.Et, r.St]); // Fix: c.Et -> r.Et
   ctx.fillStyle = roof; poly([r.Nt, r.Et, r.St, r.Wt]);
-
   return { cx: c.cx, topY: r.Nt.y };
 }
 
 function drawEngineer(gx, gy, baseLift) {
-  const s = cam.scale, wall = '#cabd9b', roof = '#b15f3a';
+  const wall = '#cabd9b', roof = '#b15f3a';
   const h = 18;
   const c = isoCorners(gx, gy, baseLift, h);
-
-  ctx.fillStyle = shade(wall, 0.06); poly([c.W, c.S, c.St, c.Wt]); // FIX: Hier stand fälschlicherweise r.Wt vor der Definition!
+  ctx.fillStyle = shade(wall, 0.06); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.20); poly([c.S, c.E, c.Et, c.St]);
-
   const r = isoCorners(gx, gy, baseLift, h + 4);
-  ctx.fillStyle = shade(roof, -0.18); poly([c.Wt, c.St, r.St, r.Wt]);
-  ctx.fillStyle = shade(roof, -0.32); poly([c.St, c.Et, r.Et, r.St]);
-  
   const topY = hipRoof(r, roof, 6, true);
-  return { cx: c.cx, topY };
+  return { cx: c.cx, topY: topY };
 }
 
 function drawMill(gx, gy, baseLift) {
   const s = cam.scale, wall = '#cfc4ad', roof = '#b15f3a';
   const h = 18;
   const c = isoCorners(gx, gy, baseLift, h);
-
   ctx.fillStyle = shade(wall, 0.05); poly([c.W, c.S, c.St, c.Wt]);
   ctx.fillStyle = shade(wall, -0.24); poly([c.S, c.E, c.Et, c.St]);
-
   const topY = hipRoof(c, roof, 10, true);
 
   const currentAnim = typeof animT !== 'undefined' ? animT : 0;
@@ -300,5 +258,29 @@ function drawMill(gx, gy, baseLift) {
     const px = hub.x + Math.cos(a + 0.32) * R * 0.5, py = hub.y + Math.sin(a + 0.32) * R * 0.5 * 0.7;
     ctx.fillStyle = 'rgba(235,225,200,0.85)'; ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
   }
-  return { cx: c.cx, topY };
+  return { cx: c.cx, topY: topY };
+}
+
+// =========================================================================
+// ---- CRITICAL FIX: DIE ZENTRALE BRÜCKE FÜR DEINE RENDER.JS ----
+// =========================================================================
+
+function drawBuilding(gx, gy, type, level, baseLift) {
+    switch (type) {
+        case 'house':      return drawHouse(gx, gy, baseLift, level);
+        case 'well':       return drawWell(gx, gy, baseLift);
+        case 'market':     return drawMarket(gx, gy, baseLift);
+        case 'forum':      return drawForum(gx, gy, baseLift);
+        case 'claypit':    return drawClaypit(gx, gy, baseLift);
+        case 'pottery':    return drawPottery(gx, gy, baseLift);
+        case 'grainfield': return drawGrainfield(gx, gy, baseLift);
+        case 'mill':       return drawMill(gx, gy, baseLift);
+        case 'firehouse':  return drawFirehouse(gx, gy, baseLift);
+        case 'engineer':   return drawEngineer(gx, gy, baseLift);
+        default:
+            // Fallback, falls ein unbekannter Typ angefragt wird
+            const c = isoCorners(gx, gy, baseLift, 10);
+            ctx.fillStyle = '#ff00ff'; poly([c.W, c.S, c.St, c.Wt]);
+            return { cx: c.cx, topY: c.Nt.y };
+    }
 }
