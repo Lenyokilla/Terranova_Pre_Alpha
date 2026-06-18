@@ -36,7 +36,7 @@ const SEASON_LEN=80;        // Ticks pro Wachstums-Saison (synchron für ALLE Fe
 const HARVEST_TICK=70;      // Zeitpunkt im Zyklus, an dem geerntet wird (Speicher füllt sich)
 // ---- Gefahren (Brand / Einsturz) ----
 const RISK_GRACE=40;        // Ticks ohne Abdeckung, bis Gefahr sichtbar wird
-const FIRE_CHANCE=0.005;    // Wahrscheinlichkeit/Tick für Brand bei bestehender Gefahr
+const FIRE_CHANCE=0.0005;    // Wahrscheinlichkeit/Tick für Brand bei bestehender Gefahr
 const COLLAPSE_CHANCE=0.0035;// Wahrscheinlichkeit/Tick für Einsturz bei bestehender Gefahr
 // ---- Arbeitskräfte (global, ohne Straße): Gebäude -> [benötigte Arbeiter, Priorität (klein=zuerst)] ----
 const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], mill:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3] };
