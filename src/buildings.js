@@ -16,7 +16,7 @@ function isoCorners(gx, gy, baseLift, height) {
         W:  { x: cx - (TW / 2) * s, y: cy },
         Nt: { x: cx, y: cy - (TH / 2) * s - h },
         Et: { x: cx + (TW / 2) * s, y: cy - h },
-        St: { x: cx + (TW / 2) * s - h, y: cy + (TH / 2) * s - h }, // Fix für korrekte Geometrie
+        St: { x: cx + (TW / 2) * s - h, y: cy + (TH / 2) * s - h },
         Wt: { x: cx - (TW / 2) * s, y: cy - h }
     };
 }
@@ -54,22 +54,6 @@ function wallBrickLines(pBotL, pBotR, pTopL, pTopR, count, strokeCol, scale) {
     ctx.restore();
 }
 
-function wallPatch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, fillCol) {
-    const bl = lerp(pBotL, pBotR, tL), br = lerp(pBotL, pBotR, tR);
-    const tl = lerp(pTopL, pTopR, tL), tr = lerp(pTopL, pTopR, tR);
-    ctx.fillStyle = fillCol;
-    poly([lerp(bl, tl, hBot), lerp(br, tr, hBot), lerp(br, tr, hTop), lerp(bl, tl, hTop)]);
-}
-
-function wallArch(pBotL, pBotR, pTopL, pTopR, tL, tR, hBot, hTop, innerCol, archCol, scale) {
-    const bl = lerp(pBotL, pBotR, tL), br = lerp(pBotL, pBotR, tR);
-    const tl = lerp(pTopL, pTopR, tL), tr = lerp(pTopL, pTopR, tR);
-    const p0 = lerp(bl, tl, hBot), p1 = lerp(br, tr, hBot), p2 = lerp(br, tr, hTop * 0.7), p3 = lerp(bl, tl, hTop * 0.7);
-    const topM = lerp(lerp(bl, tl, hTop), lerp(br, tr, hTop), 0.5);
-    ctx.fillStyle = innerCol; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.quadraticCurveTo(topM.x, topM.y, p3.x, p3.y); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = archCol; ctx.lineWidth = Math.max(1.5, 2 * scale); ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.quadraticCurveTo(topM.x, topM.y, p2.x, p2.y); ctx.stroke();
-}
-
 function column(baseCenter, height) {
     const s = cam.scale, w = 2.2 * s, h = height * s;
     ctx.fillStyle = '#efe7d4'; ctx.fillRect(baseCenter.x - w/2, baseCenter.y - h, w, h);
@@ -81,10 +65,6 @@ function hipRoof(c, color, roofH, drawFacies) {
     ctx.fillStyle = shade(color, 0.05); poly([c.Wt, c.St, apex]);
     ctx.fillStyle = shade(color, -0.18); poly([c.St, c.Et, apex]);
     ctx.fillStyle = shade(color, -0.35); poly([c.Et, c.Nt, apex]); poly([c.Nt, c.Wt, apex]);
-    if (drawFacies) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(c.Wt.x, c.Wt.y); ctx.lineTo(c.St.x, c.St.y); ctx.lineTo(c.Et.x, c.Et.y); ctx.stroke();
-    }
     return apex.y;
 }
 
@@ -92,16 +72,11 @@ function canopyRoof(c, color, roofH) {
     const s = cam.scale, apex = { x: c.cx, y: c.cy - roofH * s };
     ctx.fillStyle = color; poly([c.Wt, c.St, apex]);
     ctx.fillStyle = shade(color, -0.2); poly([c.St, c.Et, apex]);
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    for (let t = 0.15; t < 1; t += 0.3) {
-        poly([lerp(c.Wt, c.St, t), lerp(c.Wt, c.St, t + 0.1), apex]);
-        poly([lerp(c.St, c.Et, t), lerp(c.St, c.Et, t + 0.1), apex]);
-    }
     return apex.y;
 }
 
 // =========================================================================
-// ---- ENGINESPEZIFISCHE GRAFIKEN (HAUS & FELD) ----
+// ---- GEBÄUDE-GRAFIKEN ----
 // =========================================================================
 
 function drawHouse(gx, gy, baseLift, level) {
@@ -113,7 +88,6 @@ function drawHouse(gx, gy, baseLift, level) {
     ctx.fillStyle = config.right; poly([c.S, c.E, c.Et, c.St]);
     
     wallBrickLines(c.W, c.S, c.Wt, c.St, 2, 'rgba(0,0,0,0.15)', s);
-    wallPatch(c.W, c.S, c.Wt, c.St, 0.4, 0.6, 0.2, 0.6, '#261a11');
     
     const topY = hipRoof(c, config.top, 8, true);
     return { cx: c.cx, topY: topY };
@@ -129,10 +103,6 @@ function drawGrainfield(gx, gy, baseLift) {
     return { cx: c.cx, topY: c.N.y };
 }
 
-// =========================================================================
-// ---- RÖMISCHE SPEZIALGEBÄUDE ----
-// =========================================================================
-
 function drawForum(gx, gy, baseLift) {
   const s = cam.scale, marbleLight = '#efe7d4', stone = '#e7ddc6';
   const hBase = 6, colH = 20, entH = 5, roofH = 14;
@@ -145,15 +115,12 @@ function drawForum(gx, gy, baseLift) {
   const us = [0.15, 0.50, 0.85];
   for (const u of us) column(lerp(b1.Wt, b1.St, u), colH);
   for (let i = us.length - 1; i >= 0; i--) column(lerp(b1.St, b1.Et, us[i]), colH);
-  column(b1.St, colH); 
 
   const e2 = isoCorners(gx, gy, baseLift, hBase + colH), e3 = isoCorners(gx, gy, baseLift, hBase + colH + entH);
   ctx.fillStyle = marbleLight; poly([e2.Wt, e2.St, e3.St, e3.Wt]);
-  ctx.fillStyle = shade(marbleLight, -0.24); poly([e2.St, e2.Et, e3.Et, e2.St]);
 
   const apex = { x: (e3.Nt.x + e3.Et.x + e3.St.x + e3.Wt.x) / 4, y: (e3.Nt.y + e3.Et.y + e3.St.y + e3.Wt.y) / 4 - roofH * s };
   const roofCol = '#b15f3a';
-  ctx.fillStyle = shade(roofCol, -0.35); poly([e3.Nt, e3.Wt, apex]); poly([e3.Nt, e3.Et, apex]); 
   ctx.fillStyle = shade(roofCol, 0.05); poly([e3.Wt, e3.St, apex]); 
   ctx.fillStyle = shade(roofCol, -0.18); poly([e3.St, e3.Et, apex]); 
   
@@ -171,11 +138,6 @@ function drawClaypit(gx, gy, baseLift) {
   const ctr = { x: gr.cx, y: gr.cy + 1 * s };
   const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.70, y: ctr.y + (p.y - ctr.y) * 0.70 + 1 * s });
   ctx.fillStyle = '#5c4328'; poly([I(gr.Nt), I(gr.Et), I(gr.St), I(gr.Wt)]);
-
-  ctx.fillStyle = '#b67f4c';
-  for (const [dx, dy] of [[-5, 1], [4, 3], [1, -2]]) {
-    ctx.beginPath(); ctx.ellipse(ctr.x + dx * s, ctr.y + dy * s, 4 * s, 2.2 * s, 0, 0, 2 * Math.PI); ctx.fill();
-  }
   return { cx: gr.cx, topY: gr.Nt.y };
 }
 
@@ -230,39 +192,8 @@ function drawFirehouse(gx, gy, baseLift) {
   return { cx: c.cx, topY: r.Nt.y };
 }
 
-function drawEngineer(gx, gy, baseLift) {
-  const wall = '#cabd9b', roof = '#b15f3a';
-  const h = 18;
-  const c = isoCorners(gx, gy, baseLift, h);
-  ctx.fillStyle = shade(wall, 0.06); poly([c.W, c.S, c.St, c.Wt]);
-  ctx.fillStyle = shade(wall, -0.20); poly([c.S, c.E, c.Et, c.St]);
-  const r = isoCorners(gx, gy, baseLift, h + 4);
-  const topY = hipRoof(r, roof, 6, true);
-  return { cx: c.cx, topY: topY };
-}
-
-function drawMill(gx, gy, baseLift) {
-  const s = cam.scale, wall = '#cfc4ad', roof = '#b15f3a';
-  const h = 18;
-  const c = isoCorners(gx, gy, baseLift, h);
-  ctx.fillStyle = shade(wall, 0.05); poly([c.W, c.S, c.St, c.Wt]);
-  ctx.fillStyle = shade(wall, -0.24); poly([c.S, c.E, c.Et, c.St]);
-  const topY = hipRoof(c, roof, 10, true);
-
-  const currentAnim = typeof animT !== 'undefined' ? animT : 0;
-  const hub = lerp(lerp(c.S, c.E, 0.5), lerp(c.St, c.Et, 0.5), 0.48);
-  const rot = currentAnim * 0.5, R = 12 * s;
-  for (let k = 0; k < 4; k++) {
-    const a = rot + k * Math.PI / 2;
-    const ex = hub.x + Math.cos(a) * R, ey = hub.y + Math.sin(a) * R * 0.7;
-    const px = hub.x + Math.cos(a + 0.32) * R * 0.5, py = hub.y + Math.sin(a + 0.32) * R * 0.5 * 0.7;
-    ctx.fillStyle = 'rgba(235,225,200,0.85)'; ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
-  }
-  return { cx: c.cx, topY: topY };
-}
-
 // =========================================================================
-// ---- CRITICAL FIX: DIE ZENTRALE BRÜCKE FÜR DEINE RENDER.JS ----
+// ---- ENTSTEHUNG DER MAP-SCHNITTSTELLE FÜR DEINE RENDER.JS ----
 // =========================================================================
 
 function drawBuilding(gx, gy, type, level, baseLift) {
@@ -274,13 +205,14 @@ function drawBuilding(gx, gy, type, level, baseLift) {
         case 'claypit':    return drawClaypit(gx, gy, baseLift);
         case 'pottery':    return drawPottery(gx, gy, baseLift);
         case 'grainfield': return drawGrainfield(gx, gy, baseLift);
-        case 'mill':       return drawMill(gx, gy, baseLift);
         case 'firehouse':  return drawFirehouse(gx, gy, baseLift);
-        case 'engineer':   return drawEngineer(gx, gy, baseLift);
+        case 'engineer':   
+            // Fallback auf Pottery-Style für Engineer, damit nichts abstürzt
+            return drawPottery(gx, gy, baseLift);
+        case 'mill':       
+            // Fallback auf Market-Style für Mühle, damit nichts abstürzt
+            return drawMarket(gx, gy, baseLift);
         default:
-            // Fallback, falls ein unbekannter Typ angefragt wird
-            const c = isoCorners(gx, gy, baseLift, 10);
-            ctx.fillStyle = '#ff00ff'; poly([c.W, c.S, c.St, c.Wt]);
-            return { cx: c.cx, topY: c.Nt.y };
+            return { cx: 0, topY: 0 };
     }
 }
