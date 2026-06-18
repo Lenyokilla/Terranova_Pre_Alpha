@@ -98,6 +98,39 @@ function peakDeco(g){const s=cam.scale;                                   // Sch
   ctx.fillStyle='#e9e6df';
   ctx.beginPath();ctx.moveTo(g.cx,g.cy-18*s);ctx.lineTo(g.cx-10*s,g.cy-2*s);ctx.lineTo(g.cx+10*s,g.cy-2*s);ctx.closePath();ctx.fill();
 }
+// Echter Berg: facettierte Flanken vom Fuß zur Spitze, Schneekappe, variable Höhe
+function drawMountain(gx,gy){
+  const s=cam.scale;
+  const t=project(gx,gy), r=project(gx+1,gy), b=project(gx+1,gy+1), l=project(gx,gy+1);
+  const cx=(t.x+b.x)/2, cyB=(t.y+b.y)/2;
+  const hvar=0.75+rng2(gx*13+7,gy*17+3)*1.05;            // 0.75..1.8 -> Höhenvariation
+  const H=(30+hvar*26)*s;                                // Gipfelhöhe (deutlich höher als der alte Kasten)
+  const ox=(rng2(gx*5,gy*9)-0.5)*TW*0.16*s;              // Spitze leicht versetzt (Asymmetrie)
+  const oyB=(rng2(gx*3,gy*11)-0.5)*4*s;
+  const apex={x:cx+ox, y:cyB-H+oyB};
+  const cL='#9c9285', cR='#6f675b', cB='#80796c';        // hell (SW) / dunkel (SE) / hinten
+  // Bodenschatten
+  ctx.fillStyle='rgba(28,24,16,.16)';
+  ctx.beginPath();ctx.moveTo(t.x,t.y);ctx.lineTo(r.x,r.y);ctx.lineTo(b.x,b.y);ctx.lineTo(l.x,l.y);ctx.closePath();ctx.fill();
+  // hintere Flanken (Silhouette hinter der Spitze)
+  ctx.fillStyle=cB; poly([apex,t,l]); poly([apex,t,r]);
+  // vordere Flanken (sichtbar): SW hell, SE dunkel
+  ctx.fillStyle=cL; poly([apex,l,b]);
+  ctx.fillStyle=cR; poly([apex,b,r]);
+  // Felsrillen auf den Flanken
+  ctx.strokeStyle='rgba(38,32,22,.22)'; ctx.lineWidth=Math.max(1,1*s);
+  for(const e of [l,r]){ const m1=lerp(apex,e,0.5), m2=lerp(apex,b,0.6);
+    ctx.beginPath(); ctx.moveTo(m1.x,m1.y); ctx.lineTo(m2.x,m2.y); ctx.stroke(); }
+  // Mittelgrat (Highlight) Spitze -> Vorderecke
+  ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=Math.max(1,1.2*s);
+  ctx.beginPath(); ctx.moveTo(apex.x,apex.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  // Schneekappe (vordere Flächen, leicht unregelmäßig)
+  const cap=0.30+rng2(gx*7,gy*5)*0.10;
+  const sl=lerp(apex,l,cap), sr=lerp(apex,r,cap), sb=lerp(apex,b,cap*1.15);
+  ctx.fillStyle='#eef0ee'; poly([apex,sl,sb]);
+  ctx.fillStyle='#dfe4e6'; poly([apex,sb,sr]);
+  return {cx, cy:cyB, topY:apex.y};
+}
 function waterDeco(g){const s=cam.scale;                                  // fließende Wellen
   const d=Math.sin(animT*1.3 + (g.cx+g.cy)*0.018)*3.2*s;
   ctx.strokeStyle='rgba(230,240,245,.30)';ctx.lineWidth=1.2;
