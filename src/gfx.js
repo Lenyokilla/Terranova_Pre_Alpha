@@ -94,6 +94,13 @@ function drawTree(type,x,y,s,seed){
     const ax=x+sway;ctx.beginPath();ctx.moveTo(ax,y-28*s);ctx.lineTo(x-2.5*s,y-19*s);ctx.lineTo(x+1*s,y-19*s);ctx.closePath();ctx.fill();
   }
 }
+function drawShrub(x,y,s,seed){                                        // niedriger Bergstrauch
+  ctx.fillStyle='rgba(28,38,18,.18)'; ctx.beginPath();ctx.ellipse(x+1.4*s,y+0.8*s,3.4*s,1.5*s,0,0,7);ctx.fill();
+  const sway=Math.sin(animT*1.7+seed)*0.8*s;
+  ctx.fillStyle='#4a6b32';
+  for(const [dx,dy,r] of [[-1.6,0,2.4],[1.6,0,2.1],[0,-1.2,2.6]]){ctx.beginPath();ctx.arc(x+dx*s+sway*0.3,y+dy*s,r*s,0,7);ctx.fill();}
+  ctx.fillStyle='#5d8240'; ctx.beginPath();ctx.arc(x-0.4*s+sway*0.3,y-1.7*s,1.5*s,0,7);ctx.fill();
+}
 function peakDeco(g){const s=cam.scale;                                   // Schneegipfel
   ctx.fillStyle='#e9e6df';
   ctx.beginPath();ctx.moveTo(g.cx,g.cy-18*s);ctx.lineTo(g.cx-10*s,g.cy-2*s);ctx.lineTo(g.cx+10*s,g.cy-2*s);ctx.closePath();ctx.fill();
@@ -136,11 +143,22 @@ function drawMountain(gx,gy){
   if(!isM(gx,gy+1)){ ctx.fillStyle='#8a8073'; poly([L,B,tB,tL]); }   // SW (vorn, hell)
   if(!isM(gx+1,gy)){ ctx.fillStyle='#5e564b'; poly([B,R,tR,tB]); }   // SE (vorn, dunkel)
   // Deckfläche: zwei Facetten (SW hell / SE dunkel), Felston steigt mit der Höhe
-  const tone=Math.min(1,((hT+hR+hB+hL)/4)/Math.max(1,mountainMaxH));
-  const bR=124+(168-124)*tone, bG=120+(160-120)*tone, bB=96+(146-96)*tone;
+  const u=Math.min(1,((hT+hR+hB+hL)/4)/Math.max(1,mountainMaxH));    // 0 Fuß .. 1 Gipfel
+  const bR=124+(168-124)*u, bG=120+(160-120)*u, bB=96+(146-96)*u;
   const fac=f=>{const m=v=>Math.max(0,Math.min(255,v*(1+f)))|0; return 'rgb('+m(bR)+','+m(bG)+','+m(bB)+')';};
   ctx.fillStyle=fac(0.07);  poly([tT,tL,tB]);                        // SW-Hälfte
   ctx.fillStyle=fac(-0.10); poly([tT,tB,tR]);                        // SE-Hälfte
+  const mx=(tT.x+tR.x+tB.x+tL.x)/4, my=(tT.y+tR.y+tB.y+tL.y)/4;      // gehobene Deckmitte
+  // Grasüberwuchs: am Fuß dicht, nach oben ausdünnend (bis ~u=0.45 verschwunden)
+  const grass=Math.max(0, 1-u/0.45);
+  if(grass>0.02){
+    ctx.fillStyle='rgba(104,140,60,'+(0.5*grass).toFixed(3)+')'; poly([tT,tR,tB,tL]);
+    if(grass>0.45) for(let i=0;i<3;i++){                            // ein paar dunklere Grasbüschel
+      const px=mx+(rng2(gx*5+i,gy*3)-0.5)*TW*0.34*s, py=my+(rng2(gx*3,gy*5+i)-0.5)*TH*0.34*s;
+      ctx.fillStyle='rgba(70,104,40,'+(0.32*grass).toFixed(3)+')';
+      ctx.beginPath();ctx.ellipse(px,py,2.4*s,1.2*s,0,0,7);ctx.fill();
+    }
+  }
   ctx.strokeStyle='rgba(40,34,24,.18)'; ctx.lineWidth=Math.max(1,1*s);  // Grat
   ctx.beginPath(); ctx.moveTo(tT.x,tT.y); ctx.lineTo(tB.x,tB.y); ctx.stroke();
   // Schneedecke: glatte Höhenlinie quer übers Massiv (nur die hohen Gipfel)
@@ -148,6 +166,21 @@ function drawMountain(gx,gy){
   if(snow.length>=3){
     ctx.fillStyle='#eef1ef'; poly(snow);
     ctx.strokeStyle='rgba(206,219,228,.55)'; ctx.lineWidth=Math.max(1,1*s); ctx.stroke();
+  }
+  // Bewuchs nach Höhe: unten Bäume -> Mitte nur Sträucher -> Vegetationsgrenze (u>=0.55: nackter Fels)
+  if(u<0.55){
+    const pick=rng2(gx*7+1,gy*5+3);
+    if(u<0.30){                                                      // Baumzone, nach oben ausdünnend
+      const d=1-u/0.30;                                              // 1 Fuß .. 0 Baumgrenze
+      if(pick<0.30+0.55*d){ const n=1+(rng2(gx*3,gy*9)<d*0.7?1:0);
+        for(let i=0;i<n;i++){ const px=mx+(rng2(gx*9+i,gy*4)-0.5)*TW*0.32*s, py=my+(rng2(gx*4,gy*9+i)-0.5)*TH*0.32*s;
+          drawTree(rng2(gx+i,gy)<0.5?'fir':'pine', px,py,(0.55+0.35*d)*s, gx*2+gy+i); } }
+    } else {                                                         // Strauchzone (mittlere Höhe)
+      const d=1-(u-0.30)/0.25;                                       // 1 Baumgrenze .. 0 Vegetationsgrenze
+      if(pick<0.22+0.5*d){ const n=1+(rng2(gx*5,gy*7)<d*0.6?1:0);
+        for(let i=0;i<n;i++){ const px=mx+(rng2(gx*11+i,gy*6)-0.5)*TW*0.28*s, py=my+(rng2(gx*6,gy*11+i)-0.5)*TH*0.28*s;
+          drawShrub(px,py,(0.7+0.4*d)*s, gx+gy*3+i); } }
+    }
   }
   return {cx:(tT.x+tB.x)/2, cy:(T.y+B.y)/2, topY:Math.min(tT.y,tR.y,tB.y,tL.y)};
 }
