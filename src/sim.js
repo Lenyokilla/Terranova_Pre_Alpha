@@ -113,7 +113,7 @@ function tick(){
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
         }
       }
       w.life--; if(w.life<=0)continue;
@@ -149,11 +149,12 @@ function tick(){
   // Wirtschaft: monatlicher Unterhalt
   if(tickCount%MONTH===0){ let up=0;
     for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const d=BUILD[grid[y][x].type]; if(d&&d.up)up+=d.up;}
-    if(up)money-=up;
+    if(up){ money-=up; if(typeof statExp==='function')statExp(up); }
   }
   // Sieg / Niederlage
   if(pop>=GOAL_POP) won=true;
   lost = money<=LOSE_MONEY;
+  if(typeof statSample==='function') statSample();   // Statistik-Stützstelle
   updateHUD();
 }
 // nach Bewegung Position übernehmen
