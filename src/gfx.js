@@ -98,38 +98,58 @@ function peakDeco(g){const s=cam.scale;                                   // Sch
   ctx.fillStyle='#e9e6df';
   ctx.beginPath();ctx.moveTo(g.cx,g.cy-18*s);ctx.lineTo(g.cx-10*s,g.cy-2*s);ctx.lineTo(g.cx+10*s,g.cy-2*s);ctx.closePath();ctx.fill();
 }
-// Echter Berg: facettierte Flanken vom Fuß zur Spitze, Schneekappe, variable Höhe
+// Höhe an einem Gitter-Eckpunkt = Mittel der angrenzenden Bergkacheln (sonst 0).
+// Geteilte Ecken -> benachbarte Bergkacheln sind an der Kante koplanar (nahtlos, keine Pyramiden);
+// am Massiv-Rand laufen die Ecken gegen 0 -> die Flanken gleiten sanft ins Flachland.
+function cornerH(vx,vy){
+  let s=0,c=0;
+  for(const [dx,dy] of [[-1,-1],[0,-1],[-1,0],[0,0]]){
+    const x=vx+dx, y=vy+dy;
+    if(x>=0&&y>=0&&x<GRID&&y<GRID){ const t=grid[y][x]; s+=(t.terr==='mountain'?(t.mh||0):0); }
+    c++;
+  }
+  return s/c;
+}
+// Teil-Polygon eines Vierecks oberhalb einer Höhenlinie (Marching-Squares auf einem Quad).
+function clipAbove(v,lvl){
+  const out=[], n=v.length;
+  for(let i=0;i<n;i++){ const a=v[i], b=v[(i+1)%n], ain=a.h>=lvl, bin=b.h>=lvl;
+    if(ain) out.push(a);
+    if(ain!==bin){ const t=(lvl-a.h)/(b.h-a.h); out.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t}); }
+  }
+  return out;
+}
+// Gebirge als zusammenhängende Geländefläche: Eckpunkthöhen heben die Kachel,
+// Felsflanken nur an Außenkanten, glatte Schneegrenze als Höhenlinie übers ganze Massiv.
 function drawMountain(gx,gy){
-  const s=cam.scale;
-  const t=project(gx,gy), r=project(gx+1,gy), b=project(gx+1,gy+1), l=project(gx,gy+1);
-  const cx=(t.x+b.x)/2, cyB=(t.y+b.y)/2;
-  const hvar=0.75+rng2(gx*13+7,gy*17+3)*1.05;            // 0.75..1.8 -> Höhenvariation
-  const H=(30+hvar*26)*s;                                // Gipfelhöhe (deutlich höher als der alte Kasten)
-  const ox=(rng2(gx*5,gy*9)-0.5)*TW*0.16*s;              // Spitze leicht versetzt (Asymmetrie)
-  const oyB=(rng2(gx*3,gy*11)-0.5)*4*s;
-  const apex={x:cx+ox, y:cyB-H+oyB};
-  const cL='#9c9285', cR='#6f675b', cB='#80796c';        // hell (SW) / dunkel (SE) / hinten
-  // Bodenschatten
-  ctx.fillStyle='rgba(28,24,16,.16)';
-  ctx.beginPath();ctx.moveTo(t.x,t.y);ctx.lineTo(r.x,r.y);ctx.lineTo(b.x,b.y);ctx.lineTo(l.x,l.y);ctx.closePath();ctx.fill();
-  // hintere Flanken (Silhouette hinter der Spitze)
-  ctx.fillStyle=cB; poly([apex,t,l]); poly([apex,t,r]);
-  // vordere Flanken (sichtbar): SW hell, SE dunkel
-  ctx.fillStyle=cL; poly([apex,l,b]);
-  ctx.fillStyle=cR; poly([apex,b,r]);
-  // Felsrillen auf den Flanken
-  ctx.strokeStyle='rgba(38,32,22,.22)'; ctx.lineWidth=Math.max(1,1*s);
-  for(const e of [l,r]){ const m1=lerp(apex,e,0.5), m2=lerp(apex,b,0.6);
-    ctx.beginPath(); ctx.moveTo(m1.x,m1.y); ctx.lineTo(m2.x,m2.y); ctx.stroke(); }
-  // Mittelgrat (Highlight) Spitze -> Vorderecke
-  ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=Math.max(1,1.2*s);
-  ctx.beginPath(); ctx.moveTo(apex.x,apex.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-  // Schneekappe (vordere Flächen, leicht unregelmäßig)
-  const cap=0.30+rng2(gx*7,gy*5)*0.10;
-  const sl=lerp(apex,l,cap), sr=lerp(apex,r,cap), sb=lerp(apex,b,cap*1.15);
-  ctx.fillStyle='#eef0ee'; poly([apex,sl,sb]);
-  ctx.fillStyle='#dfe4e6'; poly([apex,sb,sr]);
-  return {cx, cy:cyB, topY:apex.y};
+  if(grid[gy][gx].mh===undefined) computeMountainHeights();          // alte Spielstände nachrüsten
+  const s=cam.scale, k=STEP*s;
+  const T=project(gx,gy), R=project(gx+1,gy), B=project(gx+1,gy+1), L=project(gx,gy+1);
+  const hT=cornerH(gx,gy), hR=cornerH(gx+1,gy), hB=cornerH(gx+1,gy+1), hL=cornerH(gx,gy+1);
+  const tT={x:T.x,y:T.y-hT*k,h:hT}, tR={x:R.x,y:R.y-hR*k,h:hR},
+        tB={x:B.x,y:B.y-hB*k,h:hB}, tL={x:L.x,y:L.y-hL*k,h:hL};
+  const isM=(x,y)=> inBounds(x,y)&&grid[y][x].terr==='mountain';
+  ctx.fillStyle='rgba(24,20,12,.16)'; poly([T,R,B,L]);              // Bodenschatten (Fußabdruck)
+  // Felsflanken nur an Kanten zum Flachland (innere Kanten sind koplanar -> nahtlos)
+  if(!isM(gx-1,gy)){ ctx.fillStyle='#675f4e'; poly([L,T,tT,tL]); }   // NW (hinten)
+  if(!isM(gx,gy-1)){ ctx.fillStyle='#6f6756'; poly([T,R,tR,tT]); }   // NE (hinten)
+  if(!isM(gx,gy+1)){ ctx.fillStyle='#8a8073'; poly([L,B,tB,tL]); }   // SW (vorn, hell)
+  if(!isM(gx+1,gy)){ ctx.fillStyle='#5e564b'; poly([B,R,tR,tB]); }   // SE (vorn, dunkel)
+  // Deckfläche: zwei Facetten (SW hell / SE dunkel), Felston steigt mit der Höhe
+  const tone=Math.min(1,((hT+hR+hB+hL)/4)/Math.max(1,mountainMaxH));
+  const bR=124+(168-124)*tone, bG=120+(160-120)*tone, bB=96+(146-96)*tone;
+  const fac=f=>{const m=v=>Math.max(0,Math.min(255,v*(1+f)))|0; return 'rgb('+m(bR)+','+m(bG)+','+m(bB)+')';};
+  ctx.fillStyle=fac(0.07);  poly([tT,tL,tB]);                        // SW-Hälfte
+  ctx.fillStyle=fac(-0.10); poly([tT,tB,tR]);                        // SE-Hälfte
+  ctx.strokeStyle='rgba(40,34,24,.18)'; ctx.lineWidth=Math.max(1,1*s);  // Grat
+  ctx.beginPath(); ctx.moveTo(tT.x,tT.y); ctx.lineTo(tB.x,tB.y); ctx.stroke();
+  // Schneedecke: glatte Höhenlinie quer übers Massiv (nur die hohen Gipfel)
+  const SL=mountainMaxH*0.6, snow=clipAbove([tT,tR,tB,tL],SL);
+  if(snow.length>=3){
+    ctx.fillStyle='#eef1ef'; poly(snow);
+    ctx.strokeStyle='rgba(206,219,228,.55)'; ctx.lineWidth=Math.max(1,1*s); ctx.stroke();
+  }
+  return {cx:(tT.x+tB.x)/2, cy:(T.y+B.y)/2, topY:Math.min(tT.y,tR.y,tB.y,tL.y)};
 }
 function waterDeco(g){const s=cam.scale;                                  // fließende Wellen
   const d=Math.sin(animT*1.3 + (g.cx+g.cy)*0.018)*3.2*s;
