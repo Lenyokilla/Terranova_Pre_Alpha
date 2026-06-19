@@ -8,6 +8,7 @@ function place(gx,gy){
   if(c.type!=='empty'){flash('Feld belegt');return;}
   if(money<def.cost){flash('Zu wenig Denar — nutze +100');return;}
   money-=def.cost; buildOn(c,tool,def.service); updateHUD();
+  if(typeof statExp==='function')statExp(def.cost);
   if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
   if(typeof sfxBuild==='function')sfxBuild();
 }
@@ -18,8 +19,7 @@ function flash(msg){hint.textContent=msg;hint.classList.remove('hide');
 const elMoney=document.getElementById('money'),elPop=document.getElementById('pop'),hint=document.getElementById('hint');
 const elGoal=document.getElementById('goal'),banner=document.getElementById('banner');
 function updateHUD(){elMoney.textContent=money;elPop.textContent=pop;elGoal.textContent='/'+GOAL_POP;
-  if(won){banner.textContent='🏆 Ziel erreicht — '+GOAL_POP+' Einwohner!';banner.className='win';}
-  else if(lost){banner.textContent='💸 Bankrott! Tippe +100 zum Weiterspielen';banner.className='lose';}
+  if(lost){banner.textContent='💸 Bankrott! Tippe +100 zum Weiterspielen';banner.className='lose';}
   else banner.className='hide';
   if(typeof refreshPanel==='function')refreshPanel();
 }
@@ -66,6 +66,7 @@ function commitRoad(cells){
     if(t.type!=='empty'||!buildableTerr(t))continue;
     if(money<BUILD.road.cost){flash('Zu wenig Denar — nutze +100');break;}
     money-=BUILD.road.cost; t.type='road'; built++;}
+  if(built&&typeof statExp==='function')statExp(built*BUILD.road.cost);
   if(built)updateHUD(); return built;
 }
 
