@@ -2,6 +2,15 @@
 let _ac=null, _master=null, _soundOn=true;
 let _rainG=null, _waterG=null, _rainCur=0, _waterCur=0;
 let _silent=null, _unlocked=false;
+// --- Hintergrundmusik (synthetisch) ---
+let _musGain=null, _musicOn=false, _musTimer=null, _musStep=0, _musNext=0;
+const _BEAT=0.75;                                   // ~80 BPM
+const _CHORDS=[                                     // ruhige a-moll-Folge: Am – F – C – G (Hz)
+  [110.00,220.00,261.63,329.63],
+  [ 87.31,174.61,220.00,261.63],
+  [130.81,261.63,329.63,392.00],
+  [ 98.00,196.00,246.94,293.66]
+];
 
 /* iOS-Trick: WebAudio wird auf dem iPhone vom seitlichen Stumm-Schalter
    stummgeschaltet, solange keine HTML-Media-Wiedergabe lief. Ein kurz
@@ -25,6 +34,7 @@ function audioInit(){
   if(_ac){ if(_ac.state!=='running'){ try{_ac.resume();}catch(e){} } return; }
   try{ _ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ _ac=null; return; }
   _master=_ac.createGain(); _master.gain.value=_soundOn?0.85:0; _master.connect(_ac.destination);
+  _musGain=_ac.createGain(); _musGain.gain.value=0.55; _musGain.connect(_master);   // Musik-Submix
   // gemeinsames Rausch-Puffer (2 s)
   const sr=_ac.sampleRate, buf=_ac.createBuffer(1,sr*2,sr), d=buf.getChannelData(0);
   for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
@@ -40,6 +50,7 @@ function audioInit(){
   wn.connect(lp); lp.connect(_waterG); _waterG.connect(_master); try{wn.start();}catch(e){}
   // direkt aufwecken (iOS startet den Kontext oft "suspended", auch in einer Geste)
   if(_ac.state!=='running'){ try{_ac.resume();}catch(e){} }
+  startMusic();                                        // Hintergrundmusik bei der ersten Geste starten
 }
 function toggleSound(){
   _soundOn=!_soundOn;
@@ -64,6 +75,61 @@ function _tone(freq,dur,type,vol,slideTo){
 }
 function sfxClick(){ audioInit(); _tone(620,0.07,'sine',0.16,520); }
 function sfxBuild(){ audioInit(); _tone(150,0.13,'square',0.16,90); _tone(440,0.10,'triangle',0.10,300); }
+
+// ---- Hintergrundmusik (synthetische Endlosschleife, keine Asset-Dateien) ----
+function _pad(freq,when,dur){                         // weicher, langer Akkordklang
+  if(!_ac||!_musGain)return; const o=_ac.createOscillator(), g=_ac.createGain();
+  o.type='triangle'; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,when);
+  g.gain.exponentialRampToValueAtTime(0.09,when+0.6);
+  g.gain.setValueAtTime(0.09,Math.max(when+0.61,when+dur-0.8));
+  g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+  o.connect(g); g.connect(_musGain); o.start(when); o.stop(when+dur+0.05);
+}
+function _pluck(freq,when){                            // sanftes Arpeggio
+  if(!_ac||!_musGain)return; const o=_ac.createOscillator(), g=_ac.createGain();
+  o.type='sine'; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,when);
+  g.gain.exponentialRampToValueAtTime(0.06,when+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,when+0.5);
+  o.connect(g); g.connect(_musGain); o.start(when); o.stop(when+0.55);
+}
+function _musStepPlay(step,when){
+  const ch=_CHORDS[Math.floor(step/4)%_CHORDS.length], beat=step%4;
+  if(beat===0) for(const f of ch) _pad(f,when,_BEAT*4);          // Pad-Akkord über 4 Schläge
+  _pluck(ch[(beat+1)%ch.length]*2, when);                        // Melodie eine Oktave höher
+}
+function _musSched(){                                  // Vorausplanung (Lookahead-Scheduler)
+  if(!_ac||!_musicOn)return;
+  if(_musNext<_ac.currentTime-1) _musNext=_ac.currentTime+0.08;  // nach Pause/Hintergrund neu ausrichten
+  const ahead=_ac.currentTime+0.30;
+  while(_musNext<ahead){ _musStepPlay(_musStep,_musNext); _musStep++; _musNext+=_BEAT; }
+}
+function startMusic(){
+  if(!_ac||_musicOn)return;
+  _musicOn=true; _musStep=0; _musNext=_ac.currentTime+0.08;
+  _musSched(); _musTimer=setInterval(_musSched,120);
+}
+function stopMusic(){ _musicOn=false; if(_musTimer){clearInterval(_musTimer);_musTimer=null;} }
+function musicIsOn(){ return _musicOn; }
+function toggleMusic(){
+  audioInit();                                         // entsperrt Audio (iOS) und legt den Kontext an
+  if(_musicOn){ stopMusic(); return false; }
+  _soundOn=true; if(_master)_master.gain.value=0.85;   // sicherstellen, dass nichts stummgeschaltet ist
+  if(_silent){ try{_silent.play().catch(()=>{});}catch(e){} }
+  startMusic(); return true;
+}
+// kleiner Musik-Knopf in der System-Leiste (#sys); kein index.html-Eingriff nötig
+function _installMusicButton(){
+  if(document.getElementById('bMusic'))return;
+  const host=document.getElementById('sys')||document.body;
+  const b=document.createElement('button');
+  b.id='bMusic'; b.title='Musik an/aus'; b.textContent='🎵';
+  b.addEventListener('click',function(){ const on=toggleMusic(); b.textContent=on?'🎵':'🔇'; });
+  host.appendChild(b);
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_installMusicButton);
+else _installMusicButton();
 
 // Ambient an Zoom & Nähe koppeln (jede Frame aus loop aufgerufen)
 function updateAmbient(){
