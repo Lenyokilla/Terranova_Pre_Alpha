@@ -11,6 +11,27 @@
   const _goalDone={};                             // bereits gemeldete Ziele
   function push(arr,v){ arr.push(v); if(arr.length>CAP)arr.shift(); }
 
+  // ---------- Persistenz (überlebt das Schließen des Spiels) ----------
+  const STATS_KEY='terra_stats_v1';
+  let _persistAcc=0;
+  function saveHist(){ try{ localStorage.setItem(STATS_KEY, JSON.stringify(H)); }catch(e){} }
+  function loadHist(){
+    try{
+      if(H.pop.length) return;                       // bereits Daten im Speicher -> nicht überschreiben
+      const raw=localStorage.getItem(STATS_KEY); if(!raw)return;
+      const d=JSON.parse(raw); if(!d||typeof d!=='object')return;
+      for(const k in H) if(Array.isArray(d[k])) H[k]=d[k].slice(-CAP).map(v=>+v||0);
+    }catch(e){}
+  }
+  function statReset(){                               // bei "Neue Karte": Historie leeren
+    for(const k in H) H[k].length=0;
+    _incAcc=0; _expAcc=0;
+    for(const id in _goalDone) delete _goalDone[id];
+    try{ localStorage.removeItem(STATS_KEY); }catch(e){}
+    if(_open) scheduleRender();
+  }
+  window.statReset=statReset;
+
   // von input.js / sim.js aufgerufen
   function statInc(n){ _incAcc+=(+n||0); }
   function statExp(n){ _expAcc+=(+n||0); }
@@ -34,6 +55,7 @@
     push(H.inc, _incAcc); push(H.exp, _expAcc); _incAcc=0; _expAcc=0;
     push(H.unempl, Math.round(unempl));
     push(H.satis, Math.round(satis));
+    if((++_persistAcc % 5)===0) saveHist();           // regelmäßig sichern (gedrosselt)
 
     // einmalige Ziel-Meldung (statt Dauer-Banner)
     try{
@@ -192,7 +214,13 @@
     }
   }
 
-  function init(){ injectCSS(); buildButtons(); }
+  function init(){
+    loadHist();                                       // gespeicherte Historie zurückholen
+    injectCSS(); buildButtons();
+    // garantierter Schreibvorgang, wenn man die App verlässt oder in den Hintergrund schickt
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveHist(); });
+    window.addEventListener('pagehide', saveHist);
+  }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
   else init();
 })();
