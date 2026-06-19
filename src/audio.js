@@ -1,10 +1,28 @@
 /* TERRA · audio.js — synthetischer Sound (Web Audio API, keine Asset-Dateien) */
 let _ac=null, _master=null, _soundOn=true;
 let _rainG=null, _waterG=null, _rainCur=0, _waterCur=0;
+let _silent=null, _unlocked=false;
+
+/* iOS-Trick: WebAudio wird auf dem iPhone vom seitlichen Stumm-Schalter
+   stummgeschaltet, solange keine HTML-Media-Wiedergabe lief. Ein kurz
+   abgespieltes, lautloses <audio>-Element hebt die Audio-Session auf
+   "playback" — danach klingt auch der synthetische Sound. */
+function _unlockHTMLAudio(){
+  if(_unlocked)return;
+  try{
+    if(!_silent){
+      _silent=new Audio('data:audio/wav;base64,UklGRuQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YcADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA==');
+      _silent.loop=true; _silent.volume=0; _silent.setAttribute('playsinline','');
+    }
+    const p=_silent.play(); if(p&&p.catch)p.catch(()=>{});
+    _unlocked=true;
+  }catch(e){}
+}
 
 // Lazy-Init bei der ersten Nutzergeste (Autoplay-Policy)
 function audioInit(){
-  if(_ac){ if(_ac.state==='suspended')_ac.resume(); return; }
+  _unlockHTMLAudio();                                  // iOS Stumm-Schalter umgehen
+  if(_ac){ if(_ac.state!=='running'){ try{_ac.resume();}catch(e){} } return; }
   try{ _ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ _ac=null; return; }
   _master=_ac.createGain(); _master.gain.value=_soundOn?0.85:0; _master.connect(_ac.destination);
   // gemeinsames Rausch-Puffer (2 s)
@@ -20,8 +38,17 @@ function audioInit(){
   const wn=_ac.createBufferSource(); wn.buffer=buf; wn.loop=true;
   const lp=_ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=560; lp.Q.value=0.8;
   wn.connect(lp); lp.connect(_waterG); _waterG.connect(_master); try{wn.start();}catch(e){}
+  // direkt aufwecken (iOS startet den Kontext oft "suspended", auch in einer Geste)
+  if(_ac.state!=='running'){ try{_ac.resume();}catch(e){} }
 }
-function toggleSound(){ _soundOn=!_soundOn; if(_master)_master.gain.value=_soundOn?0.85:0; return _soundOn; }
+function toggleSound(){
+  _soundOn=!_soundOn;
+  audioInit();                                         // sicherstellen, dass Audio entsperrt ist
+  if(_master)_master.gain.value=_soundOn?0.85:0;
+  if(_silent){ try{ if(_soundOn)_silent.play().catch(()=>{}); else _silent.pause(); }catch(e){} }
+  if(_soundOn) _tone(660,0.09,'sine',0.18,560);        // kleines Feedback beim Einschalten
+  return _soundOn;
+}
 function soundIsOn(){ return _soundOn; }
 
 // kurzer Ton
