@@ -73,3 +73,27 @@ const TERR={
   mountain:{top:['#9b9387','#928a7e'], side:['#5f594f','#6f685c'], elev:2, build:false, peak:true},
 };
 function buildableTerr(t){const d=TERR[t.terr]; return d?d.build:true;}
+
+// ============================================================
+//  TEMPEL der römischen Hauptgötter
+//  Unterscheiden sich v.a. durch die DACHFARBE (roof) je Gott.
+//  accent = Akzent-/Läuferfarbe (Akrotere, Medaillon, Priester).
+//  Neue Götter: einfach hier eine Zeile ergänzen — Menü/Sim ziehen
+//  sich alles automatisch aus dieser Tabelle.
+// ============================================================
+const GODS = {
+  temple_jupiter: { god:'Jupiter', roof:'#d2a32f', accent:'#f4e6b0', glyph:'⚡'  }, // Gold (König der Götter)
+  temple_juno:    { god:'Juno',    roof:'#2f8f86', accent:'#bfe9e0', glyph:'🦚' }, // Pfauen-Türkis
+  temple_minerva: { god:'Minerva', roof:'#6f7a43', accent:'#dde0b4', glyph:'🦉' }, // Oliv (Weisheit)
+  temple_mars:    { god:'Mars',    roof:'#9c3424', accent:'#e7b3a0', glyph:'⚔️'  }, // Blutrot (Krieg)
+  temple_venus:   { god:'Venus',   roof:'#c25f87', accent:'#f4cfdd', glyph:'🌹' }, // Rosé (Liebe)
+  temple_neptune: { god:'Neptune', roof:'#2c6b9c', accent:'#bcdcef', glyph:'🔱' }, // Meerblau
+};
+Object.keys(GODS).forEach(k=>{
+  const g=GODS[k];
+  BUILD[k] = { label:'Tempel · '+g.god, glyph:g.glyph, cost:120, service:'religion', every:17, up:4, jobs:2 };
+  LABOR[k] = [2,2];               // 2 Priester, Priorität wie Forum
+  B3D[k]   = { wcol:g.accent };   // Priester-Läuferfarbe (Pflicht: sonst crasht der Spawner)
+});
+// Tempel im Baumenü vor 'Abriss' einsortieren
+ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(GODS));
