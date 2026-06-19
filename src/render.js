@@ -228,7 +228,7 @@ function render(){
   drawWeather();
   drawAtmosphere(r.width,r.height);
   try{ drawFloaters(); }catch(e){}
-  try{ drawGoals(); }catch(e){}
+  /* Ziele werden jetzt im Stadtbericht-Menü (📊) gezeigt, nicht mehr dauerhaft auf der Karte. */
 }
 // ---- Schwebende Feedback-Texte (+Denar) ----
 function floatText(gx,gy,text,color){ floaters.push({gx,gy,text,color:color||'#ffd24a',age:0,ttl:1.3}); if(floaters.length>40)floaters.shift(); }
