@@ -418,6 +418,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'engineer') return drawEngineer(gx, gy, baseLift);
   if (kind === 'grainfield') return drawGrainfield(gx, gy, baseLift);
   if (kind === 'mill') return drawMill(gx, gy, baseLift);
+  if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
   const s = cam.scale;
@@ -580,6 +581,85 @@ function drawForum(gx, gy, baseLift) {
   ctx.fillStyle = 'rgba(40, 28, 15, 0.45)'; poly([I(e3.St), I(e3.Et), I(apex)]);
   ctx.strokeStyle = 'rgba(40,30,16,.35)'; ctx.lineWidth = Math.max(1.5, 1.8 * s);
   ctx.beginPath(); ctx.moveTo(e3.Wt.x, e3.Wt.y); ctx.lineTo(e3.St.x, e3.St.y); ctx.lineTo(e3.Et.x, e3.Et.y); ctx.stroke();
+  return { cx: b0.cx, topY: apex.y };
+}
+
+// Tempel eines Hauptgottes — Dachfarbe & Akzent kommen aus GODS[kind]
+function drawTemple(gx, gy, baseLift, kind) {
+  const g = (typeof GODS !== 'undefined' && GODS[kind]) ? GODS[kind] : { roof: '#b15f3a', accent: '#efe7d4', god: '?' };
+  const s = cam.scale, marble = '#efe7d4', stone = '#e3d8bf', roof = g.roof, accent = g.accent;
+  const hPod = 7, colH = 22, entH = 5, roofH = 15;
+
+  // ---- Sockel-Schatten ----
+  const b0 = isoCorners(gx, gy, baseLift, 0), b1 = isoCorners(gx, gy, baseLift, hPod);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 11 * s; ctx.shadowOffsetX = 15 * s; ctx.shadowOffsetY = 8 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([b0.W, b0.S, b0.E, b0.N]); ctx.restore();
+
+  // ---- Podium (zwei Frontflächen) ----
+  const gSW = ctx.createLinearGradient(b0.W.x, b1.Wt.y, b0.S.x, b0.S.y);
+  gSW.addColorStop(0, shade(stone, 0.04)); gSW.addColorStop(1, shade(stone, -0.14));
+  ctx.fillStyle = gSW; poly([b0.W, b0.S, b1.St, b1.Wt]);
+  const gSE = ctx.createLinearGradient(b0.S.x, b1.St.y, b0.E.x, b0.E.y);
+  gSE.addColorStop(0, shade(stone, -0.22)); gSE.addColorStop(1, shade(stone, -0.40));
+  ctx.fillStyle = gSE; poly([b0.S, b0.E, b1.Et, b1.St]);
+  wallBrickLines(b0.W, b0.S, b1.Wt, b1.St, 2, 'rgba(80,60,40,0.22)', s);
+  wallBrickLines(b0.S, b0.E, b1.St, b1.Et, 2, 'rgba(60,40,30,0.28)', s);
+
+  // ---- angedeutete Freitreppe an der vorderen (S-)Ecke ----
+  ctx.strokeStyle = 'rgba(255,250,238,0.5)'; ctx.lineWidth = Math.max(1, 1 * s);
+  for (let i = 1; i <= 3; i++) {
+    const v = i / 4, a = lerp(b0.S, b1.St, v);
+    const wl = lerp(a, lerp(b0.W, b1.Wt, v), 0.16), el = lerp(a, lerp(b0.E, b1.Et, v), 0.16);
+    ctx.beginPath(); ctx.moveTo(wl.x, wl.y); ctx.lineTo(a.x, a.y); ctx.lineTo(el.x, el.y); ctx.stroke();
+  }
+
+  // ---- Plattform-Oberseite + Kolonnade ringsum (sichtbare Front) ----
+  ctx.fillStyle = shade(marble, -0.04); poly([b1.Nt, b1.Et, b1.St, b1.Wt]);
+  const us = [0.14, 0.38, 0.62, 0.86];
+  for (const u of us) column(lerp(b1.Wt, b1.St, u), colH);
+  for (let i = us.length - 1; i >= 0; i--) column(lerp(b1.St, b1.Et, us[i]), colH);
+  column(b1.St, colH);
+
+  // ---- Gebälk / Architrav ----
+  const e2 = isoCorners(gx, gy, baseLift, hPod + colH), e3 = isoCorners(gx, gy, baseLift, hPod + colH + entH);
+  const eSW = ctx.createLinearGradient(e2.Wt.x, e3.Wt.y, e2.St.x, e2.St.y);
+  eSW.addColorStop(0, marble); eSW.addColorStop(1, shade(marble, -0.10));
+  ctx.fillStyle = eSW; poly([e2.Wt, e2.St, e3.St, e3.Wt]);
+  const eSE = ctx.createLinearGradient(e2.St.x, e3.St.y, e2.Et.x, e2.Et.y);
+  eSE.addColorStop(0, shade(marble, -0.22)); eSE.addColorStop(1, shade(marble, -0.36));
+  ctx.fillStyle = eSE; poly([e2.St, e2.Et, e3.Et, e3.St]);
+  wallBrickLines(e2.Wt, e2.St, e3.Wt, e3.St, 1, 'rgba(120,100,70,0.35)', s);   // Triglyphen-Andeutung
+  wallBrickLines(e2.St, e2.Et, e3.St, e3.Et, 1, 'rgba(90,72,50,0.40)', s);
+
+  // ---- Giebeldach (Pediment) in der GÖTTERFARBE ----
+  const apex = { x: (e3.Nt.x + e3.Et.x + e3.St.x + e3.Wt.x) / 4, y: (e3.Nt.y + e3.Et.y + e3.St.y + e3.Wt.y) / 4 - roofH * s };
+  ctx.fillStyle = shade(roof, -0.35); poly([e3.Nt, e3.Wt, apex]); poly([e3.Nt, e3.Et, apex]);  // hintere Flächen
+  ctx.fillStyle = shade(roof, 0.06);  poly([e3.Wt, e3.St, apex]);                              // SW (hell)
+  ctx.fillStyle = shade(roof, -0.18); poly([e3.St, e3.Et, apex]);                              // SE (dunkel)
+  tileFace(e3.Wt, e3.St, apex, shade(roof, 0.06));
+  tileFace(e3.St, e3.Et, apex, shade(roof, -0.18));
+
+  // ---- Tympanon (vertieftes Giebelfeld als Schatten) ----
+  const ctr = { x: (e3.St.x + e3.Et.x + apex.x) / 3, y: (e3.St.y + e3.Et.y + apex.y) / 3 };
+  const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.66, y: ctr.y + (p.y - ctr.y) * 0.66 });
+  ctx.fillStyle = 'rgba(35,25,14,0.40)'; poly([I(e3.St), I(e3.Et), I(apex)]);
+
+  // ---- Dach-Außenkante (First/Traufe) ----
+  ctx.strokeStyle = 'rgba(40,30,16,.35)'; ctx.lineWidth = Math.max(1.5, 1.8 * s);
+  ctx.beginPath(); ctx.moveTo(e3.Wt.x, e3.Wt.y); ctx.lineTo(e3.St.x, e3.St.y); ctx.lineTo(e3.Et.x, e3.Et.y); ctx.stroke();
+
+  // ---- Akrotere (First-Finial + Eck-Akrotere) in Akzentfarbe ----
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.arc(apex.x, apex.y - 2 * s, 2.6 * s, 0, 7); ctx.fill();
+  for (const p of [e3.St, e3.Et, e3.Wt]) { ctx.beginPath(); ctx.arc(p.x, p.y, 1.6 * s, 0, 7); ctx.fill(); }
+
+  // ---- Götter-Medaillon mittig auf dem Gebälk ----
+  const mb = lerp(e2.St, e2.Et, 0.5), mt = lerp(e3.St, e3.Et, 0.5);
+  const mx = (mb.x + mt.x) / 2, my = (mb.y + mt.y) / 2;
+  ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(mx, my, 2.7 * s, 0, 7); ctx.fill();
+  ctx.strokeStyle = shade(roof, -0.20); ctx.lineWidth = Math.max(1, 1 * s); ctx.stroke();
+
   return { cx: b0.cx, topY: apex.y };
 }
 
