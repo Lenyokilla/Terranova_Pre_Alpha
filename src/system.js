@@ -39,6 +39,7 @@ function loadGame(silent){
 function newGame(){
   if(!confirm('Neue Karte starten? Der aktuelle Aufbau geht verloren.'))return;
   money=300; pop=0; won=false; lost=false; tickCount=0; walkers=[]; tool='hand';
+  if(typeof statReset==='function') statReset();   // Statistik-Historie für neue Karte leeren
   closePanel();
   generateTerrain(); centerCam(); initClouds(); initAllWildlife();
   document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key==='hand'));
