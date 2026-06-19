@@ -174,18 +174,39 @@ function wallBrickLines(bl, br, tl, tr, count, color, s) {
 
 function wallArch(bl, br, tl, tr, u0, u1, v0, v1, darkCol, archCol, s) {
   const P = (u, v) => { const b = lerp(bl, br, u), t = lerp(tl, tr, u); return lerp(b, t, v); };
-  function arch(a0, a1, vb, vs, vp) {
-    ctx.beginPath();
-    let p = P(a0, vb); ctx.moveTo(p.x, p.y);
-    p = P(a1, vb); ctx.lineTo(p.x, p.y);
-    p = P(a1, vs); ctx.lineTo(p.x, p.y);
-    const N = 12; for (let i = 1; i <= N; i++) { const tt = i / N, u = a1 + (a0 - a1) * tt, v = vs + (vp - vs) * Math.sin(tt * Math.PI); p = P(u, v); ctx.lineTo(p.x, p.y); }
-    p = P(a0, vs); ctx.lineTo(p.x, p.y); ctx.closePath();
+  const vs = v0 + (v1 - v0) * 0.55;   // Kämpferlinie: bis hier senkrechte Laibung, darüber Rundbogen
+  const N = 18;
+  // Punkt auf der Bogenkurve (Rundung zwischen vs und v1)
+  const arcPt = tt => { const u = u0 + (u1 - u0) * tt, v = vs + (v1 - vs) * Math.sin(tt * Math.PI); return P(u, v); };
+
+  // 1) Dunkle Öffnung: senkrechte Laibung (v0..vs) + Rundbogen (vs..v1), KEINE Ziegel an den Seiten
+  ctx.fillStyle = darkCol;
+  ctx.beginPath();
+  let p = P(u0, v0); ctx.moveTo(p.x, p.y);
+  p = P(u1, v0); ctx.lineTo(p.x, p.y);
+  p = P(u1, vs); ctx.lineTo(p.x, p.y);
+  for (let i = 1; i <= N; i++) { p = arcPt(1 - i / N); ctx.lineTo(p.x, p.y); }   // Bogen von rechts nach links
+  p = P(u0, vs); ctx.lineTo(p.x, p.y);
+  ctx.closePath(); ctx.fill();
+
+  // 2) Gleichmäßig breites Ziegelband (Archivolte) NUR über dem Rundbogen
+  const bw = Math.max(2.4, 3 * s);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'butt';
+  ctx.strokeStyle = archCol; ctx.lineWidth = bw;
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++) { p = arcPt(i / N); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+  ctx.stroke();
+  // dünne dunkle Fuge an der Bogenunterkante
+  ctx.strokeStyle = shade(archCol, -0.40); ctx.lineWidth = Math.max(1, 0.8 * s);
+  ctx.stroke();
+  // 3) radiale Ziegelfugen (Keilsteine) quer durch das Band
+  ctx.strokeStyle = shade(archCol, -0.30); ctx.lineWidth = Math.max(1, 0.7 * s);
+  for (let i = 1; i < N; i += 2) {
+    const a = arcPt((i - 0.6) / N), b = arcPt((i + 0.6) / N);
+    let nx = -(b.y - a.y), ny = (b.x - a.x); const ln = Math.hypot(nx, ny) || 1; nx /= ln; ny /= ln;
+    const c = arcPt(i / N);
+    ctx.beginPath(); ctx.moveTo(c.x - nx * bw * 0.5, c.y - ny * bw * 0.5); ctx.lineTo(c.x + nx * bw * 0.5, c.y + ny * bw * 0.5); ctx.stroke();
   }
-  const vs = v0 + (v1 - v0) * 0.5;
-  ctx.fillStyle = archCol; arch(u0, u1, v0, vs, v1); ctx.fill();                 // Bogenrahmen
-  const du = (u1 - u0) * 0.18, vsi = v0 + (v1 - v0) * 0.52;
-  ctx.fillStyle = darkCol; arch(u0 + du, u1 - du, v0, vsi, v1 - (v1 - vs) * 0.16); ctx.fill();  // Öffnung
 }
 
 
@@ -340,8 +361,11 @@ function drawInsula(gx, gy, lvl, baseLift) {
     const ins = p => ({ x: p.x + (ctr.x - p.x) * k, y: p.y + (ctr.y - p.y) * k });
     const iN = ins(r.Nt), iE = ins(r.Et), iS = ins(r.St), iW = ins(r.Wt);
 
-    // 1) ZUERST den vertieften Schacht zeichnen (wird vom Dachrahmen teils überdeckt -> Loch)
-    const drop = 13 * s;
+    // 1) Schacht NUR innerhalb der Öffnung zeichnen (Clip) -> kann nie aus der Wand ragen
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(iN.x, iN.y); ctx.lineTo(iE.x, iE.y); ctx.lineTo(iS.x, iS.y); ctx.lineTo(iW.x, iW.y); ctx.closePath();
+    ctx.clip();
+    const drop = 11 * s;
     const fN = { x: iN.x, y: iN.y + drop }, fE = { x: iE.x, y: iE.y + drop };
     const fS = { x: iS.x, y: iS.y + drop }, fW = { x: iW.x, y: iW.y + drop };
     // dunkler Grund-Schatten des Schachts (füllt die ganze Öffnung)
@@ -359,6 +383,7 @@ function drawInsula(gx, gy, lvl, baseLift) {
     ctx.fillStyle = '#3a708c'; poly([bi2(fN), bi2(fE), bi2(fS), bi2(fW)]);       // Wasser
     ctx.fillStyle = 'rgba(255,255,255,.16)';                                    // Lichtreflex
     ctx.beginPath(); ctx.ellipse(c2.x, c2.y - 1 * s, 2.4 * s, 1.1 * s, 0, 0, 7); ctx.fill();
+    ctx.restore();
 
     // 2) DANN den Dachrahmen darüber (4 Trapeze) -> verdeckt die vordere Schachtkante
     ctx.fillStyle = roofCol;
