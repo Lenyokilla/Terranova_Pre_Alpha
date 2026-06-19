@@ -50,9 +50,12 @@ function generateTerrain(){
   // Seen
   for(let i=0;i<Math.round(1.5*A);i++) growBlob(2+(Math.random()*(GRID-4)|0),2+(Math.random()*(GRID-4)|0),
     10+(Math.random()*10|0), t=>t.terr!=='water', t=>t.terr='water');
-  // Bergmassiv in einer Ecke
-  growBlob(Math.random()<.5?0:GRID-1, Math.random()<.5?0:GRID-1, Math.round((10+(Math.random()*8|0))*A),
-    isGrass, t=>{t.terr='mountain';});
+  // Bergmassiv: Hauptkamm in einer Ecke + kleinerer Nebenkamm einwärts -> wirkt als Gebirgszug
+  const mcx=Math.random()<.5?0:GRID-1, mcy=Math.random()<.5?0:GRID-1;
+  growBlob(mcx, mcy, Math.round((14+(Math.random()*9|0))*A), isGrass, t=>{t.terr='mountain';});
+  const din=v=> v===0?1:-1;                                   // Richtung zur Kartenmitte
+  growBlob(clampg(mcx+din(mcx)*(3+(Math.random()*4|0))), clampg(mcy+din(mcy)*(2+(Math.random()*4|0))),
+    Math.round((6+(Math.random()*5|0))*A), isGrass, t=>{t.terr='mountain';});
   // Hügelketten
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     7+(Math.random()*8|0), isGrass, t=>t.terr='hill');
@@ -64,4 +67,51 @@ function generateTerrain(){
   // Felder (Kulturland)
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     6+(Math.random()*6|0), isGrass, t=>t.terr='field');
+  computeMountainHeights();
+}
+
+// --- Höhenfeld des Gebirges -----------------------------------------------
+// Glatte Kuppel (Rand niedrig, Mitte hoch) + sanftes Rauschen für mehrere Gipfel.
+// Jede Bergkachel erhält t.mh (Höhe in Geländestufen); die Renderung verbindet
+// benachbarte Kacheln über gemeinsame Eckpunkthöhen -> ein zusammenhängendes Massiv.
+let mountainMaxH=1;
+function computeMountainHeights(){
+  const INF=1e9, dist=[];
+  for(let y=0;y<GRID;y++){ dist[y]=[]; for(let x=0;x<GRID;x++) dist[y][x]=grid[y][x].terr==='mountain'?INF:0; }
+  let q=[], cx=0, cy=0, cnt=0;
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    if(grid[y][x].terr!=='mountain') continue;
+    cx+=x; cy+=y; cnt++;
+    let border=false;
+    for(const [nx,ny] of neighbors(x,y)) if(!inBounds(nx,ny)||grid[ny][nx].terr!=='mountain'){border=true;break;}
+    if(border){ dist[y][x]=1; q.push([x,y]); }
+  }
+  if(!cnt){ mountainMaxH=1; return; }
+  for(let i=0;i<q.length;i++){ const [x,y]=q[i];
+    for(const [nx,ny] of neighbors(x,y))
+      if(inBounds(nx,ny)&&grid[ny][nx].terr==='mountain'&&dist[ny][nx]===INF){ dist[ny][nx]=dist[y][x]+1; q.push([nx,ny]); }
+  }
+  cx/=cnt; cy/=cnt;
+  let maxR=1;
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++) if(grid[y][x].terr==='mountain'){
+    const r=Math.hypot(x-cx,y-cy); if(r>maxR) maxR=r; }
+  const noise=(x,y)=> Math.sin(x*0.55+1.3)*0.55 + Math.sin(y*0.5-0.7)*0.55
+                    + Math.sin((x+y)*0.31+2.1)*0.45 + Math.sin((x-y)*0.42-1.1)*0.35;
+  const PEAK=10.0;                                   // maximale Gipfelhöhe in Stufen ("deutlich höher")
+  const raw=[]; let mx=0.0001;
+  for(let y=0;y<GRID;y++){ raw[y]=[]; for(let x=0;x<GRID;x++){
+    if(grid[y][x].terr!=='mountain'){ raw[y][x]=0; continue; }
+    const dome=Math.max(0, 1 - Math.hypot(x-cx,y-cy)/maxR);   // 0 Rand .. 1 Mitte
+    const taper=Math.min(1, dist[y][x]/2);                    // äußere 1–2 Ringe flach -> kleine Vorberge
+    let h=(0.6 + dome*dome*PEAK)*taper + noise(x,y)*0.7*dome;
+    if(h<0.4) h=0.4;
+    raw[y][x]=h; if(h>mx) mx=h;
+  }}
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){          // sanfte Glättung -> harmonischer Verlauf
+    const t=grid[y][x]; if(t.terr!=='mountain'){ t.mh=0; continue; }
+    let s=raw[y][x]*2, c=2;
+    for(const [nx,ny] of neighbors(x,y)) if(inBounds(nx,ny)&&grid[ny][nx].terr==='mountain'){ s+=raw[ny][nx]; c++; }
+    t.mh=s/c;
+  }
+  mountainMaxH=mx;
 }
