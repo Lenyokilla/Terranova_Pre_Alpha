@@ -1,7 +1,7 @@
 /* TERRA · sim.js */
 // ---- Simulation ----
 function neighbors(x,y){return [[x,y-1],[x+1,y],[x,y+1],[x-1,y]];}
-function riskable(tp){return tp==='house'||tp==='market'||tp==='forum'||tp==='pottery'||tp==='claypit'||tp==='mill';}
+function riskable(tp){return tp==='house'||tp==='market'||tp==='forum'||tp==='pottery'||tp==='claypit'||tp==='mill'||tp==='farm'||tp==='bakery';}
 function adjRoad(x,y){return neighbors(x,y).find(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].type==='road');}
 // kürzester Straßenweg vom Quellgebäude zum nächsten Zielgebäude (BFS)
 function findPath(sx,sy,destType){
@@ -26,12 +26,13 @@ function deliverCargo(w){const [dx,dy]=w.dest;if(!inBounds(dx,dy))return;const t
   if(w.cargo==='clay'&&t.type==='pottery')t.clay=Math.min(8,(t.clay||0)+1);
   else if(w.cargo==='cer'&&t.type==='market')t.cer=Math.min(8,(t.cer||0)+1);
   else if(w.cargo==='grain'&&t.type==='mill')t.grain=Math.min(8,(t.grain||0)+1);
+  else if(w.cargo==='flour'&&t.type==='bakery')t.flour=Math.min(8,(t.flour||0)+1);
   else if(w.cargo==='bread'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);}
 
 // ---- Einwanderung vom Kartenrand ----
 function landWalk(x,y){ if(!inBounds(x,y))return false; const t=grid[y][x];
   if((TERR[t.terr]||TERR.grass).build===false) return false;             // Wasser/Berg blockieren
-  const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery'||b==='grainfield'||b==='mill') return false;
+  const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery'||b==='grainfield'||b==='farm'||b==='mill'||b==='bakery') return false;
   return true; }
 function houseCap(h){return HOUSE[h.lvl].pop;}
 function needsResident(t){return t.type==='house'&&t.res<houseCap(t);}  // auch Stufe 0 (Hütte) -> Anschub für Arbeitskräfte
@@ -60,7 +61,7 @@ function tick(){
   tickCount++;
   // ---- Globale Arbeitskräfte (Einwohner = Arbeiter), ohne Straßenbindung ----
   let labor=pop;
-  const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,claypit:6,pottery:7,mill:8};
+  const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,farm:5,claypit:6,pottery:7,mill:8,bakery:9};
   const jobsT=[];
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x]; if(BUILD[c.type]&&BUILD[c.type].jobs)jobsT.push(c);}
   jobsT.sort((a,b)=>(RANK[a.type]??9)-(RANK[b.type]??9));   // Überlebenswichtiges zuerst besetzen
@@ -90,12 +91,24 @@ function tick(){
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.grainfield.every&&(c.grain||0)>0){ const fp=findPath(x,y,'mill');
         if(fp){c.spawn=0;c.grain--;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.grainfield.every;} } }
+    if(c.type==='farm'&&c.staffed){
+      c.conv=(c.conv||0)+1;                                          // Hof erntet kontinuierlich (ganzjährig, nicht saisonal)
+      if(c.conv>=10&&(c.grain||0)<8){c.conv=0;c.grain=(c.grain||0)+1;}
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.farm.every&&(c.grain||0)>0){ const fp=findPath(x,y,'mill');
+        if(fp){c.spawn=0;c.grain--;spawnCarrier(fp,'grain','#d9b44a');} else {c.spawn=BUILD.farm.every;} } }
     if(c.type==='mill'&&c.staffed){
       c.conv=(c.conv||0)+1;
-      if(c.conv>=8&&(c.grain||0)>0&&(c.bread||0)<8){c.conv=0;c.grain--;c.bread=(c.bread||0)+1;}
+      if(c.conv>=8&&(c.grain||0)>0&&(c.flour||0)<8){c.conv=0;c.grain--;c.flour=(c.flour||0)+1;}   // Korn -> Mehl
       c.spawn=(c.spawn||0)+1;
-      if(c.spawn>=BUILD.mill.every&&(c.bread||0)>0){ const fp=findPath(x,y,'market');
-        if(fp){c.spawn=0;c.bread--;spawnCarrier(fp,'bread','#caa46e');} else {c.spawn=BUILD.mill.every;} } }
+      if(c.spawn>=BUILD.mill.every&&(c.flour||0)>0){ const fp=findPath(x,y,'bakery');
+        if(fp){c.spawn=0;c.flour--;spawnCarrier(fp,'flour','#e8dcc0');} else {c.spawn=BUILD.mill.every;} } }
+    if(c.type==='bakery'&&c.staffed){
+      c.conv=(c.conv||0)+1;
+      if(c.conv>=8&&(c.flour||0)>0&&(c.bread||0)<8){c.conv=0;c.flour--;c.bread=(c.bread||0)+1;}   // Mehl -> Nahrung
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.bakery.every&&(c.bread||0)>0){ const fp=findPath(x,y,'market');
+        if(fp){c.spawn=0;c.bread--;spawnCarrier(fp,'bread','#caa46e');} else {c.spawn=BUILD.bakery.every;} } }
   }
   // Zuwanderung vom Rand
   if(!lost && tickCount%IMMIG_EVERY===0 && money>LOSE_MONEY) spawnSettler();
