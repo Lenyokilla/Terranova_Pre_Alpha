@@ -417,7 +417,9 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'firehouse') return drawFirehouse(gx, gy, baseLift);
   if (kind === 'engineer') return drawEngineer(gx, gy, baseLift);
   if (kind === 'grainfield') return drawGrainfield(gx, gy, baseLift);
+  if (kind === 'farm') return drawFarm(gx, gy, baseLift);
   if (kind === 'mill') return drawMill(gx, gy, baseLift);
+  if (kind === 'bakery') return drawBakery(gx, gy, baseLift);
   if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
@@ -873,5 +875,69 @@ function drawMill(gx, gy, baseLift) {
     ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = Math.max(1.5, 1.8 * s); ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(ex, ey); ctx.stroke();
   }
   ctx.fillStyle = '#3a2412'; ctx.beginPath(); ctx.arc(hub.x, hub.y, 2.2 * s, 0, 7); ctx.fill();
+  return { cx: c.cx, topY };
+}
+
+// Bauernhof / Gehöft: gedrungene Scheune mit Strohdach + Heugarben im Hof
+function drawBakery(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#d8c39a', roof = '#a85a36';
+  const h = 16;
+  const c = isoCorners(gx, gy, baseLift, h);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wall, 0.05)); gSW.addColorStop(1, shade(wall, -0.12));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wall, -0.22)); gSE.addColorStop(1, shade(wall, -0.38));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+  wallBrickLines(c.W, c.S, c.Wt, c.St, 2, 'rgba(130, 65, 45, 0.34)', s);
+  wallBrickLines(c.S, c.E, c.St, c.Et, 2, 'rgba(95, 45, 30, 0.42)', s);
+  // glühender Backofen in der SE-Wand
+  const ob = lerp(c.S, c.E, 0.62), ot = lerp(c.St, c.Et, 0.62);
+  const ox = (ob.x + ot.x) / 2, oy = (ob.y + ot.y) / 2 + 1.5 * s;
+  const glow = 0.55 + 0.25 * Math.abs(Math.sin(animT * 3));
+  ctx.fillStyle = 'rgba(40,24,16,0.9)'; ctx.beginPath(); ctx.arc(ox, oy, 3.2 * s, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(240,140,50,' + glow.toFixed(2) + ')'; ctx.beginPath(); ctx.arc(ox, oy, 2.1 * s, Math.PI, 0); ctx.fill();
+  const topY = hipRoof(c, roof, 9, true);
+  // Schornstein mit aufsteigendem Rauch
+  const ch = lerp(c.N, c.E, 0.42);
+  ctx.fillStyle = shade(wall, -0.3); ctx.fillRect(ch.x - 1.6 * s, topY - 6 * s, 3.2 * s, 6 * s);
+  ctx.fillStyle = 'rgba(120,112,104,0.3)';
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(ch.x + Math.sin(animT * 1.4 + i) * 2 * s, topY - (7 + i * 4) * s, (1.6 + i * 1.1) * s, 0, 7); ctx.fill(); }
+  // Brotlaib auf der Fensterbank
+  ctx.fillStyle = '#caa46e'; ctx.beginPath(); ctx.ellipse(c.cx + 2 * s, topY + 6 * s, 2.2 * s, 1.3 * s, 0, 0, 7); ctx.fill();
+  return { cx: c.cx, topY };
+}
+
+function drawFarm(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#c9a96f', roof = '#c2a24a';   // Lehmwand + Strohdach
+  const h = 13;
+  const c = isoCorners(gx, gy, baseLift, h);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wall, 0.06)); gSW.addColorStop(1, shade(wall, -0.12));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wall, -0.22)); gSE.addColorStop(1, shade(wall, -0.38));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+  // dunkles Scheunentor
+  const db = lerp(c.S, c.E, 0.5), dt = lerp(c.St, c.Et, 0.5);
+  ctx.fillStyle = '#3a2a18';
+  poly([lerp(db, c.S, 0.32), lerp(db, c.E, 0.32), lerp(dt, c.Et, 0.32), lerp(dt, c.St, 0.32)]);
+  // Strohdach (warmes Walmdach in Gelbtönen)
+  const topY = hipRoof(c, roof, 8, false);
+  // Strohstruktur: feine Halmlinien auf dem Dach
+  ctx.strokeStyle = 'rgba(150,120,40,0.4)'; ctx.lineWidth = Math.max(1, 0.7 * s);
+  for (let i = 0; i < 4; i++) { const yy = topY + (2 + i * 2.4) * s; ctx.beginPath(); ctx.moveTo(c.cx - (10 - i * 2) * s, yy); ctx.lineTo(c.cx + (10 - i * 2) * s, yy); ctx.stroke(); }
+  // Heugarben im Hof davor
+  for (const [hx, hy, r] of [[-7, 9, 2.6], [-2, 11, 2.2]]) {
+    ctx.fillStyle = '#d9bc5e'; ctx.beginPath(); ctx.ellipse(c.cx + hx * s, topY + hy * s, r * s, r * 0.7 * s, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#b3922f'; ctx.lineWidth = Math.max(1, 0.6 * s);
+    ctx.beginPath(); ctx.moveTo(c.cx + (hx - r * 0.7) * s, topY + hy * s); ctx.lineTo(c.cx + (hx + r * 0.7) * s, topY + hy * s); ctx.stroke();
+  }
   return { cx: c.cx, topY };
 }
