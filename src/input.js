@@ -25,18 +25,63 @@ function updateHUD(){elMoney.textContent=money;elPop.textContent=pop;elGoal.text
 }
 document.getElementById('cheat').onclick=()=>{money+=100;updateHUD();flash('+100 Denar (Testmodus)');};
 
-const toolsEl=document.getElementById('tools');
-ORDER.forEach(key=>{const d=BUILD[key];const b=document.createElement('button');
-  b.className='tool'+(d.util?' util':'')+(key==='hand'?' active':'');b.dataset.key=key;
+// ---- Baumenü: Kategorien + Direktzugriff ----
+// Kategorien gruppieren die Baugebäude. Die Tempel werden automatisch aus BUILD
+// gezogen (service==='religion'), damit neue Götter aus config.js ohne Menü-
+// Änderung im Religions-Flyout erscheinen.
+const CATS=[
+  {key:'prod',  label:'Produktion', glyph:'🏺',  items:['claypit','pottery']},
+  {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','mill','market']},
+  {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
+  {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
+];
+const DIRECT=['road','house','raze'];     // immer direkt erreichbar (kein Untermenü)
+
+const toolsEl=document.getElementById('tools');           // untere Leiste: Kategorien + Direktzugriff
+const flyout=document.createElement('div');               // obere Leiste: Gebäude der offenen Kategorie
+flyout.id='flyout';
+document.getElementById('dock').insertBefore(flyout,toolsEl);
+let openCat=null;
+
+function syncTools(){document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key===tool));}
+
+// Einzelner Bau-/Werkzeug-Knopf (Verhalten exakt wie zuvor)
+function makeTool(key){
+  const d=BUILD[key]; const b=document.createElement('button');
+  b.className='tool'+(d.util?' util':'')+(DIRECT.includes(key)?' direct':'');
+  b.dataset.key=key;
   b.innerHTML='<span class="glyph">'+d.glyph+'</span><span class="nm">'+d.label+'</span>'+
-    (d.util?'<span class="cost">'+(key==='hand'?'∞':'—')+'</span>':'<span class="cost">'+d.cost+'</span>');
+    '<span class="cost">'+(d.util?'—':d.cost)+'</span>';
   b.onclick=()=>{
     if(typeof audioInit==='function')audioInit(); if(typeof sfxClick==='function')sfxClick();
-    tool = (tool===key && key!=='hand') ? 'hand' : key;   // erneutes Tippen -> zurück zur Navigation
+    tool=(tool===key && key!=='hand')?'hand':key;          // erneutes Tippen -> zurück zur Navigation
     if(tool!=='hand'&&typeof closePanel==='function')closePanel();
-    document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key===tool));
+    syncTools();
     const d2=BUILD[tool];
     flash(d2.util?(tool==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen'):d2.label+' — tippe auf die Karte ('+d2.cost+' Denar)');};
+  return b;
+}
+
+// Kategorie öffnen/schließen -> Flyout mit ihren Gebäuden füllen
+function openCategory(cat){
+  if(openCat===cat.key){closeFlyout();return;}             // gleiche Kategorie erneut -> zuklappen
+  openCat=cat.key; flyout.innerHTML='';
+  cat.items.forEach(k=>flyout.appendChild(makeTool(k)));
+  flyout.classList.add('open'); syncTools();
+  document.querySelectorAll('.cat').forEach(c=>c.classList.toggle('open',c.dataset.cat===cat.key));
+}
+function closeFlyout(){openCat=null;flyout.classList.remove('open');
+  document.querySelectorAll('.cat').forEach(c=>c.classList.remove('open'));}
+
+// Untere Leiste: erst Kategorien, dann Trenner, dann Direktzugriff
+CATS.forEach(cat=>{const b=document.createElement('button');
+  b.className='tool cat'; b.dataset.cat=cat.key;
+  b.innerHTML='<span class="glyph">'+cat.glyph+'</span><span class="nm">'+cat.label+'</span><span class="cost cat-c">▾</span>';
+  b.onclick=()=>{if(typeof sfxClick==='function')sfxClick();openCategory(cat);};
+  toolsEl.appendChild(b);});
+const divider=document.createElement('div');divider.className='dock-div';toolsEl.appendChild(divider);
+DIRECT.forEach(key=>{const b=makeTool(key);const sel=b.onclick;
+  b.onclick=e=>{closeFlyout();sel(e);};                    // Direktzugriff schließt ein offenes Flyout
   toolsEl.appendChild(b);});
 
 // ---- Touch / Pointer ----
