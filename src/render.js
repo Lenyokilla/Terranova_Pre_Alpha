@@ -30,7 +30,7 @@ function drawGround(x,y){
   if(c.type==='empty'){
     if(td.water) waterDeco(g);
     else if(td.furrow) furrowDeco(g);
-    else if(td.trees) treeDeco(x,y,g);
+    else if(td.trees){ /* Bäume kommen im tiefensortierten Objekt-Pass (drawTreesAt) */ }
     else if(c.terr==='grass'||c.terr==='meadow'){           // lebendige Bodentextur
       const s=cam.scale;
       ctx.fillStyle='rgba(54,80,34,.15)';                   // dunkle Tupfer
@@ -43,6 +43,11 @@ function drawGround(x,y){
     }
     if(td.peak) peakDeco(g);
   }
+}
+// Bäume einer Waldkachel — separat, damit sie tiefensortiert mit Gebäuden gezeichnet werden
+function drawTreesAt(x,y){
+  const t=project(x,y), b=project(x+1,y+1);
+  treeDeco(x,y,{cx:(t.x+b.x)/2, cy:(t.y+b.y)/2});
 }
 // Objekt-Pass: Gebäude + Status-Punkte (tiefen-sortiert über dem Boden)
 function drawObjects(x,y){
@@ -197,21 +202,23 @@ function drawAtmosphere(w,h){
 function render(){
   const r=cv.parentElement.getBoundingClientRect();
   ctx.clearRect(0,0,r.width,r.height);
-  // Pass 1 — Boden & Wasser in EINEM tiefen-sortierten Durchgang.
-  // So verdecken weiter vorne liegende Hügel/Berge/Wälder das dahinterliegende Wasser korrekt.
+  // Pass 1 — nur FLACHES Terrain (Gras, Feld, Wald-Boden, Straße, Wasser) in einem tiefen-sortierten Durchgang.
+  // Erhöhtes Terrain (Hügel, Berge) und Bäume kommen in den Objekt-Pass, damit sie korrekt
+  // VOR bzw. HINTER Gebäuden liegen statt pauschal überzeichnet zu werden.
   const ground=[];
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ if(onScreen(x,y)) ground.push({d:x+y,x,y}); }
   ground.sort((a,b)=>a.d-b.d);
-  for(const g of ground){ const c=grid[g.y][g.x];
+  for(const g of ground){ const c=grid[g.y][g.x], td=TERR[c.terr]||TERR.grass;
     if(c.terr==='water'){
       waterDiamond(g.x,g.y,1.04,'#3f7d9c');   // verschmolzene Fläche
       waterBlob(g.x,g.y,1.14,'#3f7d9c');       // weiche, leicht überfließende Küste
       const t=project(g.x,g.y),b=project(g.x+1,g.y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});
-    } else drawGround(g.x,g.y);
+    } else if(c.terr==='mountain' || td.elev>0){ /* erhöht -> Pass 2 (tiefensortiert) */ }
+    else drawGround(g.x,g.y);
   }
-  // Schilf an den Ufern (nach dem Wasser gezeichnet -> an allen Ufern sichtbar)
-  for(const g of ground){ const c=grid[g.y][g.x];
-    if(c.type==='empty'&&c.terr!=='water'&&c.terr!=='mountain') shoreReeds(g.x,g.y); }
+  // Schilf an den Ufern (nur an flachem Boden gezeichnet -> an allen Ufern sichtbar)
+  for(const g of ground){ const c=grid[g.y][g.x], td=TERR[c.terr]||TERR.grass;
+    if(c.type==='empty'&&c.terr!=='water'&&c.terr!=='mountain'&&!(td.elev>0)) shoreReeds(g.x,g.y); }
   // Bau-Vorschau über dem Boden
   for(const c of previewCells){ if(!onScreen(c.x,c.y))continue;
     const tile=grid[c.y][c.x], e=(TERR[tile.terr]||TERR.grass).elev;
@@ -219,15 +226,24 @@ function render(){
     terrainBlock(c.x,c.y,e,free?'rgba(201,162,39,.6)':'rgba(192,83,58,.55)',
       'rgba(150,110,20,.5)','rgba(150,110,20,.5)',null);
   }
-  // Pass 2 — Objekte (Gebäude, Träger, Schafe) tiefen-sortiert über dem Boden
+  // Pass 2 — Erhöhtes Terrain, Bäume, Gebäude, Träger & Tiere in EINEM tiefen-sortierten Durchgang
   const items=[];
-  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ if(onScreen(x,y)&&hasObject(x,y)) items.push({d:x+y,t:1,x,y}); }
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ if(!onScreen(x,y))continue;
+    const c=grid[y][x], td=TERR[c.terr]||TERR.grass;
+    if(c.terr==='mountain')      items.push({d:x+y,k:'mtn',x,y});      // Bergform
+    else if(td.elev>0)           items.push({d:x+y,k:'hill',x,y});     // erhöhter Geländeblock (Hügel)
+    else if(td.trees&&c.type==='empty') items.push({d:x+y,k:'tree',x,y}); // Bäume auf flachem Waldboden
+    if(hasObject(x,y))           items.push({d:x+y,k:'bld',x,y});      // Gebäude (auch auf Hügeln: nach dem Hügel)
+  }
   for(const w of walkers){const gx=w.x+(w.dx||0)*w.prog, gy=w.y+(w.dy||0)*w.prog;
-    items.push({d:gx+gy+0.05,t:0,gx,gy,w});}
+    items.push({d:gx+gy+0.05,k:'walk',gx,gy,w});}
   items.sort((a,b)=>a.d-b.d);
   for(const o of items){
-    if(o.t===1) drawObjects(o.x,o.y);
-    else drawWalker(o.w,o.gx,o.gy);
+    if(o.k==='mtn')       drawMountain(o.x,o.y);
+    else if(o.k==='hill') drawGround(o.x,o.y);
+    else if(o.k==='tree') drawTreesAt(o.x,o.y);
+    else if(o.k==='bld')  drawObjects(o.x,o.y);
+    else                  drawWalker(o.w,o.gx,o.gy);
   }
   if(typeof selectedTile!=='undefined'&&selectedTile&&onScreen(selectedTile.x,selectedTile.y))
     drawSelectionRing(selectedTile.x,selectedTile.y);
