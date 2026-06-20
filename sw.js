@@ -11,7 +11,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   e.respondWith((async () => {
     try {
-      const fresh = await fetch(req);
+      const fresh = await fetch(req, { cache: 'reload' });   // am Browser-/HTTP-Cache vorbei -> immer frischer Code
       const cache = await caches.open(CACHE);
       cache.put(req, fresh.clone()).catch(() => {});
       return fresh;
