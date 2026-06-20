@@ -113,7 +113,7 @@ function wavyLine(a, b, amp, col) {
 
 // Dachziegel nur angedeutet: wenige sanfte Wellenlinien parallel zur Traufe
 function tileFace(P0, P1, apex, color) {
-  const rows = 5, col = shade(color, -0.16), amp = 0.9 * cam.scale;
+  const rows = 5, col = 'rgba(214,96,70,0.55)', amp = 0.9 * cam.scale;   // helles Ziegelrot statt fast schwarz
   for (let i = 1; i < rows; i++) {
     const t = i / rows;
     wavyLine(lerp(P0, apex, t), lerp(P1, apex, t), amp, col);
@@ -647,13 +647,13 @@ function drawTemple(gx, gy, baseLift, kind) {
   const gR = ctx.createLinearGradient(ridgeF.x, ridgeF.y, e3.Et.x, e3.Et.y);
   gR.addColorStop(0, shade(roof, -0.10)); gR.addColorStop(1, shade(roof, -0.30));
   ctx.fillStyle = gR; poly([ridgeF, e3.Et, e3.Nt, ridgeB]);
-  for (let i=1;i<5;i++){ const t=i/5; stroke2(lerp(e3.Et,ridgeF,t), lerp(e3.Nt,ridgeB,t), 'rgba(40,28,14,0.20)'); }
+  for (let i=1;i<5;i++){ const t=i/5; stroke2(lerp(e3.Et,ridgeF,t), lerp(e3.Nt,ridgeB,t), 'rgba(224,108,82,0.42)'); }   // helles Ziegelrot statt Schwarz
 
   // linke Dachfläche (SW, zugewandt -> heller) = sichtbare Längsseite
   const gL = ctx.createLinearGradient(ridgeF.x, ridgeF.y, e3.St.x, e3.St.y);
   gL.addColorStop(0, shade(roof, 0.12)); gL.addColorStop(1, shade(roof, -0.04));
   ctx.fillStyle = gL; poly([ridgeF, e3.St, e3.Wt, ridgeB]);
-  for (let i=1;i<5;i++){ const t=i/5; stroke2(lerp(e3.St,ridgeF,t), lerp(e3.Wt,ridgeB,t), 'rgba(255,250,235,0.10)'); }
+  for (let i=1;i<5;i++){ const t=i/5; stroke2(lerp(e3.St,ridgeF,t), lerp(e3.Wt,ridgeB,t), 'rgba(224,108,82,0.30)'); }   // helle Ziegelrillen (terrakotta)
 
   stroke2(ridgeF, ridgeB, 'rgba(30,20,10,0.38)', 2);   // First betonen
 
