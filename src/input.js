@@ -37,13 +37,32 @@ const CATS=[
 ];
 const DIRECT=['road','house','raze'];     // immer direkt erreichbar (kein Untermenü)
 
+const dockEl=document.getElementById('dock'); dockEl.style.position='relative';
 const toolsEl=document.getElementById('tools');           // untere Leiste: Kategorien + Direktzugriff
-const flyout=document.createElement('div');               // obere Leiste: Gebäude der offenen Kategorie
-flyout.id='flyout';
-document.getElementById('dock').insertBefore(flyout,toolsEl);
+// Flyout = obere Reihe mit den Gebäuden der offenen Kategorie.
+// Es liegt ABSOLUT über dem Dock (bottom:100%), also AUSSERHALB des Layout-Flusses
+// -> die Stage wird nicht mehr gestaucht. Alle nötigen Styles sind inline gesetzt,
+//    damit keine styles.css-Änderung erforderlich ist.
+const flyout=document.createElement('div'); flyout.id='flyout';
+Object.assign(flyout.style,{
+  position:'absolute', left:'0', right:'0', bottom:'100%', zIndex:'4',
+  display:'none', gap:'7px', overflowX:'auto', padding:'9px 8px',
+  background:'linear-gradient(0deg,var(--panel),var(--panel-2))',
+  borderTop:'1px solid var(--panel-line)',
+  boxShadow:'0 -7px 16px rgba(0,0,0,.4)'
+});
+dockEl.appendChild(flyout);
 let openCat=null;
 
 function syncTools(){document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.key===tool));}
+// Kategorie-Knopf optisch öffnen/schließen (inline, ohne CSS-Klasse)
+function paintCat(btn,on){
+  btn.style.borderColor = on?'var(--gold)':'var(--panel-line)';
+  btn.style.background  = on?'#2c2012':'#22190e';
+  btn.style.boxShadow   = on?'0 0 0 1px var(--gold) inset':'none';
+  const c=btn.querySelector('.cat-c');
+  if(c){c.textContent=on?'▴':'▾'; c.style.color=on?'var(--gold)':'#a98';}
+}
 
 // Einzelner Bau-/Werkzeug-Knopf (Verhalten exakt wie zuvor)
 function makeTool(key){
@@ -62,24 +81,27 @@ function makeTool(key){
   return b;
 }
 
-// Kategorie öffnen/schließen -> Flyout mit ihren Gebäuden füllen
+// Kategorie öffnen/schließen (Toggle): zweites Tippen blendet die Untergebäude aus
 function openCategory(cat){
   if(openCat===cat.key){closeFlyout();return;}             // gleiche Kategorie erneut -> zuklappen
   openCat=cat.key; flyout.innerHTML='';
   cat.items.forEach(k=>flyout.appendChild(makeTool(k)));
-  flyout.classList.add('open'); syncTools();
-  document.querySelectorAll('.cat').forEach(c=>c.classList.toggle('open',c.dataset.cat===cat.key));
+  flyout.style.display='flex'; syncTools();
+  document.querySelectorAll('.cat').forEach(c=>paintCat(c,c.dataset.cat===cat.key));
 }
-function closeFlyout(){openCat=null;flyout.classList.remove('open');
-  document.querySelectorAll('.cat').forEach(c=>c.classList.remove('open'));}
+function closeFlyout(){openCat=null; flyout.style.display='none'; flyout.innerHTML='';
+  document.querySelectorAll('.cat').forEach(c=>paintCat(c,false));}
 
 // Untere Leiste: erst Kategorien, dann Trenner, dann Direktzugriff
 CATS.forEach(cat=>{const b=document.createElement('button');
-  b.className='tool cat'; b.dataset.cat=cat.key;
-  b.innerHTML='<span class="glyph">'+cat.glyph+'</span><span class="nm">'+cat.label+'</span><span class="cost cat-c">▾</span>';
+  b.className='tool cat'; b.dataset.cat=cat.key; b.style.background='#22190e';
+  b.innerHTML='<span class="glyph">'+cat.glyph+'</span><span class="nm">'+cat.label+'</span>'+
+    '<span class="cost cat-c" style="color:#a98">▾</span>';
   b.onclick=()=>{if(typeof sfxClick==='function')sfxClick();openCategory(cat);};
   toolsEl.appendChild(b);});
-const divider=document.createElement('div');divider.className='dock-div';toolsEl.appendChild(divider);
+const divider=document.createElement('div');
+Object.assign(divider.style,{flex:'0 0 auto',alignSelf:'stretch',width:'1px',margin:'3px 3px',background:'var(--panel-line)'});
+toolsEl.appendChild(divider);
 DIRECT.forEach(key=>{const b=makeTool(key);const sel=b.onclick;
   b.onclick=e=>{closeFlyout();sel(e);};                    // Direktzugriff schließt ein offenes Flyout
   toolsEl.appendChild(b);});
