@@ -117,6 +117,10 @@ function drawLoad(w,x,topY,s){
     ctx.fillStyle='#d9b44a';ctx.beginPath();ctx.ellipse(x,topY,3*s,2.1*s,0,0,7);ctx.fill();
     ctx.strokeStyle='#b9962f';ctx.lineWidth=Math.max(1,0.6*s);
     for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(x+i*1.2*s,topY-0.4*s);ctx.lineTo(x+i*1.6*s,topY-3*s);ctx.stroke();}
+  } else if(w.cargo==='flour'){                                           // Mehlsack
+    ctx.fillStyle='#ece0c8';ctx.beginPath();ctx.ellipse(x,topY+0.4*s,2.5*s,2.9*s,0,0,7);ctx.fill();
+    ctx.strokeStyle='#b9a984';ctx.lineWidth=Math.max(1,0.6*s);ctx.stroke();
+    ctx.fillStyle='#d6c6a4';ctx.beginPath();ctx.moveTo(x-1.1*s,topY-2.2*s);ctx.lineTo(x+1.1*s,topY-2.2*s);ctx.lineTo(x+0.6*s,topY-3.2*s);ctx.lineTo(x-0.6*s,topY-3.2*s);ctx.closePath();ctx.fill(); // zugebundener Hals
   } else if(w.cargo==='bread'){                                            // Brote
     ctx.fillStyle='#caa46e';ctx.beginPath();ctx.ellipse(x-1*s,topY,1.8*s,1.2*s,0,0,7);ctx.fill();
     ctx.fillStyle='#b88a52';ctx.beginPath();ctx.ellipse(x+1.2*s,topY+0.3*s,1.7*s,1.1*s,0,0,7);ctx.fill();
@@ -248,7 +252,7 @@ function drawFloaters(){ if(!floaters.length)return; const s=cam.scale;
 const GOALS=[
   {id:'g1', t:'Erste Siedler: 8 Einwohner', f:()=>pop>=8,         p:()=>pop/8},
   {id:'g2', t:'Einen Markt errichten',       f:()=>anyType('market')},
-  {id:'g3', t:'Brot: eine Mühle bauen',      f:()=>anyType('mill')},
+  {id:'g3', t:'Nahrung: eine Bäckerei bauen', f:()=>anyType('bakery')},
   {id:'g4', t:'Wachsende Stadt: 30 Einwohner',f:()=>pop>=30,       p:()=>pop/30},
   {id:'g5', t:GOAL_POP+' Einwohner — Sieg!',  f:()=>pop>=GOAL_POP,  p:()=>pop/GOAL_POP},
 ];
