@@ -632,27 +632,47 @@ function drawTemple(gx, gy, baseLift, kind) {
   wallBrickLines(e2.Wt, e2.St, e3.Wt, e3.St, 1, 'rgba(120,100,70,0.35)', s);   // Triglyphen-Andeutung
   wallBrickLines(e2.St, e2.Et, e3.St, e3.Et, 1, 'rgba(90,72,50,0.40)', s);
 
-  // ---- Giebeldach (Pediment) in der GÖTTERFARBE ----
-  const apex = { x: (e3.Nt.x + e3.Et.x + e3.St.x + e3.Wt.x) / 4, y: (e3.Nt.y + e3.Et.y + e3.St.y + e3.Wt.y) / 4 - roofH * s };
-  ctx.fillStyle = shade(roof, -0.35); poly([e3.Nt, e3.Wt, apex]); poly([e3.Nt, e3.Et, apex]);  // hintere Flächen
-  ctx.fillStyle = shade(roof, 0.06);  poly([e3.Wt, e3.St, apex]);                              // SW (hell)
-  ctx.fillStyle = shade(roof, -0.18); poly([e3.St, e3.Et, apex]);                              // SE (dunkel)
-  tileFace(e3.Wt, e3.St, apex, shade(roof, 0.06));
-  tileFace(e3.St, e3.Et, apex, shade(roof, -0.18));
+  // ---- Satteldach mit First: echtes dreieckiges Pediment an der Front ----
+  const rH = roofH * s;
+  const stroke2 = (a,b,col,w)=>{ ctx.strokeStyle=col; ctx.lineWidth=Math.max(1,(w||1)*s);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); };
+  // First über der Mitte der Front- (St–Et) und Rückkante (Nt–Wt)
+  const ridgeF = { x:(e3.St.x+e3.Et.x)/2, y:(e3.St.y+e3.Et.y)/2 - rH };   // vorne = Giebelspitze
+  const ridgeB = { x:(e3.Nt.x+e3.Wt.x)/2, y:(e3.Nt.y+e3.Wt.y)/2 - rH };   // hinten
 
-  // ---- Tympanon (vertieftes Giebelfeld als Schatten) ----
-  const ctr = { x: (e3.St.x + e3.Et.x + apex.x) / 3, y: (e3.St.y + e3.Et.y + apex.y) / 3 };
-  const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.66, y: ctr.y + (p.y - ctr.y) * 0.66 });
-  ctx.fillStyle = 'rgba(35,25,14,0.40)'; poly([I(e3.St), I(e3.Et), I(apex)]);
+  // hinteres Giebeldreieck (meist verdeckt)
+  ctx.fillStyle = shade(roof, -0.42); poly([e3.Nt, e3.Wt, ridgeB]);
 
-  // ---- Dach-Außenkante (First/Traufe) ----
-  ctx.strokeStyle = 'rgba(40,30,16,.35)'; ctx.lineWidth = Math.max(1.5, 1.8 * s);
-  ctx.beginPath(); ctx.moveTo(e3.Wt.x, e3.Wt.y); ctx.lineTo(e3.St.x, e3.St.y); ctx.lineTo(e3.Et.x, e3.Et.y); ctx.stroke();
+  // rechte Dachfläche (NE, abgewandt -> dunkler)
+  const gR = ctx.createLinearGradient(ridgeF.x, ridgeF.y, e3.Et.x, e3.Et.y);
+  gR.addColorStop(0, shade(roof, -0.10)); gR.addColorStop(1, shade(roof, -0.30));
+  ctx.fillStyle = gR; poly([ridgeF, e3.Et, e3.Nt, ridgeB]);
+  for (let i=1;i<5;i++){ const t=i/5; stroke2(lerp(e3.Et,ridgeF,t), lerp(e3.Nt,ridgeB,t), 'rgba(40,28,14,0.20)'); }
 
-  // ---- Akrotere (First-Finial + Eck-Akrotere) in Akzentfarbe ----
+  // linke Dachfläche (SW, zugewandt -> heller) = sichtbare Längsseite
+  const gL = ctx.createLinearGradient(ridgeF.x, ridgeF.y, e3.St.x, e3.St.y);
+  gL.addColorStop(0, shade(roof, 0.12)); gL.addColorStop(1, shade(roof, -0.04));
+  ctx.fillStyle = gL; poly([ridgeF, e3.St, e3.Wt, ridgeB]);
+  for (let i=1;i<5;i++){ const t=i/5; stroke2(lerp(e3.St,ridgeF,t), lerp(e3.Wt,ridgeB,t), 'rgba(255,250,235,0.10)'); }
+
+  stroke2(ridgeF, ridgeB, 'rgba(30,20,10,0.38)', 2);   // First betonen
+
+  // ---- vorderes Pediment (Giebelfeld) in der GÖTTERFARBE ----
+  const gP = ctx.createLinearGradient(ridgeF.x, ridgeF.y, (e3.St.x+e3.Et.x)/2, (e3.St.y+e3.Et.y)/2);
+  gP.addColorStop(0, shade(roof, 0.08)); gP.addColorStop(1, shade(roof, -0.14));
+  ctx.fillStyle = gP; poly([e3.St, e3.Et, ridgeF]);
+  // Tympanon (vertieftes Giebelfeld als Schatten)
+  const pcen = { x:(e3.St.x+e3.Et.x+ridgeF.x)/3, y:(e3.St.y+e3.Et.y+ridgeF.y)/3 };
+  const inset = p => ({ x: pcen.x + (p.x-pcen.x)*0.62, y: pcen.y + (p.y-pcen.y)*0.62 });
+  ctx.fillStyle = 'rgba(35,25,14,0.42)'; poly([inset(e3.St), inset(e3.Et), inset(ridgeF)]);
+  // Schräggesims (Geison) entlang der Giebelschenkel
+  stroke2(e3.St, ridgeF, shade(roof, 0.20), 1.2); stroke2(e3.Et, ridgeF, shade(roof, 0.20), 1.2);
+  stroke2(e3.St, e3.Et, shade(roof, -0.26), 1.2);   // Horizontalgesims (Traufe)
+
+  // ---- Akrotere (Firstspitze + Traufenecken) in Akzentfarbe ----
   ctx.fillStyle = accent;
-  ctx.beginPath(); ctx.arc(apex.x, apex.y - 2 * s, 2.6 * s, 0, 7); ctx.fill();
-  for (const p of [e3.St, e3.Et, e3.Wt]) { ctx.beginPath(); ctx.arc(p.x, p.y, 1.6 * s, 0, 7); ctx.fill(); }
+  ctx.beginPath(); ctx.arc(ridgeF.x, ridgeF.y - 2 * s, 2.6 * s, 0, 7); ctx.fill();
+  for (const p of [e3.St, e3.Et]) { ctx.beginPath(); ctx.arc(p.x, p.y, 1.6 * s, 0, 7); ctx.fill(); }
 
   // ---- Götter-Medaillon mittig auf dem Gebälk ----
   const mb = lerp(e2.St, e2.Et, 0.5), mt = lerp(e3.St, e3.Et, 0.5);
@@ -660,7 +680,7 @@ function drawTemple(gx, gy, baseLift, kind) {
   ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(mx, my, 2.7 * s, 0, 7); ctx.fill();
   ctx.strokeStyle = shade(roof, -0.20); ctx.lineWidth = Math.max(1, 1 * s); ctx.stroke();
 
-  return { cx: b0.cx, topY: apex.y };
+  return { cx: b0.cx, topY: ridgeF.y };
 }
 
 function drawClaypit(gx, gy, baseLift) {
