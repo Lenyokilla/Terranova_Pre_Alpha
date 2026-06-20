@@ -56,7 +56,7 @@ function drawObjects(x,y){
     dotAt(m.cx-sp*0.5,yy,c.food >0?'#b1542d':off);
     dotAt(m.cx+sp*0.5,yy,c.taxed>0?'#c9a227':off);
     dotAt(m.cx+sp*1.5,yy,c.goods>0?'#9c5bd0':off);
-  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'||c.type==='firehouse'||c.type==='engineer'||(c.type&&c.type.indexOf('temple_')===0)){
+  } else if(c.type && c.type!=='road'){    // alle übrigen Gebäude (inkl. Tempel & künftige Typen)
     m=drawBuilding(x,y,c.type,0,e*STEP);
   }
   if(m){                                   // Gefahren + Arbeitskräfte
@@ -92,7 +92,10 @@ function drawCollapseMark(cx,cy){const s=cam.scale;
   ctx.beginPath();ctx.moveTo(cx,cy-6*s);ctx.lineTo(cx+5.5*s,cy+3*s);ctx.lineTo(cx-5.5*s,cy+3*s);ctx.closePath();ctx.fill();ctx.stroke();
   ctx.fillStyle='#3a2a08';ctx.fillRect(cx-0.7*s,cy-3.5*s,1.4*s,4*s);ctx.fillRect(cx-0.7*s,cy+1.6*s,1.4*s,1.4*s);
 }
-function hasObject(x,y){const t=grid[y][x].type; return t==='house'||t==='well'||t==='market'||t==='forum'||t==='claypit'||t==='pottery'||t==='grainfield'||t==='mill'||t==='firehouse'||t==='engineer';}
+// Ein Objekt liegt vor, wenn der Zelltyp ein Gebäude aus BUILD ist (außer Straße,
+// die als Boden gezeichnet wird). Registry-basiert -> Tempel & künftige Gebäude
+// erscheinen automatisch, ohne diese Liste pflegen zu müssen.
+function hasObject(x,y){const t=grid[y][x].type; return !!(t && t!=='road' && typeof BUILD!=='undefined' && BUILD[t]);}
 // ---- Träger-Figuren (Wuselfaktor) ----
 function amphora(x,y,s,col){
   ctx.fillStyle=col; ctx.beginPath();ctx.ellipse(x,y,2.1*s,2.9*s,0,0,7);ctx.fill();   // Bauch
