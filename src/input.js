@@ -31,7 +31,7 @@ document.getElementById('cheat').onclick=()=>{money+=100;updateHUD();flash('+100
 // Änderung im Religions-Flyout erscheinen.
 const CATS=[
   {key:'prod',  label:'Produktion', glyph:'🏺',  items:['claypit','pottery']},
-  {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','mill','market']},
+  {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
