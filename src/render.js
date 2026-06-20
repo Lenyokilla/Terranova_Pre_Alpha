@@ -56,7 +56,7 @@ function drawObjects(x,y){
     dotAt(m.cx-sp*0.5,yy,c.food >0?'#b1542d':off);
     dotAt(m.cx+sp*0.5,yy,c.taxed>0?'#c9a227':off);
     dotAt(m.cx+sp*1.5,yy,c.goods>0?'#9c5bd0':off);
-  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'||c.type==='firehouse'||c.type==='engineer'){
+  } else if(c.type==='well'||c.type==='market'||c.type==='forum'||c.type==='claypit'||c.type==='pottery'||c.type==='grainfield'||c.type==='mill'||c.type==='firehouse'||c.type==='engineer'||(c.type&&c.type.indexOf('temple_')===0)){
     m=drawBuilding(x,y,c.type,0,e*STEP);
   }
   if(m){                                   // Gefahren + Arbeitskräfte
