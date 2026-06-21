@@ -118,10 +118,10 @@ function describeTile(x,y){
   }
   if(t.type==='market'){
     const w=hasRoad?[]:['Keine angrenzende Straße — der Markthändler kann nicht losziehen.'];
-    if((t.bread||0)<=0) w.push('Kein Brot — eine angeschlossene Mühle liefert die Nahrung.');
+    if((t.bread||0)<=0) w.push('Keine Nahrung — eine Bäckerei oder ein Fischer liefert Nachschub.');
     return {glyph:'🧺', title:'Markt', rows:[
-      {k:'Funktion', v:'Verteilt Brot (Nahrung) & Keramik'},
-      {k:'Brot-Lager',    v:(t.bread||0)+' / 8'},
+      {k:'Funktion', v:'Verteilt Nahrung (Brot/Fisch) & Keramik'},
+      {k:'Nahrungs-Lager', v:(t.bread||0)+' / 8'},
       {k:'Keramik-Lager', v:(t.cer||0)+' / 8'},
       roadRow,
       {k:'Trägerintervall', v:'alle '+BUILD.market.every+' Ticks'},
@@ -191,6 +191,20 @@ function describeTile(x,y){
       {k:'Nahrung-Lager', v:(t.bread||0)+' / 8'},
       {k:'Wandelt', v:'Mehl → Nahrung'},
       {k:'Liefert an', v:'Markt (über Straße)'},
+    ], warns:w};
+  }
+  if(t.type==='fisher'){
+    const link=!!findPath(x,y,'market');
+    const school=!!findWaterPath(x,y);
+    const w=[];
+    if(!school) w.push('Kein Fischschwarm über Wasser erreichbar — die Hütte muss an einem See/Fluss mit Schwarm liegen.');
+    if(!link) w.push('Keine Straßenverbindung zum Markt — der Fang bleibt im Lager.');
+    return {glyph:'🎣', title:'Fischer', rows:[
+      {k:'Funktion', v:'Boot fängt Fisch am Schwarm (endlos)'},
+      {k:'Fisch-Lager', v:(t.fish||0)+' / 8'},
+      {k:'Fischschwarm', v:school?'erreichbar':'keiner', cls:school?'ok':'bad'},
+      {k:'Liefert an', v:'Markt (über Straße)'},
+      {k:'Verbindung', v:link?'ja':'keine', cls:link?'ok':'bad'},
     ], warns:w};
   }
   if(t.type==='firehouse'){
