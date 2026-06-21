@@ -10,8 +10,8 @@ let animT=0; const clouds=[];   // Wetter-Animation
 const floaters=[];              // schwebende Feedback-Texte (+Denar)
 const sheep=[]; const birds=[]; let herdAnchor=null;   // Tierwelt
 function blankTile(){return {type:'empty',terr:'grass',lvl:0,water:0,food:0,taxed:0,goods:0,res:0,decay:0,spawn:0};}
-function buildOn(t,type,service){t.type=type;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.conv=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;t.service=service||undefined;}
-function razeTile(t){t.type='empty';t.service=undefined;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;}
+function buildOn(t,type,service){t.type=type;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.dspawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.fish=0;t.conv=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;t.service=service||undefined;}
+function razeTile(t){t.type='empty';t.service=undefined;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.dspawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.fish=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;}
 
 // --- Landschafts-Generierung ---
 function clampg(v){return Math.max(0,Math.min(GRID-1,v));}
@@ -68,6 +68,28 @@ function generateTerrain(){
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     6+(Math.random()*6|0), isGrass, t=>t.terr='field');
   computeMountainHeights();
+  seedFishSchools();
+}
+
+// --- Fischschwärme: endlose Fischgründe auf offenem Wasser ---------------
+// Markiert einige Wasserkacheln (mit genug Wasser-Nachbarn = "tiefes" Wasser)
+// als t.school. Der Fischer schickt sein Boot per Wasser-BFS zum nächsten
+// Schwarm. Anzahl skaliert mit der Kartengröße; Schwärme werden entzerrt.
+function seedFishSchools(){
+  const cand=[];
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    if(grid[y][x].terr!=='water')continue;
+    let w=0; for(const [nx,ny] of neighbors(x,y)) if(inBounds(nx,ny)&&grid[ny][nx].terr==='water')w++;
+    if(w>=3) cand.push([x,y]);                       // nur offenes Wasser, keine 1-Kachel-Pfütze
+  }
+  for(let i=cand.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[cand[i],cand[j]]=[cand[j],cand[i]];}
+  const target=Math.max(3, Math.round((GRID*GRID)/170)), MINSEP=4;
+  const placed=[];
+  for(const [x,y] of cand){
+    if(placed.length>=target)break;
+    if(placed.some(([px,py])=>Math.abs(px-x)+Math.abs(py-y)<MINSEP))continue;
+    grid[y][x].school=true; placed.push([x,y]);
+  }
 }
 
 // --- Höhenfeld des Gebirges -----------------------------------------------
