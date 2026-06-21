@@ -129,6 +129,10 @@ function drawLoad(w,x,topY,s){
   } else if(w.cargo==='bread'){                                            // Brote
     ctx.fillStyle='#caa46e';ctx.beginPath();ctx.ellipse(x-1*s,topY,1.8*s,1.2*s,0,0,7);ctx.fill();
     ctx.fillStyle='#b88a52';ctx.beginPath();ctx.ellipse(x+1.2*s,topY+0.3*s,1.7*s,1.1*s,0,0,7);ctx.fill();
+  } else if(w.cargo==='fish'){                                            // frischer Fang im Korb
+    ctx.fillStyle='#7a5e3a';ctx.beginPath();ctx.ellipse(x,topY+0.6*s,3*s,1.9*s,0,0,7);ctx.fill();   // Korb
+    ctx.fillStyle='#9ec6d8';ctx.beginPath();ctx.ellipse(x-0.8*s,topY-0.6*s,2.2*s,1*s,-0.3,0,7);ctx.fill();
+    ctx.fillStyle='#b9d8e6';ctx.beginPath();ctx.ellipse(x+1*s,topY-0.3*s,1.8*s,0.85*s,0.4,0,7);ctx.fill();
   } else if(w.service==='water'){ amphora(x,topY+0.5*s,s,'#4f93b0');
   } else if(w.service==='market'){
     ctx.fillStyle='#b07a3c';ctx.beginPath();
@@ -141,8 +145,19 @@ function drawLoad(w,x,topY,s){
     ctx.fillStyle='#c9a227';ctx.beginPath();ctx.arc(x+2.6*s,topY+0.4*s,0.95*s,0,7);ctx.fill();
   }
 }
+// Fischschwarm: kreisende Ringe + glitzernde Fischrücken (endlose Fischgründe)
+function drawFishSchool(cx,cy){const s=cam.scale;
+  ctx.strokeStyle='rgba(220,235,235,0.30)';ctx.lineWidth=Math.max(1,0.8*s);
+  for(let i=0;i<2;i++){ const ph=animT*0.9+i*2.1, r=(6+i*4+Math.sin(ph)*1.5)*s;
+    ctx.beginPath();ctx.ellipse(cx,cy,r,r*0.55,0,0,7);ctx.stroke(); }
+  for(let i=0;i<5;i++){ const a=animT*0.8+i*1.257, rr=(4.5+(i%2)*2.2)*s;
+    const fx=cx+Math.cos(a)*rr, fy=cy+Math.sin(a)*rr*0.55;
+    ctx.fillStyle='rgba(150,190,205,0.8)';ctx.beginPath();ctx.ellipse(fx,fy,1.7*s,0.8*s,a,0,7);ctx.fill();
+    ctx.fillStyle='rgba(60,90,105,0.7)';ctx.beginPath();ctx.ellipse(fx-Math.cos(a)*1.4*s,fy-Math.sin(a)*0.8*s,0.7*s,0.5*s,a,0,7);ctx.fill(); }
+}
 function drawWalker(w,gx,gy){
   const s=cam.scale*1.2;
+  if(w.kind==='boat'){ drawBoat(w,gx,gy,s); return; }
   const td=TERR[grid[Math.floor(gy)]?.[Math.floor(gx)]?.terr]||TERR.grass, e=td.elev;
   const p=project(gx+0.5,gy+0.5), g0=p.y-e*STEP*s;
   if(w.ph===undefined){w.ph=Math.random()*6.283; w.sk=['#caa07a','#b98a63','#d8b48c'][(Math.random()*3)|0]; w.tu=Math.random()<0.5;}
@@ -165,6 +180,39 @@ function drawWalker(w,gx,gy){
   ctx.fillStyle='#3b2a1c';ctx.beginPath();ctx.arc(p.x,headY-0.7*s,2*s,Math.PI,0);ctx.closePath();ctx.fill(); // Haar
   drawLoad(w,p.x,headY-3.2*s,s);                                                                       // Last auf dem Kopf
   ctx.lineCap='butt';
+}
+// Fischerboot: kleiner Kahn mit Angler, leichtes Schaukeln + Kielwasser
+function drawBoat(w,gx,gy,s){
+  const p=project(gx+0.5,gy+0.5);
+  if(w.ph===undefined)w.ph=Math.random()*6.283;
+  const bob=Math.sin(animT*2.4+w.ph)*1.1*s, tilt=Math.sin(animT*2.4+w.ph)*0.06;
+  const moving=(w.dx||0)!==0||(w.dy||0)!==0;
+  // Kielwasser / Reflex
+  ctx.fillStyle='rgba(255,255,255,.12)';ctx.beginPath();ctx.ellipse(p.x,p.y+5*s,9*s,3.4*s,0,0,7);ctx.fill();
+  ctx.save();ctx.translate(p.x,p.y+bob);ctx.rotate(tilt);
+  // Rumpf
+  ctx.fillStyle='#5a3f26';ctx.beginPath();
+  ctx.moveTo(-9*s,0);ctx.quadraticCurveTo(-10*s,3.4*s,0,4.2*s);
+  ctx.quadraticCurveTo(10*s,3.4*s,9*s,0);
+  ctx.quadraticCurveTo(0,2*s,-9*s,0);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#73502f';ctx.beginPath();
+  ctx.moveTo(-9*s,0);ctx.quadraticCurveTo(0,-1.4*s,9*s,0);ctx.quadraticCurveTo(0,1.6*s,-9*s,0);ctx.closePath();ctx.fill();
+  // Innenraum/Bank
+  ctx.strokeStyle='#3c2917';ctx.lineWidth=Math.max(1,0.8*s);ctx.beginPath();ctx.moveTo(-3*s,-0.4*s);ctx.lineTo(3*s,-0.4*s);ctx.stroke();
+  // Angler
+  const ay=-7*s;
+  ctx.fillStyle='#c9b591';ctx.beginPath();ctx.moveTo(-1.8*s,-0.6*s);ctx.lineTo(1.8*s,-0.6*s);ctx.lineTo(1.2*s,ay+2.4*s);ctx.lineTo(-1.2*s,ay+2.4*s);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#caa07a';ctx.beginPath();ctx.arc(0,ay,1.9*s,0,7);ctx.fill();                       // Kopf
+  ctx.fillStyle='#6b5236';ctx.beginPath();ctx.arc(0,ay-0.8*s,1.9*s,Math.PI,0);ctx.closePath();ctx.fill(); // Hut/Haar
+  // Angelrute + Schnur
+  ctx.strokeStyle='#7a5a34';ctx.lineWidth=Math.max(1,0.9*s);ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(1.4*s,ay+1*s);ctx.lineTo(8*s,ay-3.5*s);ctx.stroke();
+  ctx.strokeStyle='rgba(230,235,235,.55)';ctx.lineWidth=Math.max(1,0.5*s);
+  ctx.beginPath();ctx.moveTo(8*s,ay-3.5*s);ctx.lineTo(8.4*s,3*s);ctx.stroke();
+  ctx.restore();
+  ctx.lineCap='butt';
+  if(moving){ ctx.fillStyle='rgba(255,255,255,.18)';                                                  // Bugwelle
+    ctx.beginPath();ctx.ellipse(p.x-7*s,p.y+bob+2*s,2.4*s,1.1*s,0,0,7);ctx.fill(); }
 }
 // ---- Weiches Wasser: abgerundete, leicht überlappende Flächen (Küste fließt über) ----
 function _ex(p,cx,cy,k){return {x:cx+(p.x-cx)*k, y:cy+(p.y-cy)*k};}
@@ -213,6 +261,7 @@ function render(){
       waterDiamond(g.x,g.y,1.04,'#3f7d9c');   // verschmolzene Fläche
       waterBlob(g.x,g.y,1.14,'#3f7d9c');       // weiche, leicht überfließende Küste
       const t=project(g.x,g.y),b=project(g.x+1,g.y+1); waterDeco({cx:(t.x+b.x)/2,cy:(t.y+b.y)/2});
+      if(c.school) drawFishSchool((t.x+b.x)/2,(t.y+b.y)/2);
     } else if(c.terr==='mountain' || td.elev>0){ /* erhöht -> Pass 2 (tiefensortiert) */ }
     else drawGround(g.x,g.y);
   }
