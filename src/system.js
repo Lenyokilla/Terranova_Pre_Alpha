@@ -222,6 +222,60 @@ function describeTile(x,y){
       {k:'Trägerintervall', v:'alle '+BUILD.engineer.every+' Ticks'},
     ], warns: adjRoad(x,y)?[]:['Keine angrenzende Straße — der Ingenieur kann nicht losziehen.']};
   }
+  if(t.type==='woodcutter'){
+    const link=!!findPath(x,y,'warehouse');
+    const near=neighbors(x,y).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='forest');
+    const w=[];
+    if(!near) w.push('Kein angrenzender Wald — der Holzfäller braucht Wald nebenan.');
+    if(!link) w.push('Keine Straßenverbindung zum Lagerhaus — das Holz bleibt liegen.');
+    return {glyph:'🪓', title:'Holzfäller', rows:[
+      {k:'Funktion', v:'Schlägt Holz (Wald wächst nach)'},
+      {k:'Holz-Lager', v:(t.wood||0)+' / 8'},
+      {k:'Liefert an', v:'Lagerhaus (über Straße)'},
+      {k:'Wald', v:near?'angrenzend':'fehlt', cls:near?'ok':'bad'},
+      {k:'Verbindung', v:link?'ja':'keine', cls:link?'ok':'bad'},
+    ], warns:w};
+  }
+  if(t.type==='quarry'){
+    const link=!!findPath(x,y,'warehouse');
+    const near=neighbors(x,y).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='rock');
+    const w=[];
+    if(!near) w.push('Kein angrenzendes Steinvorkommen — der Steinbruch braucht Fels nebenan.');
+    if(!link) w.push('Keine Straßenverbindung zum Lagerhaus — der Stein bleibt liegen.');
+    return {glyph:'⛏️', title:'Steinbruch', rows:[
+      {k:'Funktion', v:'Bricht Stein (unerschöpflich)'},
+      {k:'Stein-Lager', v:(t.stone||0)+' / 8'},
+      {k:'Liefert an', v:'Lagerhaus (über Straße)'},
+      {k:'Fels', v:near?'angrenzend':'fehlt', cls:near?'ok':'bad'},
+      {k:'Verbindung', v:link?'ja':'keine', cls:link?'ok':'bad'},
+    ], warns:w};
+  }
+  if(t.type==='marblequarry'){
+    const link=!!findPath(x,y,'warehouse');
+    const near=neighbors(x,y).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='marble');
+    const w=[];
+    if(!near) w.push('Kein angrenzendes Marmorvorkommen — der Marmorbruch braucht Marmorfels nebenan.');
+    if(!link) w.push('Keine Straßenverbindung zum Lagerhaus — der Marmor bleibt liegen.');
+    return {glyph:'🪨', title:'Marmorbruch', rows:[
+      {k:'Funktion', v:'Bricht Marmor'},
+      {k:'Marmor-Lager', v:(t.marble||0)+' / 8'},
+      {k:'Liefert an', v:'Lagerhaus (über Straße)'},
+      {k:'Marmorfels', v:near?'angrenzend':'fehlt', cls:near?'ok':'bad'},
+      {k:'Verbindung', v:link?'ja':'keine', cls:link?'ok':'bad'},
+    ], warns:w};
+  }
+  if(t.type==='warehouse'){
+    const m=whMaster(x,y), a=(m.wh||[x,y]);
+    const tiles=[[a[0],a[1]],[a[0]+1,a[1]],[a[0],a[1]+1],[a[0]+1,a[1]+1]];
+    const road=tiles.some(([tx,ty])=>inBounds(tx,ty)&&!!adjRoad(tx,ty));
+    return {glyph:'📦', title:'Lagerhaus', rows:[
+      {k:'Funktion', v:'Lagert Rohstoffe (2×2 Felder)'},
+      {k:'🪵 Holz',   v:(m.wood||0)+' / '+WH_CAP},
+      {k:'🪨 Stein',  v:(m.stone||0)+' / '+WH_CAP},
+      {k:'🤍 Marmor', v:(m.marble||0)+' / '+WH_CAP},
+      {k:'Straßenanschluss', v:road?'ja':'nein', cls:road?'ok':'bad'},
+    ], warns: road?[]:['Keine angrenzende Straße — es kann nichts angeliefert werden.']};
+  }
   return {glyph:'❔', title:'Gebäude', rows:[], warns:[]};
 }
 
