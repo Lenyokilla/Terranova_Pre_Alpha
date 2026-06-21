@@ -23,6 +23,15 @@ function findPath(sx,sy,destType){
 function spawnCarrier(fp,cargo,color){const [sx,sy]=fp.path[0];
   walkers.push({x:sx,y:sy,path:fp.path,pi:0,dest:fp.dest,cargo,color,prog:0,dx:0,dy:0,from:null});}
 
+// ---- Rohstoff-Abbau & Lagerhaus ----
+function adjTerr(x,y,terr){ return neighbors(x,y).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr===terr); }
+// angrenzendes Waldfeld mit Holzvorrat (zum Abholzen); null wenn alle erschöpft
+function adjWood(x,y){ for(const [nx,ny] of neighbors(x,y)){ if(!inBounds(nx,ny))continue;
+  const t=grid[ny][nx]; if(t.terr==='forest'&&(t.wood||0)>0) return t; } return null; }
+// Master-Kachel (Bucht 0) eines Lagerhauses, egal welche der 4 Kacheln getroffen wurde
+function whMaster(x,y){ const t=grid[y][x]; const a=t.wh; return (a&&inBounds(a[0],a[1]))?grid[a[1]][a[0]]:t; }
+function whTiles(ax,ay){ return [[ax,ay],[ax+1,ay],[ax,ay+1],[ax+1,ay+1]]; }
+
 // ---- Fischerei: Boot fährt über Wasser zum Schwarm und zurück ----
 function adjWater(x,y){return neighbors(x,y).filter(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='water');}
 // BFS über Wasserkacheln vom Ufer der Hütte zum nächsten Fischschwarm.
@@ -50,7 +59,9 @@ function deliverCargo(w){const [dx,dy]=w.dest;if(!inBounds(dx,dy))return;const t
   else if(w.cargo==='grain'&&t.type==='mill')t.grain=Math.min(8,(t.grain||0)+1);
   else if(w.cargo==='flour'&&t.type==='bakery')t.flour=Math.min(8,(t.flour||0)+1);
   else if(w.cargo==='bread'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);
-  else if(w.cargo==='fish'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);}
+  else if(w.cargo==='fish'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);
+  else if((w.cargo==='wood'||w.cargo==='stone'||w.cargo==='marble')&&t.type==='warehouse'){
+    const m=whMaster(dx,dy); m[w.cargo]=Math.min(WH_CAP,(m[w.cargo]||0)+1); }}
 
 // ---- Einwanderung vom Kartenrand ----
 function landWalk(x,y){ if(!inBounds(x,y))return false; const t=grid[y][x];
@@ -148,7 +159,32 @@ function tick(){
       c.dspawn=(c.dspawn||0)+1;
       if(c.dspawn>=BUILD.fisher.every&&(c.fish||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.dspawn=0;c.fish--;spawnCarrier(fp,'fish','#9ec6d8');} else {c.dspawn=BUILD.fisher.every;} } }
+    // Holzfäller: schlägt Holz am angrenzenden Wald (Vorrat sinkt, wächst andernorts nach) -> Lagerhaus
+    if(c.type==='woodcutter'&&c.staffed){
+      c.conv=(c.conv||0)+1;
+      if(c.conv>=HARVEST_EVERY&&(c.wood||0)<8){ const f=adjWood(x,y);
+        if(f){ c.conv=0; f.wood--; c.wood=(c.wood||0)+1; } }
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.woodcutter.every&&(c.wood||0)>0){ const fp=findPath(x,y,'warehouse');
+        if(fp){c.spawn=0;c.wood--;spawnCarrier(fp,'wood','#9c6b3a');} else {c.spawn=BUILD.woodcutter.every;} } }
+    // Steinbruch: bricht Stein am angrenzenden Fels (unerschöpflich) -> Lagerhaus
+    if(c.type==='quarry'&&c.staffed){
+      c.conv=(c.conv||0)+1;
+      if(c.conv>=HARVEST_EVERY&&(c.stone||0)<8&&adjTerr(x,y,'rock')){ c.conv=0; c.stone=(c.stone||0)+1; }
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.quarry.every&&(c.stone||0)>0){ const fp=findPath(x,y,'warehouse');
+        if(fp){c.spawn=0;c.stone--;spawnCarrier(fp,'stone','#8d8b86');} else {c.spawn=BUILD.quarry.every;} } }
+    // Marmorbruch: bricht Marmor am angrenzenden Marmorfels -> Lagerhaus
+    if(c.type==='marblequarry'&&c.staffed){
+      c.conv=(c.conv||0)+1;
+      if(c.conv>=HARVEST_EVERY&&(c.marble||0)<8&&adjTerr(x,y,'marble')){ c.conv=0; c.marble=(c.marble||0)+1; }
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.marblequarry.every&&(c.marble||0)>0){ const fp=findPath(x,y,'warehouse');
+        if(fp){c.spawn=0;c.marble--;spawnCarrier(fp,'marble','#dcd8cf');} else {c.spawn=BUILD.marblequarry.every;} } }
   }
+  // Wald wächst nach: jedes Waldfeld erholt sich langsam bis WOOD_MAX
+  if(tickCount%WOOD_REGROW===0){ for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    const t=grid[y][x]; if(t.terr==='forest'&&(t.wood||0)<WOOD_MAX) t.wood=(t.wood||0)+1; } }
   // Zuwanderung vom Rand
   if(!lost && tickCount%IMMIG_EVERY===0 && money>LOSE_MONEY) spawnSettler();
   const next=[];
@@ -201,7 +237,9 @@ function tick(){
   }
   // Wirtschaft: monatlicher Unterhalt
   if(tickCount%MONTH===0){ let up=0;
-    for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const d=BUILD[grid[y][x].type]; if(d&&d.up)up+=d.up;}
+    for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const tt=grid[y][x], d=BUILD[tt.type];
+      if(d&&d.up){ if(tt.type==='warehouse'&&!tt.whMaster) continue;   // Lagerhaus: Unterhalt nur einmal (4 Felder)
+        up+=d.up; } }
     if(up){ money-=up; if(typeof statExp==='function')statExp(up); }
   }
   // Sieg / Niederlage
