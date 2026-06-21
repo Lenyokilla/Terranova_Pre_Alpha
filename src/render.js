@@ -139,6 +139,18 @@ function drawLoad(w,x,topY,s){
     ctx.fillStyle='#7a5e3a';ctx.beginPath();ctx.ellipse(x,topY+0.6*s,3*s,1.9*s,0,0,7);ctx.fill();   // Korb
     ctx.fillStyle='#9ec6d8';ctx.beginPath();ctx.ellipse(x-0.8*s,topY-0.6*s,2.2*s,1*s,-0.3,0,7);ctx.fill();
     ctx.fillStyle='#b9d8e6';ctx.beginPath();ctx.ellipse(x+1*s,topY-0.3*s,1.8*s,0.85*s,0.4,0,7);ctx.fill();
+  } else if(w.cargo==='wood'){                                           // Holzbündel
+    ctx.fillStyle='#9c6b3a';ctx.beginPath();ctx.ellipse(x,topY,1.5*s,3*s,0.5,0,7);ctx.fill();
+    ctx.fillStyle='#7a5230';ctx.beginPath();ctx.ellipse(x+1.4*s,topY+0.3*s,1.4*s,2.8*s,0.5,0,7);ctx.fill();
+    ctx.strokeStyle='#4a321c';ctx.lineWidth=Math.max(1,0.6*s);ctx.beginPath();ctx.moveTo(x-1.6*s,topY);ctx.lineTo(x+2.6*s,topY+0.4*s);ctx.stroke();
+  } else if(w.cargo==='stone'){                                          // Steinblock
+    ctx.fillStyle='#9a948a';ctx.fillRect(x-2.2*s,topY-1.6*s,4.4*s,3.6*s);
+    ctx.fillStyle='#b4aea4';ctx.fillRect(x-2.2*s,topY-1.6*s,4.4*s,1.1*s);
+    ctx.strokeStyle='rgba(50,46,40,.5)';ctx.lineWidth=Math.max(1,0.6*s);ctx.strokeRect(x-2.2*s,topY-1.6*s,4.4*s,3.6*s);
+  } else if(w.cargo==='marble'){                                         // Marmorblock (hell, glänzend)
+    ctx.fillStyle='#e3ded3';ctx.fillRect(x-2.2*s,topY-1.6*s,4.4*s,3.6*s);
+    ctx.fillStyle='#f4f0e8';ctx.fillRect(x-2.2*s,topY-1.6*s,4.4*s,1.1*s);
+    ctx.strokeStyle='rgba(150,160,165,.6)';ctx.lineWidth=Math.max(1,0.6*s);ctx.strokeRect(x-2.2*s,topY-1.6*s,4.4*s,3.6*s);
   } else if(w.service==='water'){ amphora(x,topY+0.5*s,s,'#4f93b0');
   } else if(w.service==='market'){
     ctx.fillStyle='#b07a3c';ctx.beginPath();
