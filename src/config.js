@@ -27,7 +27,7 @@ const BUILD={
 };
 const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','raze'];
 
-const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5}];
+const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3 = Villa (verlangt zusätzlich Keramik)
 const SERVICE_LIFE=55;
 const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
 // ---- Spiel-Regeln ----
@@ -50,6 +50,7 @@ const H3D=[
   {top:'#b58f5e',left:'#7e5f39',right:'#9a7548',h:13,glyph:'🛖'},
   {top:'#cda46c',left:'#9a7647',right:'#b58d57',h:19,glyph:'🏠'},
   {top:'#e7dcc2',left:'#b7a682',right:'#d3c3a0',h:27,glyph:'🏡'},
+  {top:'#f0e8d2',left:'#cab593',right:'#e0d0ac',h:35,glyph:'🏛️'},
 ];
 const B3D={
   well:  {top:'#4f93b0',left:'#2f6580',right:'#3f7c98',h:18,glyph:'💧', wcol:'#3a7d9c'},
