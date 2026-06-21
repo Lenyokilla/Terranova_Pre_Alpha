@@ -22,9 +22,10 @@ const BUILD={
   farm:    {label:'Bauernhof', glyph:'🐂', cost:45, every:12, up:1, jobs:2},
   mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2, jobs:2},
   bakery:  {label:'Bäckerei', glyph:'🍞', cost:60, every:11, up:2, jobs:2},
+  fisher:  {label:'Fischer',  glyph:'🎣', cost:50, every:12, up:2, jobs:2},
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','raze'];
+const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5}];
 const SERVICE_LIFE=55;
@@ -42,7 +43,7 @@ const RISK_FUSE=120;        // weitere Ticks Schonfrist, bevor wirklich etwas pa
 const FIRE_CHANCE=0.0018;   // Wahrscheinlichkeit/Tick für Brand (nach Warnung + Schonfrist)
 const COLLAPSE_CHANCE=0.0012;// Wahrscheinlichkeit/Tick für Einsturz (nach Warnung + Schonfrist)
 // ---- Arbeitskräfte (global, ohne Straße): Gebäude -> [benötigte Arbeiter, Priorität (klein=zuerst)] ----
-const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3] };
+const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], fisher:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3] };
 
 // 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
 const H3D=[
@@ -62,6 +63,7 @@ const B3D={
   farm:{wcol:'#d9b44a'},      // Hof: Getreide-Träger
   mill:{wcol:'#e8dcc0'},      // Mehl-Träger
   bakery:{wcol:'#caa46e'},    // Brot-Träger
+  fisher:{wcol:'#9ec6d8'},    // Fisch-Träger (zum Markt)
 };
 
 // ---- Terrain ----
