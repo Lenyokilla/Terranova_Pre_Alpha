@@ -67,6 +67,11 @@ const B3D={
   fisher:{wcol:'#9ec6d8'},    // Fisch-Träger (zum Markt)
 };
 
+// ---- Natürliche Ressourcen-Vorkommen (Rohstoffe auf der Karte) ----
+const WOOD_MAX    = 120;  // Holz je Waldfeld · NACHWACHSEND → Bauholz (Monumente/Mauern), Möbel, Schiffbau
+const STONE_STOCK = 999;  // Stein je Felsfeld · quasi unerschöpflich → Monumente & Stadtmauern
+const MARBLE_STOCK= 999;  // Marmor je Marmorfeld → Villen/Paläste-Verzierung, Skulpturen (Parks)
+
 // ---- Terrain ----
 const STEP=13;   // Welt-px Höhe pro Geländestufe
 // top: zwei Farbtöne (Schachbrett) · side: Felskanten bei Erhebung · elev: Höhenstufe
@@ -78,6 +83,9 @@ const TERR={
   water:   {top:['#3f7d9c','#3b7796'], elev:0, build:false, water:true},
   hill:    {top:['#94ad58','#8ba751'], side:['#7c5d38','#8c6c43'], elev:1, build:true},
   mountain:{top:['#9b9387','#928a7e'], side:['#5f594f','#6f685c'], elev:2, build:false, peak:true},
+  // Felsige Rohstoff-Aufschlüsse: flacher Boden, Brocken kommen tiefensortiert im Objekt-Pass (rocks-Flag)
+  rock:    {top:['#9a948a','#918b81'], elev:0, build:false, rocks:'stone'},   // Stein
+  marble:  {top:['#d8d3c8','#cfcabf'], elev:0, build:false, rocks:'marble'},  // Marmor
 };
 function buildableTerr(t){const d=TERR[t.terr]; return d?d.build:true;}
 
