@@ -286,12 +286,16 @@ function render(){
   }
   for(const w of walkers){const gx=w.x+(w.dx||0)*w.prog, gy=w.y+(w.dy||0)*w.prog;
     items.push({d:gx+gy+0.05,k:'walk',gx,gy,w});}
+  if(typeof getCritters==='function'){                 // Schafe tiefensortiert -> werden von Gebäuden verdeckt
+    for(const s of getCritters()) items.push({d:s.gx+s.gy+0.04,k:'sheep',s});
+  }
   items.sort((a,b)=>a.d-b.d);
   for(const o of items){
     if(o.k==='mtn')       drawMountain(o.x,o.y);
     else if(o.k==='hill') drawGround(o.x,o.y);
     else if(o.k==='tree') drawTreesAt(o.x,o.y);
     else if(o.k==='bld')  drawObjects(o.x,o.y);
+    else if(o.k==='sheep')drawSheepOne(o.s);
     else                  drawWalker(o.w,o.gx,o.gy);
   }
   if(typeof selectedTile!=='undefined'&&selectedTile&&onScreen(selectedTile.x,selectedTile.y))
