@@ -31,6 +31,7 @@ function drawGround(x,y){
     if(td.water) waterDeco(g);
     else if(td.furrow) furrowDeco(g);
     else if(td.trees){ /* Bäume kommen im tiefensortierten Objekt-Pass (drawTreesAt) */ }
+    else if(td.rocks){ rockFloorDeco(x,y,g); /* Brocken kommen im Objekt-Pass (drawRocksAt) */ }
     else if(c.terr==='grass'||c.terr==='meadow'){           // lebendige Bodentextur
       const s=cam.scale;
       ctx.fillStyle='rgba(54,80,34,.15)';                   // dunkle Tupfer
@@ -48,6 +49,11 @@ function drawGround(x,y){
 function drawTreesAt(x,y){
   const t=project(x,y), b=project(x+1,y+1);
   treeDeco(x,y,{cx:(t.x+b.x)/2, cy:(t.y+b.y)/2});
+}
+// Felsbrocken einer Stein-/Marmorkachel — tiefensortiert mit Gebäuden gezeichnet
+function drawRocksAt(x,y){
+  const t=project(x,y), b=project(x+1,y+1);
+  rockDeco(x,y,{cx:(t.x+b.x)/2, cy:(t.y+b.y)/2});
 }
 // Objekt-Pass: Gebäude + Status-Punkte (tiefen-sortiert über dem Boden)
 function drawObjects(x,y){
@@ -282,6 +288,7 @@ function render(){
     if(c.terr==='mountain')      items.push({d:x+y,k:'mtn',x,y});      // Bergform
     else if(td.elev>0)           items.push({d:x+y,k:'hill',x,y});     // erhöhter Geländeblock (Hügel)
     else if(td.trees&&c.type==='empty') items.push({d:x+y,k:'tree',x,y}); // Bäume auf flachem Waldboden
+    else if(td.rocks&&c.type==='empty') items.push({d:x+y,k:'rock',x,y}); // Fels-/Marmorbrocken
     if(hasObject(x,y))           items.push({d:x+y,k:'bld',x,y});      // Gebäude (auch auf Hügeln: nach dem Hügel)
   }
   for(const w of walkers){const gx=w.x+(w.dx||0)*w.prog, gy=w.y+(w.dy||0)*w.prog;
@@ -294,6 +301,7 @@ function render(){
     if(o.k==='mtn')       drawMountain(o.x,o.y);
     else if(o.k==='hill') drawGround(o.x,o.y);
     else if(o.k==='tree') drawTreesAt(o.x,o.y);
+    else if(o.k==='rock') drawRocksAt(o.x,o.y);
     else if(o.k==='bld')  drawObjects(o.x,o.y);
     else if(o.k==='sheep')drawSheepOne(o.s);
     else                  drawWalker(o.w,o.gx,o.gy);
