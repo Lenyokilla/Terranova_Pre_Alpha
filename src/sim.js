@@ -22,12 +22,35 @@ function findPath(sx,sy,destType){
 }
 function spawnCarrier(fp,cargo,color){const [sx,sy]=fp.path[0];
   walkers.push({x:sx,y:sy,path:fp.path,pi:0,dest:fp.dest,cargo,color,prog:0,dx:0,dy:0,from:null});}
+
+// ---- Fischerei: Boot fährt über Wasser zum Schwarm und zurück ----
+function adjWater(x,y){return neighbors(x,y).filter(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='water');}
+// BFS über Wasserkacheln vom Ufer der Hütte zum nächsten Fischschwarm.
+// Liefert eine Rundreise (Hin- + Rückweg) inkl. kurzem Verweilen am Schwarm.
+function findWaterPath(hx,hy){
+  const starts=adjWater(hx,hy); if(!starts.length)return null;
+  const q=[],prev={},seen=new Set();
+  for(const [x,y] of starts){const k=x+','+y;seen.add(k);prev[k]=null;q.push([x,y]);}
+  let goal=null;
+  while(q.length){const [x,y]=q.shift();
+    if(grid[y][x].school){goal=[x,y];break;}
+    for(const [nx,ny] of neighbors(x,y)) if(inBounds(nx,ny)&&grid[ny][nx].terr==='water'){const k=nx+','+ny;
+      if(!seen.has(k)){seen.add(k);prev[k]=[x,y];q.push([nx,ny]);}}
+  }
+  if(!goal)return null;
+  const out=[];let cur=goal;while(cur){out.unshift(cur);cur=prev[cur[0]+','+cur[1]];}
+  const back=out.slice(0,-1).reverse();
+  return {path: out.concat([goal,goal], back)};   // am Schwarm kurz verweilen (fischen)
+}
+function boatArrive(w){ const [hx,hy]=w.home||[]; if(!inBounds(hx,hy))return; const t=grid[hy][hx];
+  if(t.type==='fisher') t.fish=Math.min(8,(t.fish||0)+1); }      // Fang im Lager der Hütte
 function deliverCargo(w){const [dx,dy]=w.dest;if(!inBounds(dx,dy))return;const t=grid[dy][dx];
   if(w.cargo==='clay'&&t.type==='pottery')t.clay=Math.min(8,(t.clay||0)+1);
   else if(w.cargo==='cer'&&t.type==='market')t.cer=Math.min(8,(t.cer||0)+1);
   else if(w.cargo==='grain'&&t.type==='mill')t.grain=Math.min(8,(t.grain||0)+1);
   else if(w.cargo==='flour'&&t.type==='bakery')t.flour=Math.min(8,(t.flour||0)+1);
-  else if(w.cargo==='bread'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);}
+  else if(w.cargo==='bread'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);
+  else if(w.cargo==='fish'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);}
 
 // ---- Einwanderung vom Kartenrand ----
 function landWalk(x,y){ if(!inBounds(x,y))return false; const t=grid[y][x];
@@ -61,7 +84,7 @@ function tick(){
   tickCount++;
   // ---- Globale Arbeitskräfte (Einwohner = Arbeiter), ohne Straßenbindung ----
   let labor=pop;
-  const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,farm:5,claypit:6,pottery:7,mill:8,bakery:9};
+  const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,farm:5,fisher:5,claypit:6,pottery:7,mill:8,bakery:9};
   const jobsT=[];
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x]; if(BUILD[c.type]&&BUILD[c.type].jobs)jobsT.push(c);}
   jobsT.sort((a,b)=>(RANK[a.type]??9)-(RANK[b.type]??9));   // Überlebenswichtiges zuerst besetzen
@@ -109,13 +132,29 @@ function tick(){
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.bakery.every&&(c.bread||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.spawn=0;c.bread--;spawnCarrier(fp,'bread','#caa46e');} else {c.spawn=BUILD.bakery.every;} } }
+    if(c.type==='fisher'&&c.staffed){
+      // 1) Boot zum Fischschwarm schicken (max. ein Boot pro Hütte unterwegs)
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.fisher.every){
+        const busy=walkers.some(w=>w.kind==='boat'&&w.home&&w.home[0]===x&&w.home[1]===y);
+        if(busy){ c.spawn=BUILD.fisher.every; }
+        else { const bp=findWaterPath(x,y);
+          if(bp){ c.spawn=0; const [sx,sy]=bp.path[0];
+            walkers.push({x:sx,y:sy,path:bp.path,pi:0,kind:'boat',home:[x,y],color:'#6b4b2f',prog:0,dx:0,dy:0,from:null}); }
+          else { c.spawn=BUILD.fisher.every; }   // kein erreichbarer Schwarm -> bereit halten
+        }
+      }
+      // 2) Fang über die Straße zum Markt tragen
+      c.dspawn=(c.dspawn||0)+1;
+      if(c.dspawn>=BUILD.fisher.every&&(c.fish||0)>0){ const fp=findPath(x,y,'market');
+        if(fp){c.dspawn=0;c.fish--;spawnCarrier(fp,'fish','#9ec6d8');} else {c.dspawn=BUILD.fisher.every;} } }
   }
   // Zuwanderung vom Rand
   if(!lost && tickCount%IMMIG_EVERY===0 && money>LOSE_MONEY) spawnSettler();
   const next=[];
   for(const w of walkers){
     if(w.path){                                              // gezielt dem Weg folgen (Waren + Siedler)
-      if(w.pi>=w.path.length-1){ if(w.kind==='settler')settlerArrive(w); else deliverCargo(w); continue; }
+      if(w.pi>=w.path.length-1){ if(w.kind==='settler')settlerArrive(w); else if(w.kind==='boat')boatArrive(w); else deliverCargo(w); continue; }
       const [nx,ny]=w.path[w.pi+1];
       w.dx=nx-w.x;w.dy=ny-w.y;w.from=[w.x,w.y];w.prog=0;w.tx=nx;w.ty=ny;w.pi++; next.push(w);
     } else {                                                 // Dienst-Läufer: Umgebung versorgen + wandern
