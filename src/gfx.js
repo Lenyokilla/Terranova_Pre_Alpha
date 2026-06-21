@@ -233,6 +233,35 @@ function drawBoulder(gx,gy,g){                                            // ein
   ctx.fillStyle='#9d9b95'; ctx.beginPath();ctx.ellipse(x-1*s,y-2.6*s,3*s,2*s,0,0,7);ctx.fill();
   ctx.fillStyle='#6f6d68'; ctx.beginPath();ctx.ellipse(x+3*s,y-0.4*s,2.4*s,1.7*s,0,0,7);ctx.fill();
 }
+// --- Rohstoff-Aufschlüsse: Stein (grau) & Marmor (hell, mit Ader) -----------
+function oneRock(x,y,r,base,lite,dark){
+  ctx.fillStyle='rgba(28,38,18,.16)'; ctx.beginPath();ctx.ellipse(x+r*0.4,y+r*0.35,r*1.4,r*0.62,0,0,7);ctx.fill();  // Schatten
+  ctx.fillStyle=base; ctx.beginPath();ctx.ellipse(x,y-r*0.2,r,r*0.7,0,0,7);ctx.fill();
+  ctx.fillStyle=lite; ctx.beginPath();ctx.ellipse(x-r*0.22,y-r*0.5,r*0.55,r*0.4,0,0,7);ctx.fill();              // Lichtkante
+  ctx.fillStyle=dark; ctx.beginPath();ctx.ellipse(x+r*0.55,y-r*0.02,r*0.46,r*0.34,0,0,7);ctx.fill();           // Schattenfacette
+}
+function rockDeco(gx,gy,g){                                              // Brocken-Cluster (tiefensortiert wie Bäume)
+  const s=cam.scale, marble=grid[gy][gx].terr==='marble';
+  const base=marble?'#dcd8cf':'#83817c', lite=marble?'#f1eee7':'#9d9b95', dark=marble?'#bcc4c6':'#6f6d68';
+  const n=3+((gx*5+gy*3)%3);                                             // 3-5 Brocken pro Feld
+  const pts=[];
+  for(let i=0;i<n;i++){
+    const x=g.cx+(rng2(gx*9+i,gy*4+1)-0.5)*TW*0.5*s, y=g.cy+(rng2(gx*4+1,gy*9+i)-0.5)*TH*0.5*s;
+    pts.push({x,y,r:(3+rng2(gx+i,gy+i*3)*4)*s});
+  }
+  pts.sort((a,b)=>a.y-b.y);                                              // hinten zuerst -> sauberes Überlappen
+  for(const p of pts){
+    oneRock(p.x,p.y,p.r,base,lite,dark);
+    if(marble){ ctx.strokeStyle='rgba(150,164,170,.55)'; ctx.lineWidth=Math.max(1,0.7*s);   // Marmor-Ader
+      ctx.beginPath();ctx.moveTo(p.x-p.r*0.5,p.y-p.r*0.45);ctx.quadraticCurveTo(p.x,p.y-p.r*0.62,p.x+p.r*0.5,p.y-p.r*0.1);ctx.stroke(); }
+  }
+}
+function rockFloorDeco(gx,gy,g){                                         // dezente Risse auf dem Felsboden (Pass 1)
+  const s=cam.scale, marble=grid[gy][gx].terr==='marble';
+  ctx.strokeStyle=marble?'rgba(150,160,165,.30)':'rgba(60,56,48,.28)'; ctx.lineWidth=Math.max(1,0.8*s);
+  for(let i=0;i<2;i++){ const x=g.cx+(rng2(gx*7+i,gy*3)-0.5)*TW*0.42*s, y=g.cy+(rng2(gx*3,gy*7+i)-0.5)*TH*0.42*s;
+    ctx.beginPath();ctx.moveTo(x-3*s,y);ctx.lineTo(x+2*s,y+1.5*s);ctx.lineTo(x+4*s,y-1*s);ctx.stroke(); }
+}
 // Schilf an Land-Feldern, die an Wasser grenzen (zum jeweiligen Ufer hin)
 function shoreReeds(gx,gy){
   const C={tt:project(gx,gy),rt:project(gx+1,gy),bt:project(gx+1,gy+1),lt:project(gx,gy+1)};
