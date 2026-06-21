@@ -9,7 +9,7 @@ let selectedTile=null;       // {x,y} des im Info-Panel angezeigten Gebäudes
 let animT=0; const clouds=[];   // Wetter-Animation
 const floaters=[];              // schwebende Feedback-Texte (+Denar)
 const sheep=[]; const birds=[]; let herdAnchor=null;   // Tierwelt
-function blankTile(){return {type:'empty',terr:'grass',lvl:0,water:0,food:0,taxed:0,goods:0,res:0,decay:0,spawn:0};}
+function blankTile(){return {type:'empty',terr:'grass',lvl:0,water:0,food:0,taxed:0,goods:0,res:0,decay:0,spawn:0,wood:0,stone:0,marble:0};}
 function buildOn(t,type,service){t.type=type;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.dspawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.fish=0;t.conv=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;t.service=service||undefined;}
 function razeTile(t){t.type='empty';t.service=undefined;t.lvl=0;t.water=0;t.food=0;t.taxed=0;t.goods=0;t.res=0;t.decay=0;t.spawn=0;t.dspawn=0;t.clay=0;t.cer=0;t.grain=0;t.bread=0;t.fish=0;t.fireSafe=0;t.engSafe=0;t.rF=0;t.rC=0;t.fireRisk=false;t.collapseRisk=false;t.staffed=false;}
 
@@ -26,6 +26,17 @@ function growBlob(cx,cy,size,can,apply){
   }
 }
 function isGrass(t){return t.terr==='grass';}
+// Grasfeld als Startpunkt für ein Vorkommen – bevorzugt am Berg-/Hügelfuß (wirkt natürlich)
+function rockySeed(){
+  const near=[], any=[];
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ const t=grid[y][x]; if(t.terr!=='grass')continue;
+    any.push([x,y]);
+    for(const [nx,ny] of neighbors(x,y))
+      if(inBounds(nx,ny)&&(grid[ny][nx].terr==='mountain'||grid[ny][nx].terr==='hill')){ near.push([x,y]); break; }
+  }
+  const pool = near.length ? near : any;
+  return pool.length ? pool[(Math.random()*pool.length)|0] : [(Math.random()*GRID)|0,(Math.random()*GRID)|0];
+}
 function generateTerrain(){
   for(let y=0;y<GRID;y++){grid[y]=[];for(let x=0;x<GRID;x++){grid[y][x]=blankTile();}}
   const A=(GRID*GRID)/256;   // Flächen-Faktor relativ zur 16er-Karte
@@ -59,14 +70,20 @@ function generateTerrain(){
   // Hügelketten
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     7+(Math.random()*8|0), isGrass, t=>t.terr='hill');
-  // Wälder verschiedener Art – je Hain ein einheitlicher Typ
+  // Wälder verschiedener Art – je Hain ein einheitlicher Typ · Holz nachwachsend (t.wood)
   const FT=['fir','leaf','pine'];
   for(let i=0;i<Math.round(3*A);i++){ const ft=FT[(Math.random()*3)|0];
     growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
-      8+(Math.random()*10|0), isGrass, t=>{t.terr='forest'; t.forest=ft;}); }
+      8+(Math.random()*10|0), isGrass, t=>{t.terr='forest'; t.forest=ft; t.wood=WOOD_MAX;}); }
   // Felder (Kulturland)
   for(let i=0;i<Math.round(2*A);i++) growBlob((Math.random()*GRID)|0,(Math.random()*GRID)|0,
     6+(Math.random()*6|0), isGrass, t=>t.terr='field');
+  // Steinvorkommen: kleine felsige Aufschlüsse (Steinbruch-Material) am Gebirgsfuß
+  for(let i=0;i<Math.max(2,Math.round(2*A));i++){ const [sx,sy]=rockySeed();
+    growBlob(sx,sy, 3+(Math.random()*3|0), isGrass, t=>{t.terr='rock'; t.stone=STONE_STOCK;}); }
+  // Marmorvorkommen: seltener, kleinere und hellere Aufschlüsse
+  for(let i=0;i<Math.max(1,Math.round(1*A));i++){ const [sx,sy]=rockySeed();
+    growBlob(sx,sy, 2+(Math.random()*3|0), isGrass, t=>{t.terr='marble'; t.marble=MARBLE_STOCK;}); }
   computeMountainHeights();
   seedFishSchools();
 }
