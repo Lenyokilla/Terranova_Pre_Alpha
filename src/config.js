@@ -23,9 +23,14 @@ const BUILD={
   mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2, jobs:2},
   bakery:  {label:'Bäckerei', glyph:'🍞', cost:60, every:11, up:2, jobs:2},
   fisher:  {label:'Fischer',  glyph:'🎣', cost:50, every:12, up:2, jobs:2},
+  // ---- Rohstoff-Abbau & Lager ----
+  woodcutter:  {label:'Holzfäller',  glyph:'🪓', cost:35, every:12, up:1, jobs:1},   // schlägt Holz am Wald
+  quarry:      {label:'Steinbruch',  glyph:'⛏️', cost:50, every:13, up:2, jobs:2},   // bricht Stein am Fels
+  marblequarry:{label:'Marmorbruch', glyph:'🪨', cost:70, every:14, up:2, jobs:2},   // bricht Marmor
+  warehouse:   {label:'Lagerhaus',   glyph:'📦', cost:90, up:2, size:2},             // 2×2 Lager (Holz/Stein/Marmor)
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','raze'];
+const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3 = Villa (verlangt zusätzlich Keramik)
 const SERVICE_LIFE=55;
@@ -43,7 +48,7 @@ const RISK_FUSE=120;        // weitere Ticks Schonfrist, bevor wirklich etwas pa
 const FIRE_CHANCE=0.0018;   // Wahrscheinlichkeit/Tick für Brand (nach Warnung + Schonfrist)
 const COLLAPSE_CHANCE=0.0012;// Wahrscheinlichkeit/Tick für Einsturz (nach Warnung + Schonfrist)
 // ---- Arbeitskräfte (global, ohne Straße): Gebäude -> [benötigte Arbeiter, Priorität (klein=zuerst)] ----
-const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], fisher:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3] };
+const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], fisher:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3], woodcutter:[1,3], quarry:[2,3], marblequarry:[2,3] };
 
 // 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
 const H3D=[
@@ -71,6 +76,10 @@ const B3D={
 const WOOD_MAX    = 120;  // Holz je Waldfeld · NACHWACHSEND → Bauholz (Monumente/Mauern), Möbel, Schiffbau
 const STONE_STOCK = 999;  // Stein je Felsfeld · quasi unerschöpflich → Monumente & Stadtmauern
 const MARBLE_STOCK= 999;  // Marmor je Marmorfeld → Villen/Paläste-Verzierung, Skulpturen (Parks)
+// ---- Abbau & Lager ----
+const HARVEST_EVERY = 8;  // Ticks je geförderte Einheit (Holzfäller/Steinbruch/Marmorbruch)
+const WOOD_REGROW   = 40; // alle N Ticks wächst in jedem Waldfeld 1 Holz nach
+const WH_CAP        = 24; // Lagerhaus: Fassungsvermögen je Rohstoff-Bucht
 
 // ---- Terrain ----
 const STEP=13;   // Welt-px Höhe pro Geländestufe
