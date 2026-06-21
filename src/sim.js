@@ -192,7 +192,7 @@ function tick(){
   pop=0;
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const h=grid[y][x]; if(h.type!=='house')continue;
     if(h.water>0)h.water--; if(h.food>0)h.food--; if(h.taxed>0)h.taxed--; if(h.goods>0)h.goods--;
-    h.lvl = (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
+    h.lvl = (h.water>0&&h.food>0&&h.goods>0)?3 : (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
     const cap=houseCap(h);
     if(h.res>cap) h.res=cap;                                  // Rückstufung -> Abwanderung
     if(h.water>0){ h.decay=0; }
