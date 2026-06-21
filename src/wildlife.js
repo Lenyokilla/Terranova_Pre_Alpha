@@ -49,27 +49,63 @@
     const n = 5 + (Math.random() * 3 | 0);
     for (let i = 0; i < n; i++) {
       sheep.push({ gx: c.x, gy: c.y, offx: (Math.random()-0.5)*1.6, offy: (Math.random()-0.5)*1.6,
-        sp: 0.22 + Math.random()*0.16, bob: Math.random()*6, moving: false });
+        sp: 0.30 + Math.random()*0.18, bob: Math.random()*6, moving: false });
     }
+  }
+  // Ein Feld gilt als "besiedelt", wenn es kein leeres Naturfeld ist (Gebäude ODER Straße).
+  function settledNear(gx, gy, r) {
+    const x0 = Math.floor(gx), y0 = Math.floor(gy);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = x0+dx, y = y0+dy;
+      if (!inBounds(x, y)) continue;
+      const tp = grid[y][x].type;
+      if (tp && tp !== 'empty') return true;
+    }
+    return false;
+  }
+  // Entfernte, unbesiedelte Weide suchen -> Herde wandert sichtbar & meidet bewohnte Gegenden.
+  function farPasture() {
+    for (let r = 4; r >= 2; r--) {
+      for (let i = 0; i < 24; i++) {
+        const x = (Math.random()*GRID)|0, y = (Math.random()*GRID)|0, t = grid[y][x];
+        if ((t.terr === 'grass' || t.terr === 'meadow') && t.type === 'empty' && !settledNear(x, y, r))
+          return { x, y };
+      }
+    }
+    return randGrass();
+  }
+  // Abstoßungsvektor von besiedelten Feldern in der Nähe (1/r²-Gewichtung).
+  function repel(gx, gy, r) {
+    let rx = 0, ry = 0;
+    const x0 = Math.floor(gx), y0 = Math.floor(gy);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (!dx && !dy) continue;
+      const x = x0+dx, y = y0+dy;
+      if (!inBounds(x, y)) continue;
+      const tp = grid[y][x].type;
+      if (tp && tp !== 'empty') { const dd = dx*dx + dy*dy; rx -= dx/dd; ry -= dy/dd; }
+    }
+    return { rx, ry };
   }
   function updateHerds(dt) {
     if (!herdAnchor) return;
     const a = herdAnchor;
-    const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
-    if (d < 0.3) { const g = randGrass(); a.tx = g.x; a.ty = g.y; }
-    else {
-      const stepX = (dx/d)*0.18*dt, stepY = (dy/d)*0.18*dt;
-      if (isPassableForSheep(a.x+stepX, a.y+stepY)) { a.x += stepX; a.y += stepY; }
-      else { const g = randGrass(); a.tx = g.x; a.ty = g.y; }
-    }
+    const rep = repel(a.x, a.y, 3);                       // von Bebauung wegdrücken
+    const reached = Math.hypot(a.tx - a.x, a.ty - a.y) < 0.5;
+    if (reached && !(rep.rx || rep.ry)) { const g = farPasture(); a.tx = g.x; a.ty = g.y; }
+    let dx = (a.tx - a.x) + rep.rx*2.4, dy = (a.ty - a.y) + rep.ry*2.4;
+    const d = Math.hypot(dx, dy) || 1;
+    const stepX = (dx/d)*0.30*dt, stepY = (dy/d)*0.30*dt; // steter Grundlauf -> Zeitraffer klar sichtbar
+    if (isPassableForSheep(a.x+stepX, a.y+stepY)) { a.x += stepX; a.y += stepY; }
+    else { const g = farPasture(); a.tx = g.x; a.ty = g.y; }
     for (const s of sheep) {
       const px = a.x + s.offx, py = a.y + s.offy;
       const sdx = px - s.gx, sdy = py - s.gy, sd = Math.hypot(sdx, sdy);
-      s.moving = sd > 0.12;
+      s.moving = sd > 0.10;
       if (s.moving) {
         const nextX = s.gx + (sdx/sd)*s.sp*dt, nextY = s.gy + (sdy/sd)*s.sp*dt;
         if (isPassableForSheep(nextX, nextY)) { s.gx = nextX; s.gy = nextY; }
-        else { s.moving = false; s.gx -= (sdx/sd)*0.02; s.gy -= (sdy/sd)*0.02; }
+        else { s.moving = false; }
       }
     }
   }
@@ -202,10 +238,14 @@
 
   function initAllWildlife() { initSheep(); initBirds(); initDucks(); initFish(); initButterflies(); }
   function updateAllWildlife(dt) { updateHerds(dt); updateBirds(dt); updateDucks(dt); updateFish(dt); updateButterflies(dt); }
-  function drawAllWildlife() { drawFish(); drawDucks(); for (const s of sheep) drawSheep(s); drawButterflies(); drawBirds(); }
+  function drawAllWildlife() { drawFish(); drawDucks(); drawButterflies(); drawBirds(); }
+  // Schafe NICHT hier zeichnen -> sie werden im tiefensortierten Objekt-Pass (render.js)
+  // zusammen mit Gebäuden gezeichnet, damit sie korrekt verdeckt werden.
 
-  // Nur diese drei Funktionen nach aussen geben:
+  // Nur diese Funktionen nach aussen geben:
   window.initAllWildlife   = initAllWildlife;
   window.updateAllWildlife = updateAllWildlife;
   window.drawAllWildlife   = drawAllWildlife;
+  window.getCritters       = () => sheep;   // Live-Liste für die Tiefensortierung
+  window.drawSheepOne      = drawSheep;     // ein Schaf zeichnen (von render.js aufgerufen)
 })();
