@@ -2,14 +2,47 @@
 // ---- Aktionen ----
 function place(gx,gy){
   if(!inBounds(gx,gy))return; const c=grid[gy][gx];
-  if(tool==='raze'){if(c.type!=='empty'){razeTile(c);updateHUD();}return;}
+  if(tool==='raze'){
+    if(c.type!=='empty'){
+      if(c.type==='warehouse'){ const a=c.wh||[gx,gy];                 // Lagerhaus: alle 4 Felder abreißen
+        for(const [tx,ty] of [[a[0],a[1]],[a[0]+1,a[1]],[a[0],a[1]+1],[a[0]+1,a[1]+1]])
+          if(inBounds(tx,ty)&&grid[ty][tx].type==='warehouse') razeTile(grid[ty][tx]);
+      } else razeTile(c);
+      updateHUD();
+    } return;
+  }
   const def=BUILD[tool]; if(!def||def.util)return;
-  if(!buildableTerr(c)){flash(c.terr==='water'?'Auf Wasser kann nicht gebaut werden':'Auf Bergen kann nicht gebaut werden');return;}
+  if(tool==='warehouse'){ placeWarehouse(gx,gy); return; }              // 2×2-Sonderfall
+  if(!buildableTerr(c)){flash(c.terr==='water'?'Auf Wasser kann nicht gebaut werden':'Auf Bergen/Fels kann nicht gebaut werden');return;}
   if(c.type!=='empty'){flash('Feld belegt');return;}
   if(tool==='fisher' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='water')){
     flash('Fischer muss ans Wasser grenzen');return;}
+  if(tool==='woodcutter' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='forest')){
+    flash('Holzfäller muss an einen Wald grenzen');return;}
+  if(tool==='quarry' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='rock')){
+    flash('Steinbruch muss an ein Steinvorkommen grenzen');return;}
+  if(tool==='marblequarry' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='marble')){
+    flash('Marmorbruch muss an ein Marmorvorkommen grenzen');return;}
   if(money<def.cost){flash('Zu wenig Denar — nutze +100');return;}
   money-=def.cost; buildOn(c,tool,def.service); updateHUD();
+  if(typeof statExp==='function')statExp(def.cost);
+  if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
+  if(typeof sfxBuild==='function')sfxBuild();
+}
+// Lagerhaus belegt 2×2 Felder (Anker = obere/N-Kachel); Bucht 0 ist Master (Logik + Lagerbestand)
+function placeWarehouse(gx,gy){
+  const def=BUILD.warehouse;
+  const cells=[[gx,gy],[gx+1,gy],[gx,gy+1],[gx+1,gy+1]];
+  for(const [tx,ty] of cells){
+    if(!inBounds(tx,ty)){ flash('Lagerhaus braucht 2×2 freie Felder');return; }
+    const t=grid[ty][tx];
+    if(!buildableTerr(t)){ flash('Untergrund ungeeignet (Wasser/Berg/Fels)');return; }
+    if(t.type!=='empty'){ flash('2×2-Fläche nicht frei');return; }
+  }
+  if(money<def.cost){ flash('Zu wenig Denar — nutze +100');return; }
+  money-=def.cost;
+  cells.forEach(([tx,ty],i)=>{ const t=grid[ty][tx]; buildOn(t,'warehouse'); t.wh=[gx,gy]; t.bay=i; t.whMaster=(i===0); });
+  updateHUD();
   if(typeof statExp==='function')statExp(def.cost);
   if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
   if(typeof sfxBuild==='function')sfxBuild();
@@ -33,6 +66,7 @@ document.getElementById('cheat').onclick=()=>{money+=100;updateHUD();flash('+100
 // Änderung im Religions-Flyout erscheinen.
 const CATS=[
   {key:'prod',  label:'Produktion', glyph:'🏺',  items:['claypit','pottery']},
+  {key:'mat',   label:'Baustoffe',  glyph:'🪵',  items:['woodcutter','quarry','marblequarry','warehouse']},
   {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','fisher','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
