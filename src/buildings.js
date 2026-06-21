@@ -420,6 +420,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'farm') return drawFarm(gx, gy, baseLift);
   if (kind === 'mill') return drawMill(gx, gy, baseLift);
   if (kind === 'bakery') return drawBakery(gx, gy, baseLift);
+  if (kind === 'fisher') return drawFisher(gx, gy, baseLift);
   if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
@@ -908,6 +909,43 @@ function drawBakery(gx, gy, baseLift) {
   for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(ch.x + Math.sin(animT * 1.4 + i) * 2 * s, topY - (7 + i * 4) * s, (1.6 + i * 1.1) * s, 0, 7); ctx.fill(); }
   // Brotlaib auf der Fensterbank
   ctx.fillStyle = '#caa46e'; ctx.beginPath(); ctx.ellipse(c.cx + 2 * s, topY + 6 * s, 2.2 * s, 1.3 * s, 0, 0, 7); ctx.fill();
+  return { cx: c.cx, topY };
+}
+
+// Fischerhütte: niedrige Holzhütte mit Reet-Pultdach, Steg und trocknendem Netz
+function drawFisher(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#b89a6a', roof = '#7d6a44';   // verwittertes Holz + Reet
+  const h = 12;
+  const c = isoCorners(gx, gy, baseLift, h);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wall, 0.06)); gSW.addColorStop(1, shade(wall, -0.14));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wall, -0.22)); gSE.addColorStop(1, shade(wall, -0.40));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+  // senkrechte Bohlen-Struktur
+  wallBrickLines(c.W, c.S, c.Wt, c.St, 2, 'rgba(60,42,24,0.30)', s);
+  wallBrickLines(c.S, c.E, c.St, c.Et, 2, 'rgba(45,30,18,0.36)', s);
+  // dunkle Tür zur Wasserseite
+  const db = lerp(c.W, c.S, 0.5), dt = lerp(c.Wt, c.St, 0.5);
+  ctx.fillStyle = '#34281a';
+  poly([lerp(db, c.W, 0.30), lerp(db, c.S, 0.30), lerp(dt, c.St, 0.30), lerp(dt, c.Wt, 0.30)]);
+  // Reet-Pultdach (flach, warmes Grau-Braun)
+  const topY = hipRoof(c, roof, 7, false);
+  // trocknendes Fischernetz an einem Pfahl
+  const px = c.cx + 11 * s, py = topY + 2 * s;
+  ctx.strokeStyle = '#6a4f30'; ctx.lineWidth = Math.max(1.4, 1.7 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(px, py + 10 * s); ctx.lineTo(px, py - 8 * s); ctx.stroke();
+  ctx.strokeStyle = 'rgba(225,225,210,0.55)'; ctx.lineWidth = Math.max(1, 0.7 * s);
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(px, py - 6 * s + i * 3 * s); ctx.quadraticCurveTo(px - 5 * s, py - 4 * s + i * 3 * s, px - 8 * s, py + 1 * s + i * 2.4 * s); ctx.stroke(); }
+  for (let i = 0; i < 3; i++) { const lx = px - 2 * s - i * 2.4 * s; ctx.beginPath(); ctx.moveTo(lx, py - 5 * s + i * 1 * s); ctx.lineTo(lx, py + 7 * s); ctx.stroke(); }
+  ctx.lineCap = 'butt';
+  // kleine Fischtonne vor der Hütte
+  ctx.fillStyle = '#5e7a86'; ctx.beginPath(); ctx.ellipse(c.cx - 7 * s, topY + 9 * s, 3 * s, 2 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#9ec6d8'; ctx.beginPath(); ctx.ellipse(c.cx - 7 * s, topY + 8.4 * s, 2 * s, 1.2 * s, 0, 0, 7); ctx.fill();
   return { cx: c.cx, topY };
 }
 
