@@ -91,9 +91,9 @@ function describeTile(x,y){
   const hasRoad=!!adjRoad(x,y);
   const roadRow={k:'Straßenanschluss', v:hasRoad?'ja':'nein', cls:hasRoad?'ok':'bad'};
   if(t.type==='house'){
-    const cap=houseCap(t), names=['Hütte','Wohnhaus','Anwesen'];
+    const cap=houseCap(t), names=['Hütte','Wohnhaus','Anwesen','Villa'];
     const rows=[
-      {k:'Ausbaustufe', v:names[t.lvl]+' ('+(t.lvl+1)+'/3)'},
+      {k:'Ausbaustufe', v:names[t.lvl]+' ('+(t.lvl+1)+'/4)'},
       {k:'Einwohner',   v:t.res+' / '+cap},
       {k:'Wasser',      v:t.water>0?'versorgt':'fehlt', cls:t.water>0?'ok':'bad'},
       {k:'Nahrung',     v:t.food >0?'versorgt':'fehlt', cls:t.food >0?'ok':'bad'},
@@ -103,7 +103,8 @@ function describeTile(x,y){
     ];
     const warns=[];
     if(t.water<=0) warns.push('Kein Wasser — Bewohner ziehen nach und nach weg.');
-    else if(t.food<=0) warns.push('Ohne Nahrung steigt das Haus nicht zur höchsten Stufe auf.');
+    else if(t.food<=0) warns.push('Ohne Nahrung bleibt das Haus unter dem Anwesen.');
+    else if(t.goods<=0) warns.push('Keramik vom Markt hebt das Haus zur Villa (höchste Stufe).');
     if(t.fireRisk) warns.push('🔥 Brandgefahr — eine Feuerwache in der Nähe (an einer Straße) schützt.');
     if(t.collapseRisk) warns.push('🏚 Einsturzgefahr — ein Bauingenieur in der Nähe sichert die Statik.');
     if(cap>0&&t.res>=cap) warns.push('Voll belegt — neue Häuser schaffen mehr Platz.');
