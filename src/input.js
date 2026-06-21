@@ -6,6 +6,8 @@ function place(gx,gy){
   const def=BUILD[tool]; if(!def||def.util)return;
   if(!buildableTerr(c)){flash(c.terr==='water'?'Auf Wasser kann nicht gebaut werden':'Auf Bergen kann nicht gebaut werden');return;}
   if(c.type!=='empty'){flash('Feld belegt');return;}
+  if(tool==='fisher' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='water')){
+    flash('Fischer muss ans Wasser grenzen');return;}
   if(money<def.cost){flash('Zu wenig Denar — nutze +100');return;}
   money-=def.cost; buildOn(c,tool,def.service); updateHUD();
   if(typeof statExp==='function')statExp(def.cost);
@@ -31,7 +33,7 @@ document.getElementById('cheat').onclick=()=>{money+=100;updateHUD();flash('+100
 // Änderung im Religions-Flyout erscheinen.
 const CATS=[
   {key:'prod',  label:'Produktion', glyph:'🏺',  items:['claypit','pottery']},
-  {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','market']},
+  {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','fisher','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
