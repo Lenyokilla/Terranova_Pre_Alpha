@@ -421,6 +421,10 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'mill') return drawMill(gx, gy, baseLift);
   if (kind === 'bakery') return drawBakery(gx, gy, baseLift);
   if (kind === 'fisher') return drawFisher(gx, gy, baseLift);
+  if (kind === 'woodcutter') return drawWoodcutter(gx, gy, baseLift);
+  if (kind === 'quarry') return drawQuarry(gx, gy, baseLift, false);
+  if (kind === 'marblequarry') return drawQuarry(gx, gy, baseLift, true);
+  if (kind === 'warehouse') return drawWarehouse(gx, gy, baseLift);
   if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
@@ -978,4 +982,131 @@ function drawFarm(gx, gy, baseLift) {
     ctx.beginPath(); ctx.moveTo(c.cx + (hx - r * 0.7) * s, topY + hy * s); ctx.lineTo(c.cx + (hx + r * 0.7) * s, topY + hy * s); ctx.stroke();
   }
   return { cx: c.cx, topY };
+}
+
+// ===== Rohstoff-Abbau & Lager =====
+
+// kleiner isometrischer Würfel (Stein-/Marmorblock), Boden-Mitte bei (cx,by)
+function miniCube(cx, by, w, hgt, top, left, right) {
+  const hh = w * 0.5;
+  const Bb = { x: cx, y: by + hh }, Rb = { x: cx + w, y: by }, Lb = { x: cx - w, y: by };
+  const Bt = { x: cx, y: by + hh - hgt }, Rt = { x: cx + w, y: by - hgt }, Lt = { x: cx - w, y: by - hgt }, Tt = { x: cx, y: by - hh - hgt };
+  ctx.fillStyle = left;  poly([Lb, Bb, Bt, Lt]);
+  ctx.fillStyle = right; poly([Bb, Rb, Rt, Bt]);
+  ctx.fillStyle = top;   poly([Tt, Rt, Bt, Lt]);
+  ctx.strokeStyle = 'rgba(40,34,24,.25)'; ctx.lineWidth = Math.max(1, 0.6 * cam.scale);
+  ctx.beginPath(); ctx.moveTo(Bb.x, Bb.y); ctx.lineTo(Bt.x, Bt.y); ctx.stroke();
+}
+
+// Holzfäller: niedrige Blockhütte mit Holzstapel & Hackklotz
+function drawWoodcutter(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#7a5733', roof = '#5e7c3e';
+  const c = isoCorners(gx, gy, baseLift, 12);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wall, 0.08)); gSW.addColorStop(1, shade(wall, -0.12));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wall, -0.20)); gSE.addColorStop(1, shade(wall, -0.36));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+  wallBrickLines(c.W, c.S, c.Wt, c.St, 3, 'rgba(40,26,12,0.5)', s);   // Blockbohlen
+  wallBrickLines(c.S, c.E, c.St, c.Et, 3, 'rgba(30,18,8,0.55)', s);
+  const topY = hipRoof(c, roof, 8, false);
+  // Holzstapel im Hof (Stirnseiten der Scheite)
+  const px = c.cx - 7 * s, py = topY + 10 * s;
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 3; i++) {
+    const x = px + i * 3.0 * s + (r % 2) * 1.5 * s, y = py - r * 2.4 * s;
+    ctx.fillStyle = '#8a5a30'; ctx.beginPath(); ctx.arc(x, y, 1.7 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = '#caa06a'; ctx.beginPath(); ctx.arc(x, y, 0.8 * s, 0, 7); ctx.fill();
+  }
+  // Hackklotz mit Axt
+  const kx = c.cx + 7 * s, ky = topY + 10 * s;
+  ctx.fillStyle = '#6e4a2a'; ctx.beginPath(); ctx.ellipse(kx, ky, 2.4 * s, 1.5 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = Math.max(1.4, 1.7 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(kx, ky - 1 * s); ctx.lineTo(kx + 3 * s, ky - 6 * s); ctx.stroke();
+  ctx.fillStyle = '#c9c4ba'; ctx.beginPath(); ctx.moveTo(kx + 3 * s, ky - 6.5 * s); ctx.lineTo(kx + 5.5 * s, ky - 6 * s); ctx.lineTo(kx + 3.5 * s, ky - 4.2 * s); ctx.closePath(); ctx.fill();
+  ctx.lineCap = 'butt';
+  return { cx: c.cx, topY };
+}
+
+// Steinbruch / Marmorbruch: ausgehobene Grube mit Abraumrand, zugeschnittenen Blöcken & Holzderrick
+function drawQuarry(gx, gy, baseLift, marble) {
+  const s = cam.scale;
+  const rim = marble ? '#b9b09c' : '#8d8884';
+  const bTop = marble ? '#e9e4d9' : '#9a948a', bLeft = marble ? '#cdc8bd' : '#6f6a62', bRight = marble ? '#bdb8ad' : '#5e5a52';
+  const g0 = isoCorners(gx, gy, baseLift, 0), gr = isoCorners(gx, gy, baseLift, 4);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.18)'; ctx.shadowBlur = 6 * s; ctx.shadowOffsetX = 8 * s; ctx.shadowOffsetY = 4 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([g0.W, g0.S, g0.E, g0.N]); ctx.restore();
+  const gSW = ctx.createLinearGradient(g0.W.x, gr.Wt.y, g0.S.x, g0.S.y);
+  gSW.addColorStop(0, shade(rim, -0.04)); gSW.addColorStop(1, shade(rim, -0.18));
+  ctx.fillStyle = gSW; poly([g0.W, g0.S, gr.St, gr.Wt]);
+  const gSE = ctx.createLinearGradient(g0.S.x, gr.St.y, g0.E.x, g0.E.y);
+  gSE.addColorStop(0, shade(rim, -0.24)); gSE.addColorStop(1, shade(rim, -0.40));
+  ctx.fillStyle = gSE; poly([g0.S, g0.E, gr.Et, gr.St]);
+  // Grubensohle (eingelassen)
+  const ctr = { x: gr.cx, y: gr.cy + 1 * s };
+  const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.74, y: ctr.y + (p.y - ctr.y) * 0.74 + 1 * s });
+  ctx.fillStyle = marble ? '#cfcabf' : '#5e5a52'; poly([I(gr.Nt), I(gr.Et), I(gr.St), I(gr.Wt)]);
+  // zugeschnittene Blöcke
+  miniCube(gr.cx - 3 * s, gr.cy + 3 * s, 3.0 * s, 3.0 * s, bTop, bLeft, bRight);
+  miniCube(gr.cx + 3 * s, gr.cy + 3.6 * s, 3.0 * s, 3.0 * s, bTop, bLeft, bRight);
+  miniCube(gr.cx, gr.cy + 1 * s, 3.0 * s, 3.6 * s, bTop, bLeft, bRight);
+  // Holzderrick (Hebebock) über der Grube
+  const ax = gr.cx + 5 * s, ay = gr.Nt.y + 2 * s;
+  ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.6, 2 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(ax - 4 * s, ay + 8 * s); ctx.lineTo(ax, ay - 6 * s); ctx.lineTo(ax + 4 * s, ay + 8 * s); ctx.stroke();
+  ctx.lineWidth = Math.max(1, 1 * s); ctx.beginPath(); ctx.moveTo(ax, ay - 6 * s); ctx.lineTo(ax + 2 * s, ay - 1 * s); ctx.stroke();
+  ctx.lineCap = 'butt';
+  return { cx: gr.cx, topY: gr.Nt.y };
+}
+
+// Lagerhaus-Bucht (1 von 4 Feldern): Holzdielen-Plattform, Eckpfosten, Waren je Rohstoff
+function drawWarehouse(gx, gy, baseLift) {
+  const s = cam.scale;
+  const tile = (grid[gy] && grid[gy][gx]) ? grid[gy][gx] : null;
+  const bay = tile ? (tile.bay || 0) : 0;
+  let mst = tile;
+  if (tile && tile.wh) { const a = tile.wh; if (grid[a[1]] && grid[a[1]][a[0]]) mst = grid[a[1]][a[0]]; }
+  const c = isoCorners(gx, gy, baseLift, 3);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.16)'; ctx.shadowBlur = 6 * s; ctx.shadowOffsetX = 7 * s; ctx.shadowOffsetY = 4 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  // niedrige Sockelwände
+  const wall = '#cdb78c';
+  ctx.fillStyle = shade(wall, -0.12); poly([c.W, c.S, c.St, c.Wt]);
+  ctx.fillStyle = shade(wall, -0.30); poly([c.S, c.E, c.Et, c.St]);
+  // Dielenboden der Bucht
+  ctx.fillStyle = (bay === 3) ? '#b59b6b' : '#caa674'; poly([c.Nt, c.Et, c.St, c.Wt]);
+  ctx.strokeStyle = 'rgba(80,55,25,.4)'; ctx.lineWidth = Math.max(1, 0.7 * s);
+  for (let t = 0.25; t < 1; t += 0.25) { const a = lerp(c.Wt, c.Nt, t), b = lerp(c.St, c.Et, t); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  // Eckpfosten + Querbalken (verbinden die 4 Buchten optisch zu einem Hof)
+  const postH = 13 * s;
+  for (const p of [c.Nt, c.Et, c.St, c.Wt]) {
+    ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(2, 2.4 * s); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - postH); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = Math.max(1.4, 1.8 * s);
+  for (const [a, b] of [[c.Nt, c.Et], [c.Nt, c.Wt]]) { ctx.beginPath(); ctx.moveTo(a.x, a.y - postH); ctx.lineTo(b.x, b.y - postH); ctx.stroke(); }
+  // Waren je Bucht (Höhe des Stapels ~ Lagerbestand)
+  const cap = (typeof WH_CAP !== 'undefined') ? WH_CAP : 24;
+  const amt = bay === 0 ? ((mst && mst.wood) || 0) : bay === 1 ? ((mst && mst.stone) || 0) : bay === 2 ? ((mst && mst.marble) || 0) : 0;
+  const n = Math.min(6, Math.ceil(amt / cap * 6));
+  const bx = c.cx, by = c.cy + 2 * s;
+  if (bay === 0) {                                   // Holz: gestapelte Scheite
+    for (let k = 0; k < n; k++) { const row = k % 3, lv = (k / 3) | 0;
+      const x = bx + (row - 1) * 3.0 * s, y = by - lv * 2.6 * s;
+      ctx.fillStyle = '#8a5a30'; ctx.beginPath(); ctx.arc(x, y, 1.7 * s, 0, 7); ctx.fill();
+      ctx.fillStyle = '#caa06a'; ctx.beginPath(); ctx.arc(x, y, 0.8 * s, 0, 7); ctx.fill(); }
+  } else if (bay === 1 || bay === 2) {               // Stein / Marmor: Blöcke
+    const top = bay === 2 ? '#e9e4d9' : '#9a948a', left = bay === 2 ? '#cdc8bd' : '#6f6a62', right = bay === 2 ? '#bdb8ad' : '#5e5a52';
+    const pos = [[-2.4, 1.4], [2.4, 1.4], [0, 0.2], [-2.4, -1.2], [2.4, -1.2], [0, -2.4]];
+    for (let k = 0; k < n; k++) { const [dx, dy] = pos[k]; miniCube(bx + dx * s, by + dy * s, 3.0 * s, 3.0 * s, top, left, right); }
+  } else {                                           // Reserve-Bucht: leere Paletten
+    ctx.fillStyle = '#7a5e3a'; ctx.fillRect(bx - 4 * s, by - 1 * s, 8 * s, 1.4 * s);
+    ctx.fillStyle = '#8a6a44'; ctx.fillRect(bx - 4 * s, by + 1.4 * s, 8 * s, 1.4 * s);
+  }
+  return { cx: c.cx, topY: c.Nt.y - postH };
 }
