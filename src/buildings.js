@@ -425,6 +425,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'quarry') return drawQuarry(gx, gy, baseLift, false);
   if (kind === 'marblequarry') return drawQuarry(gx, gy, baseLift, true);
   if (kind === 'warehouse') return drawWarehouse(gx, gy, baseLift);
+  if (kind === 'roadblock') return drawRoadblock(gx, gy, baseLift);
   if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
@@ -1109,4 +1110,30 @@ function drawWarehouse(gx, gy, baseLift) {
     ctx.fillStyle = '#8a6a44'; ctx.fillRect(bx - 4 * s, by + 1.4 * s, 8 * s, 1.4 * s);
   }
   return { cx: c.cx, topY: c.Nt.y - postH };
+}
+
+// Straßensperre: rot-weißer Schlagbaum quer über die Straße (Läufer kehren um)
+function drawRoadblock(gx, gy, baseLift) {
+  const s = cam.scale;
+  const c = isoCorners(gx, gy, baseLift, 0);
+  const ctr = { x: c.bx, y: c.by };
+  const L = lerp(c.W, ctr, 0.20), R = lerp(c.E, ctr, 0.20);
+  const postH = 12 * s;
+  const Lt = { x: L.x, y: L.y - postH }, Rt = { x: R.x, y: R.y - postH };
+  // Schatten der Pfosten
+  ctx.fillStyle = 'rgba(20,12,4,.18)';
+  for (const p of [L, R]) { ctx.beginPath(); ctx.ellipse(p.x + 1.5 * s, p.y + 1 * s, 3 * s, 1.4 * s, 0, 0, 7); ctx.fill(); }
+  // Pfosten
+  ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = Math.max(2, 2.6 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(L.x, L.y); ctx.lineTo(Lt.x, Lt.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(R.x, R.y); ctx.lineTo(Rt.x, Rt.y); ctx.stroke();
+  ctx.lineCap = 'butt';
+  // Querbalken (rot) + weiße Streifen
+  ctx.strokeStyle = '#c5332a'; ctx.lineWidth = Math.max(3, 3.6 * s);
+  ctx.beginPath(); ctx.moveTo(Lt.x, Lt.y); ctx.lineTo(Rt.x, Rt.y); ctx.stroke();
+  ctx.strokeStyle = '#f4f0e8'; ctx.lineWidth = Math.max(3, 3.6 * s);
+  const seg = 6;
+  for (let i = 0; i < seg; i += 2) { const p0 = lerp(Lt, Rt, i / seg), p1 = lerp(Lt, Rt, (i + 1) / seg);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); }
+  return { cx: c.cx, topY: Math.min(Lt.y, Rt.y) };
 }
