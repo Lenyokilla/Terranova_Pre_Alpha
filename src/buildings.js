@@ -78,6 +78,18 @@ function lerp(a, b, t) {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
+// Wie isoCorners, aber für ein RECHTECKIGES Mehrfeld-Bauwerk (Footprint w×h ab Anker gx,gy).
+// Liefert die vier äußeren Eckpunkte des Footprints (Boden N/E/S/W und um height angehobene *t-Punkte).
+function footCorners(gx, gy, w, h, baseLift, height) {
+  const bl = (baseLift || 0) * cam.scale, hh = height * cam.scale;
+  const N = project(gx, gy), E = project(gx + w, gy), S = project(gx + w, gy + h), W = project(gx, gy + h);
+  [N, E, S, W].forEach(p => p.y -= bl);
+  const Nt = { x: N.x, y: N.y - hh }, Et = { x: E.x, y: E.y - hh }, St = { x: S.x, y: S.y - hh }, Wt = { x: W.x, y: W.y - hh };
+  return { N, E, S, W, Nt, Et, St, Wt,
+    cx: (Nt.x + St.x) / 2, cy: (Nt.y + St.y) / 2,
+    bx: (N.x + E.x + S.x + W.x) / 4, by: (N.y + E.y + S.y + W.y) / 4 };
+}
+
 function isoCorners(gx, gy, baseLift, h) {
   const bl = (baseLift || 0) * cam.scale, hh = h * cam.scale;
   const N = project(gx, gy), E = project(gx + 1, gy), S = project(gx + 1, gy + 1), W = project(gx, gy + 1);
@@ -761,6 +773,123 @@ function drawHealth(gx, gy, baseLift, kind) {
   ctx.strokeStyle = shade(roof, -0.20); ctx.lineWidth = Math.max(1, 1 * s); ctx.stroke();
 
   return { cx: b0.cx, topY: apex.y };
+}
+
+// ===== Mehrfeldrige Spielstätte (Theater / Amphitheater / Kolosseum) =====
+// Wird EINMAL auf der Anker-Kachel gezeichnet und überspannt den ganzen Footprint.
+// Aufbau: elliptischer Steinwall mit Arkadenbögen, abgestufte Sitzränge (cavea),
+// Sandarena in der Mitte. def aus CULTURE[kind] steuert Größe/Höhe/Ränge/Farben.
+function drawVenue(gx, gy, baseLift, kind) {
+  const def = (typeof CULTURE !== 'undefined' && CULTURE[kind]) ? CULTURE[kind]
+            : { foot:[2,2], h:30, tiers:2, roof:'#c8b48a', accent:'#efe2c4' };
+  const s = cam.scale, [w, h] = def.foot, stone = def.roof, accent = def.accent;
+  const wallH = def.h, rimDrop = def.h * 0.26;          // Sitzränge liegen etwas tiefer als die Mauerkrone
+  const g = footCorners(gx, gy, w, h, baseLift, 0);     // Boden-Eckpunkte des Footprints
+
+  // (u,v) in [0,1]² auf die Boden-Raute abbilden (N=oben, E=rechts, S=unten, W=links)
+  const P = (u, v) => { const a = lerp(g.N, g.E, u), b = lerp(g.W, g.S, u); return lerp(a, b, v); };
+  const raise = (p, dh) => ({ x: p.x, y: p.y - dh * s });
+  // Ellipse als Punktliste (Winkel 0 = rechts); ringförmig auf die Boden-Raute projiziert
+  const ellipse = (ru, rv, np) => { const pts = [];
+    for (let i = 0; i < np; i++) { const a = (i / np) * Math.PI * 2; pts.push(P(0.5 + ru * Math.cos(a), 0.5 + rv * Math.sin(a))); }
+    return pts; };
+  const NP = 40;
+
+  // --- Bodenschatten über den ganzen Footprint ---
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 12 * s; ctx.shadowOffsetX = 14 * s; ctx.shadowOffsetY = 8 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([g.N, g.E, g.S, g.W]); ctx.restore();
+
+  // --- helle Steinplattform als Sockel ---
+  ctx.fillStyle = shade(stone, -0.04); poly([g.N, g.E, g.S, g.W]);
+
+  const isStage = !!def.stage;
+  const aFront = 0.05, aBack = 0.95;   // bei Theatern nur die vordere Hälfte als Sitzhalbrund
+
+  // Hilfsfunktion: gefülltes Band zwischen zwei Ellipsenringen (außen→innen)
+  function ring(rOut, rIn, dhOut, dhIn, fill, line) {
+    const o = ellipse(rOut, rOut * 0.96, NP).map(p => raise(p, dhOut));
+    const ii = ellipse(rIn, rIn * 0.96, NP).map(p => raise(p, dhIn));
+    ctx.fillStyle = fill; ctx.beginPath();
+    o.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    for (let i = ii.length - 1; i >= 0; i--) ctx.lineTo(ii[i].x, ii[i].y);
+    ctx.closePath(); ctx.fill();
+    if (line) { ctx.strokeStyle = line; ctx.lineWidth = Math.max(1, 0.7 * s); ctx.stroke(); }
+    return { o, ii };
+  }
+
+  // --- 1) Außenmauer: Wandband zwischen Boden-Ellipse und angehobener Mauerkrone ---
+  const rOuter = 0.47;
+  const gRing = ellipse(rOuter, rOuter * 0.96, NP);
+  const tRing = gRing.map(p => raise(p, wallH));
+  // Wandfläche (vorne sichtbar; Rückseite wird später überzeichnet) mit Vertikal-Gradient
+  ctx.fillStyle = shade(stone, -0.26);
+  ctx.beginPath();
+  gRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  for (let i = tRing.length - 1; i >= 0; i--) ctx.lineTo(tRing[i].x, tRing[i].y);
+  ctx.closePath(); ctx.fill();
+
+  // --- 2) Arkadenbögen entlang der vorderen Mauerhälfte (kräftiges Wahrzeichen-Detail) ---
+  const archRows = def.arcade2 ? 2 : 1;
+  const nArch = (w + h) * 3;
+  for (let r = 0; r < archRows; r++) {
+    const v0 = r / archRows, v1 = (r + 0.72) / archRows;
+    for (let k = 0; k < nArch; k++) {
+      const a = Math.PI * (0.08 + 0.84 * (k + 0.5) / nArch);   // vordere Hälfte (unten zum Betrachter)
+      const cu = 0.5 + rOuter * Math.cos(a), cv = 0.5 + (rOuter * 0.96) * Math.sin(a);
+      if (cv < 0.5) continue;                                  // nur die dem Betrachter zugewandte Front
+      const base = P(cu, cv);
+      const top = raise(base, wallH * (1 - v0) ), bot = raise(base, wallH * (1 - v1));
+      ctx.strokeStyle = 'rgba(40,28,16,0.5)'; ctx.lineWidth = Math.max(1.2, 1.6 * s);
+      ctx.beginPath(); ctx.moveTo(bot.x, bot.y); ctx.lineTo(top.x, top.y); ctx.stroke();   // dunkle Bogenöffnung (angedeutet)
+    }
+  }
+  // Gesims auf der Mauerkrone
+  ctx.strokeStyle = shade(stone, 0.18); ctx.lineWidth = Math.max(1.4, 1.8 * s);
+  ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
+
+  // --- 3) Sitzränge (cavea): konzentrische Ellipsen, von außen/hoch nach innen/tief ---
+  const tiers = def.tiers, rInner = 0.20;
+  for (let i = 0; i < tiers; i++) {
+    const f0 = i / tiers, f1 = (i + 1) / tiers;
+    const rO = rOuter - (rOuter - rInner) * f0, rI = rOuter - (rOuter - rInner) * f1;
+    const dO = (wallH - rimDrop) - (wallH - rimDrop) * f0 + rimDrop * 0.0;
+    const dI = (wallH - rimDrop) * (1 - f1);
+    const band = shade(stone, i % 2 ? -0.10 : 0.02);
+    ring(rO, rI, (wallH - rimDrop) * (1 - f0), (wallH - rimDrop) * (1 - f1), band, 'rgba(70,55,34,0.35)');
+  }
+
+  // --- 4) Sandarena in der Mitte (innerste, tiefste Fläche → zuletzt) ---
+  const arena = ellipse(rInner, rInner * 0.96, NP).map(p => raise(p, 2));
+  ctx.fillStyle = '#d9c79a'; ctx.beginPath();
+  arena.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,96,52,0.4)'; ctx.lineWidth = Math.max(1, 0.8 * s); ctx.stroke();
+
+  // --- 5) Theater-Variante: hohe Bühnenwand (scaenae frons) an der hinteren (N-)Kante ---
+  if (isStage) {
+    const bl = lerp(g.W, g.N, 0.5), br = lerp(g.N, g.E, 0.5);   // hintere Dachfirst-Linie grob
+    const wallTop = def.h * 1.05;
+    const A = raise(P(0.30, 0.16), 0), B = raise(P(0.70, 0.16), 0);
+    const At = raise(A, wallTop), Bt = raise(B, wallTop);
+    ctx.fillStyle = shade(stone, 0.04); poly([A, B, Bt, At]);
+    ctx.strokeStyle = shade(stone, -0.22); ctx.lineWidth = Math.max(1, 1 * s);
+    for (let k = 1; k <= 3; k++) { const u = k / 4; const c0 = raise(lerp(A, B, u), 4), c1 = raise(lerp(A, B, u), wallTop - 3);
+      ctx.beginPath(); ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y); ctx.stroke(); }
+  }
+
+  // --- 6) Akzent-Banner an den vorderen Ecken (Prestige: nur Kolosseum) ---
+  let topY = Math.min(...tRing.map(p => p.y));
+  if (def.arcade2) {
+    for (const u of [0.12, 0.88]) { const base = raise(P(u, 0.94), wallH);
+      ctx.strokeStyle = shade(stone, -0.1); ctx.lineWidth = Math.max(1.4, 1.8 * s);
+      const pole = { x: base.x, y: base.y - 12 * s };
+      ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(pole.x, pole.y); ctx.stroke();
+      ctx.fillStyle = accent; ctx.beginPath(); ctx.moveTo(pole.x, pole.y); ctx.lineTo(pole.x + 7 * s, pole.y + 2 * s); ctx.lineTo(pole.x, pole.y + 5 * s); ctx.closePath(); ctx.fill();
+      topY = Math.min(topY, pole.y);
+    }
+  }
+
+  return { cx: g.bx, topY };
 }
 
 function drawClaypit(gx, gy, baseLift) {
