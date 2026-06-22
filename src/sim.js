@@ -108,6 +108,7 @@ function tick(){
         const w={x:adj[0],y:adj[1],from:null,service:c.service,color:B3D[c.type].wcol,life:34,prog:0,dx:0,dy:0};
         if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--;       // Markt verkauft Keramik aus Lager
                                   w.food=(c.bread||0)>0; if(w.food)c.bread--; }   // Nahrung nur mit Brot aus der Mühle
+        if(c.service==='health'){ w.need=(typeof HEALTH!=='undefined'&&HEALTH[c.type])?HEALTH[c.type].need:null; }   // Therme/Arzt/Barbier versorgen ihren Bedarf
         walkers.push(w);
       }
     }
@@ -201,8 +202,9 @@ function tick(){
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
           else if(w.service==='religion')t.faith=SERVICE_LIFE;   // Priester segnet Haus (Haken für spätere Götter-Gunst)
+          else if(w.service==='health'){ if(w.need)t[w.need]=SERVICE_LIFE; }   // Therme→bath, Arzt→doctor, Barbier→barber
         }
       }
       w.life--; if(w.life<=0)continue;
@@ -228,19 +230,35 @@ function tick(){
   pop=0;
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const h=grid[y][x]; if(h.type!=='house')continue;
     if(h.water>0)h.water--; if(h.food>0)h.food--; if(h.taxed>0)h.taxed--; if(h.goods>0)h.goods--;
+    if(h.bath>0)h.bath--; if(h.doctor>0)h.doctor--; if(h.barber>0)h.barber--;   // Hygiene-Abdeckung klingt ab (wie Wasser/Nahrung)
     h.lvl = (h.water>0&&h.food>0&&h.goods>0)?3 : (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
     const cap=houseCap(h);
     if(h.res>cap) h.res=cap;                                  // Rückstufung -> Abwanderung
     if(h.water>0){ h.decay=0; }
     else { h.decay=(h.decay||0)+1; if(h.decay>=6){h.decay=0; if(h.res>0)h.res--;} }  // ohne Wasser ziehen Leute weg
+    // Gesundheit/Hygiene: Therme + Arzt = gesund. Sonst droht eine Seuche — Schonfrist wie bei Brand/Einsturz.
+    const healthy = h.bath>0 && h.doctor>0;
+    if(healthy || h.res<=0){ h.rP=0; h.plagueRisk=false; }
+    else { h.rP=(h.rP||0)+1;
+      if(h.rP>=RISK_GRACE){ h.plagueRisk=true;
+        const ch = PLAGUE_CHANCE*(h.barber>0?0.5:1);          // Barbier halbiert die Seuchengefahr
+        if(h.rP>=RISK_GRACE+RISK_FUSE && Math.random()<ch){
+          h.res--; h.rP=RISK_GRACE;                           // ein Bewohner erliegt der Seuche; der Druck bleibt bestehen
+          if(typeof flash==='function')flash('🤒 Seuche: ein Bewohner ist erkrankt und gestorben!');
+        }
+      }
+    }
     pop+=h.res;
   }
-  // Wirtschaft: monatlicher Unterhalt
+  // Wirtschaft: monatlicher Unterhalt + Löhne
   if(tickCount%MONTH===0){ let up=0;
     for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const tt=grid[y][x], d=BUILD[tt.type];
       if(d&&d.up){ if(tt.type==='warehouse'&&!tt.whMaster) continue;   // Lagerhaus: Unterhalt nur einmal (4 Felder)
         up+=d.up; } }
-    if(up){ money-=up; if(typeof statExp==='function')statExp(up); }
+    const employed=Math.max(0,(typeof workersTotal==='number'?workersTotal:pop)-(typeof workersFree==='number'?workersFree:0));
+    const wages=employed*WAGE;                                          // Löhne für tatsächlich beschäftigte Arbeiter
+    const out=up+wages;
+    if(out){ money-=out; if(typeof statExp==='function')statExp(out); }
   }
   // Sieg / Niederlage
   if(pop>=GOAL_POP) won=true;
