@@ -314,6 +314,18 @@ function drawInsula(gx, gy, lvl, baseLift) {
   wallBrickLines(c.W, c.S, c.Wt, c.St, floors * 2, 'rgba(132, 66, 44, 0.32)', s);
   wallBrickLines(c.S, c.E, c.St, c.Et, floors * 2, 'rgba(96, 46, 30, 0.40)', s);
 
+  // Roter Sockelanstrich auf Straßenniveau (nur größere Häuser) — bis ~Hälfte des Erdgeschosses
+  if (floors >= 2) {
+    const dadoTop = 0.5 / floors;                                   // halbe Höhe des Erdgeschosses
+    const dadoSW = shade('#a23a2c', 0.04), dadoSE = shade('#a23a2c', -0.18);
+    wallPatch(c.W, c.S, c.Wt, c.St, 0, 1, 0, dadoTop, dadoSW);      // SW-Wand (beschienen)
+    wallPatch(c.S, c.E, c.St, c.Et, 0, 1, 0, dadoTop, dadoSE);      // SE-Wand (im Schatten)
+    // Abschlusskante des Anstrichs (Trennfuge zum Putz darüber)
+    const eW = lerp(c.W, c.Wt, dadoTop), eS = lerp(c.S, c.St, dadoTop), eE = lerp(c.E, c.Et, dadoTop);
+    ctx.strokeStyle = 'rgba(60,20,12,.45)'; ctx.lineWidth = Math.max(1, 1 * s);
+    ctx.beginPath(); ctx.moveTo(eW.x, eW.y); ctx.lineTo(eS.x, eS.y); ctx.lineTo(eE.x, eE.y); ctx.stroke();
+  }
+
   // Fensterreihen je Stockwerk (+ Torbögen im Erdgeschoss)
   const winSW = '#2c2620', winSE = '#221d18';
   const archDarkSW = '#241a12', archBrickSW = '#9a4e35';   // Bogen SW (hell beschienen)
