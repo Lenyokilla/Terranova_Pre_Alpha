@@ -36,6 +36,8 @@ const ORDER=['road','roadblock','house','well','market','forum','firehouse','eng
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3 = Villa (verlangt zusätzlich Keramik)
 const SERVICE_LIFE=55;
 const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
+const HEALTH_BONUS=3;       // Extra-Steuer für gesund versorgte Häuser (Therme + Arzt) — verknüpft Gesundheit mit dem Geldkreislauf
+const WAGE=1;               // Lohn je beschäftigtem Arbeiter und Monat (laufender Abfluss neben dem Gebäude-Unterhalt)
 // ---- Spiel-Regeln ----
 const GOAL_POP=60;          // Ziel: so viele Einwohner
 const LOSE_MONEY=-60;       // darunter = Bankrott
@@ -48,6 +50,7 @@ const RISK_GRACE=80;        // Ticks ohne Abdeckung, bis die Warnung erscheint
 const RISK_FUSE=120;        // weitere Ticks Schonfrist, bevor wirklich etwas passiert (Zeit für Feuerwache)
 const FIRE_CHANCE=0.0018;   // Wahrscheinlichkeit/Tick für Brand (nach Warnung + Schonfrist)
 const COLLAPSE_CHANCE=0.0012;// Wahrscheinlichkeit/Tick für Einsturz (nach Warnung + Schonfrist)
+const PLAGUE_CHANCE=0.0014; // Wahrscheinlichkeit/Tick für einen Seuchen-Toten in einem ungesunden Haus (nach Warnung + Schonfrist)
 // ---- Arbeitskräfte (global, ohne Straße): Gebäude -> [benötigte Arbeiter, Priorität (klein=zuerst)] ----
 const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], fisher:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3], woodcutter:[1,3], quarry:[2,3], marblequarry:[2,3] };
 
@@ -122,3 +125,27 @@ Object.keys(GODS).forEach(k=>{
 });
 // Tempel im Baumenü vor 'Abriss' einsortieren
 ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(GODS));
+
+// ============================================================
+//  GESUNDHEIT & HYGIENE
+//  Wandernde Dienst-Läufer (wie Brunnen/Priester) versorgen Häuser
+//  mit ihrem jeweiligen "need". Ein Haus gilt als gesund, sobald es
+//  Therme (Bad) UND Arzt erreicht — das schützt vor Seuchen und gibt
+//  einen Steuerbonus. Der Barbier ist ein Zusatz (mindert die Seuchen-
+//  gefahr weiter). Neue Einrichtung: einfach eine Zeile ergänzen — Menü,
+//  Arbeitskräfte, Läuferfarbe und Baureihenfolge ziehen sich automatisch.
+//  roof = Dachfarbe (drawHealth), accent = Akzent-/Läuferfarbe (Pflicht).
+// ============================================================
+const HEALTH = {
+  bathhouse: { label:'Therme',  glyph:'♨️', need:'bath',   roof:'#3f86a8', accent:'#bfe4ef', up:2, cost:65, every:15 }, // Bad/Hygiene
+  doctor:    { label:'Arzt',    glyph:'⚕️', need:'doctor', roof:'#b94a4a', accent:'#f1c9c9', up:2, cost:55, every:16 }, // medizinische Versorgung
+  barber:    { label:'Barbier', glyph:'💈', need:'barber', roof:'#7d5aa6', accent:'#e0cef0', up:1, cost:35, every:17 }, // Zusatz-Hygiene
+};
+Object.keys(HEALTH).forEach(k=>{
+  const g=HEALTH[k];
+  BUILD[k] = { label:g.label, glyph:g.glyph, cost:g.cost, service:'health', every:g.every, up:g.up, jobs:2 };
+  LABOR[k] = [2,2];               // 2 Bedienstete, Priorität wie Forum/Tempel
+  B3D[k]   = { wcol:g.accent };   // Läuferfarbe (Pflicht: sonst crasht der Spawner)
+});
+// Gesundheits-Einrichtungen im Baumenü vor 'Abriss' einsortieren
+ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(HEALTH));
