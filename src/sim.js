@@ -3,6 +3,16 @@
 function neighbors(x,y){return [[x,y-1],[x+1,y],[x,y+1],[x-1,y]];}
 function riskable(tp){return tp==='house'||tp==='market'||tp==='forum'||tp==='pottery'||tp==='claypit'||tp==='mill'||tp==='farm'||tp==='bakery';}
 function adjRoad(x,y){return neighbors(x,y).find(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].type==='road');}
+// Mehrfeld-Gebäude: eine Footprint-Kachel ist "Sklave", wenn sie zu einem Anker
+// gehört, aber selbst nicht der Master ist (keine eigene Logik/Job/Unterhalt).
+function isSlave(c){ return !!(c.anchor && !c.master); }
+// angrenzende Straße für ein Mehrfeld-Gebäude: irgendeine Straße neben IRGENDEINER
+// Footprint-Kachel (außerhalb des Footprints selbst).
+function footAdjRoad(ax,ay,foot){ const [w,h]=foot;
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){ const cx=ax+i, cy=ay+j;
+    const r=neighbors(cx,cy).find(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].type==='road'&&!(nx>=ax&&nx<ax+w&&ny>=ay&&ny<ay+h));
+    if(r)return r; }
+  return null; }
 // kürzester Straßenweg vom Quellgebäude zum nächsten Zielgebäude (BFS)
 function findPath(sx,sy,destType){
   const starts=neighbors(sx,sy).filter(([x,y])=>inBounds(x,y)&&grid[y][x].type==='road');
@@ -97,15 +107,17 @@ function tick(){
   let labor=pop;
   const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,farm:5,fisher:5,claypit:6,pottery:7,mill:8,bakery:9};
   const jobsT=[];
-  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x]; if(BUILD[c.type]&&BUILD[c.type].jobs)jobsT.push(c);}
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x]; if(BUILD[c.type]&&BUILD[c.type].jobs&&!isSlave(c))jobsT.push(c);}
   jobsT.sort((a,b)=>(RANK[a.type]??9)-(RANK[b.type]??9));   // Überlebenswichtiges zuerst besetzen
   for(const c of jobsT){ const need=BUILD[c.type].jobs; if(labor>=need){c.staffed=true;labor-=need;} else c.staffed=false; }
   workersFree=labor; workersTotal=pop;
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const c=grid[y][x];
-    // Versorger (wandernde Dienst-Läufer: Brunnen=Wasser, Forum=Steuer, Markt=Verkauf)
-    if(c.service&&c.staffed){ c.spawn=(c.spawn||0)+1; const adj=adjRoad(x,y);
-      if(adj&&c.spawn>=BUILD[c.type].every){ c.spawn=0;
-        const w={x:adj[0],y:adj[1],from:null,service:c.service,color:B3D[c.type].wcol,life:34,prog:0,dx:0,dy:0};
+    // Versorger (wandernde Dienst-Läufer: Brunnen=Wasser, Forum=Steuer, Markt=Verkauf, Spielstätte=Unterhaltung)
+    if(c.service&&c.staffed&&!isSlave(c)){ c.spawn=(c.spawn||0)+1;
+      const bdef=BUILD[c.type];
+      const adj=bdef.foot?footAdjRoad(x,y,bdef.foot):adjRoad(x,y);   // Mehrfeld-Bau: Straße neben irgendeiner Footprint-Kachel
+      if(adj&&c.spawn>=bdef.every){ c.spawn=0;
+        const w={x:adj[0],y:adj[1],from:null,service:c.service,color:B3D[c.type].wcol,life:bdef.life||34,prog:0,dx:0,dy:0};
         if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--;       // Markt verkauft Keramik aus Lager
                                   w.food=(c.bread||0)>0; if(w.food)c.bread--; }   // Nahrung nur mit Brot aus der Mühle
         if(c.service==='health'){ w.need=(typeof HEALTH!=='undefined'&&HEALTH[c.type])?HEALTH[c.type].need:null; }   // Therme/Arzt/Barbier versorgen ihren Bedarf
@@ -202,9 +214,10 @@ function tick(){
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
           else if(w.service==='religion')t.faith=SERVICE_LIFE;   // Priester segnet Haus (Haken für spätere Götter-Gunst)
           else if(w.service==='health'){ if(w.need)t[w.need]=SERVICE_LIFE; }   // Therme→bath, Arzt→doctor, Barbier→barber
+          else if(w.service==='entertain')t.entertain=SERVICE_LIFE;   // Theater/Arena/Kolosseum unterhalten das Haus
         }
       }
       w.life--; if(w.life<=0)continue;
@@ -231,6 +244,7 @@ function tick(){
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const h=grid[y][x]; if(h.type!=='house')continue;
     if(h.water>0)h.water--; if(h.food>0)h.food--; if(h.taxed>0)h.taxed--; if(h.goods>0)h.goods--;
     if(h.bath>0)h.bath--; if(h.doctor>0)h.doctor--; if(h.barber>0)h.barber--;   // Hygiene-Abdeckung klingt ab (wie Wasser/Nahrung)
+    if(h.entertain>0)h.entertain--;                                              // Unterhaltung klingt ab
     h.lvl = (h.water>0&&h.food>0&&h.goods>0)?3 : (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
     const cap=houseCap(h);
     if(h.res>cap) h.res=cap;                                  // Rückstufung -> Abwanderung
@@ -254,6 +268,7 @@ function tick(){
   if(tickCount%MONTH===0){ let up=0;
     for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const tt=grid[y][x], d=BUILD[tt.type];
       if(d&&d.up){ if(tt.type==='warehouse'&&!tt.whMaster) continue;   // Lagerhaus: Unterhalt nur einmal (4 Felder)
+        if(isSlave(tt)) continue;                                      // Mehrfeld-Bau: Unterhalt nur auf der Master-Kachel
         up+=d.up; } }
     const employed=Math.max(0,(typeof workersTotal==='number'?workersTotal:pop)-(typeof workersFree==='number'?workersFree:0));
     const wages=employed*WAGE;                                          // Löhne für tatsächlich beschäftigte Arbeiter
