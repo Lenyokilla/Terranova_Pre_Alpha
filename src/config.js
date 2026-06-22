@@ -28,9 +28,10 @@ const BUILD={
   quarry:      {label:'Steinbruch',  glyph:'⛏️', cost:50, every:13, up:2, jobs:2},   // bricht Stein am Fels
   marblequarry:{label:'Marmorbruch', glyph:'🪨', cost:70, every:14, up:2, jobs:2},   // bricht Marmor
   warehouse:   {label:'Lagerhaus',   glyph:'📦', cost:90, up:2, size:2},             // 2×2 Lager (Holz/Stein/Marmor)
+  roadblock:{label:'Sperre',  glyph:'🚧', cost:0,  util:true},   // Straßensperre: Läufer meiden diese Kachel (Steuerung)
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['road','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
+const ORDER=['road','roadblock','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3 = Villa (verlangt zusätzlich Keramik)
 const SERVICE_LIFE=55;
