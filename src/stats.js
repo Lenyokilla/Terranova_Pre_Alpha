@@ -43,7 +43,7 @@
     try{
       for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ const t=grid[y][x];
         if(t.type==='house'&&t.res>0){ occ++;
-          let s=0; if(t.water>0)s+=0.5; if(t.food>0)s+=0.3; if(t.goods>0)s+=0.2; sat+=s; } }
+          let s=0; if(t.water>0)s+=0.4; if(t.food>0)s+=0.3; if(t.goods>0)s+=0.15; if(t.bath>0&&t.doctor>0)s+=0.15; sat+=s; } }
     }catch(e){}
     const satis = occ? (sat/occ*100) : 0;
     const wt = (typeof workersTotal==='number')?workersTotal:pop;
@@ -135,7 +135,7 @@
       'freie Arbeitskräfte ohne Job');
     statsHTML+=block('Zufriedenheit', last(H.satis)+'%',
       chart([{vals:H.satis,color:'#86c98b',fill:'rgba(134,201,139,.14)'}],{min:0,max:100}),
-      'Wasser · Nahrung · Waren in bewohnten Häusern');
+      'Wasser · Nahrung · Waren · Gesundheit in bewohnten Häusern');
     return goalsHTML()+statsHTML;
   }
 
