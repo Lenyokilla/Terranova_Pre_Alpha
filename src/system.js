@@ -276,6 +276,13 @@ function describeTile(x,y){
       {k:'Straßenanschluss', v:road?'ja':'nein', cls:road?'ok':'bad'},
     ], warns: road?[]:['Keine angrenzende Straße — es kann nichts angeliefert werden.']};
   }
+  if(t.type==='roadblock'){
+    return {glyph:'🚧', title:'Straßensperre', rows:[
+      {k:'Funktion', v:'Läufer meiden diese Kachel'},
+      {k:'Zweck', v:'Lenkt Träger & Versorger auf andere Wege'},
+      {k:'Entfernen', v:'mit Abriss (Straße bleibt)'},
+    ], warns:[]};
+  }
   return {glyph:'❔', title:'Gebäude', rows:[], warns:[]};
 }
 
