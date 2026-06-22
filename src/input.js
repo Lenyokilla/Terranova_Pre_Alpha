@@ -4,12 +4,19 @@ function place(gx,gy){
   if(!inBounds(gx,gy))return; const c=grid[gy][gx];
   if(tool==='raze'){
     if(c.type!=='empty'){
-      if(c.type==='warehouse'){ const a=c.wh||[gx,gy];                 // Lagerhaus: alle 4 Felder abreißen
+      if(c.type==='roadblock'){ c.type='road'; }                    // Sperre entfernen — Straße bleibt
+      else if(c.type==='warehouse'){ const a=c.wh||[gx,gy];          // Lagerhaus: alle 4 Felder abreißen
         for(const [tx,ty] of [[a[0],a[1]],[a[0]+1,a[1]],[a[0],a[1]+1],[a[0]+1,a[1]+1]])
           if(inBounds(tx,ty)&&grid[ty][tx].type==='warehouse') razeTile(grid[ty][tx]);
       } else razeTile(c);
       updateHUD();
     } return;
+  }
+  if(tool==='roadblock'){                                            // Straßensperre auf einer Straße toggeln
+    if(c.type==='road'){ c.type='roadblock'; if(typeof sfxBuild==='function')sfxBuild(); updateHUD(); }
+    else if(c.type==='roadblock'){ c.type='road'; updateHUD(); }     // erneut tippen entfernt sie
+    else flash('Sperre nur auf einer Straße setzen');
+    return;
   }
   const def=BUILD[tool]; if(!def||def.util)return;
   if(tool==='warehouse'){ placeWarehouse(gx,gy); return; }              // 2×2-Sonderfall
@@ -71,7 +78,7 @@ const CATS=[
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
-const DIRECT=['road','house','raze'];     // immer direkt erreichbar (kein Untermenü)
+const DIRECT=['road','roadblock','house','raze'];     // immer direkt erreichbar (kein Untermenü)
 
 const dockEl=document.getElementById('dock'); dockEl.style.position='relative';
 const toolsEl=document.getElementById('tools');           // untere Leiste: Kategorien + Direktzugriff
@@ -113,7 +120,11 @@ function makeTool(key){
     if(tool!=='hand'&&typeof closePanel==='function')closePanel();
     syncTools();
     const d2=BUILD[tool];
-    flash(d2.util?(tool==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen'):d2.label+' — tippe auf die Karte ('+d2.cost+' Denar)');};
+    let msg;
+    if(tool==='roadblock') msg='Straßensperre — tippe auf eine Straße (Läufer kehren um)';
+    else if(d2.util) msg=(tool==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen');
+    else msg=d2.label+' — tippe auf die Karte ('+d2.cost+' Denar)';
+    flash(msg);};
   return b;
 }
 
@@ -128,18 +139,19 @@ function openCategory(cat){
 function closeFlyout(){openCat=null; flyout.style.display='none'; flyout.innerHTML='';
   document.querySelectorAll('.cat').forEach(c=>paintCat(c,false));}
 
-// Untere Leiste: erst Kategorien, dann Trenner, dann Direktzugriff
+// Untere Leiste: ZUERST die wichtigen Direkt-Werkzeuge (Straße/Sperre/Haus/Abriss),
+// dann ein Trenner, danach die Kategorie-Übermenüs der übrigen Gebäude.
+DIRECT.forEach(key=>{const b=makeTool(key);const sel=b.onclick;
+  b.onclick=e=>{closeFlyout();sel(e);};                    // Direktzugriff schließt ein offenes Flyout
+  toolsEl.appendChild(b);});
+const divider=document.createElement('div');
+Object.assign(divider.style,{flex:'0 0 auto',alignSelf:'stretch',width:'1px',margin:'3px 3px',background:'var(--panel-line)'});
+toolsEl.appendChild(divider);
 CATS.forEach(cat=>{const b=document.createElement('button');
   b.className='tool cat'; b.dataset.cat=cat.key; b.style.background='#22190e';
   b.innerHTML='<span class="glyph">'+cat.glyph+'</span><span class="nm">'+cat.label+'</span>'+
     '<span class="cost cat-c" style="color:#a98">▾</span>';
   b.onclick=()=>{if(typeof sfxClick==='function')sfxClick();openCategory(cat);};
-  toolsEl.appendChild(b);});
-const divider=document.createElement('div');
-Object.assign(divider.style,{flex:'0 0 auto',alignSelf:'stretch',width:'1px',margin:'3px 3px',background:'var(--panel-line)'});
-toolsEl.appendChild(divider);
-DIRECT.forEach(key=>{const b=makeTool(key);const sel=b.onclick;
-  b.onclick=e=>{closeFlyout();sel(e);};                    // Direktzugriff schließt ein offenes Flyout
   toolsEl.appendChild(b);});
 
 // ---- Touch / Pointer ----
