@@ -99,6 +99,7 @@ function describeTile(x,y){
       {k:'Nahrung',     v:t.food >0?'versorgt':'fehlt', cls:t.food >0?'ok':'bad'},
       {k:'Luxus',       v:t.goods>0?('Keramik (+'+GOODS_BONUS+' Steuer)'):'keine'},
       {k:'Gesundheit',  v:(t.bath>0&&t.doctor>0)?('versorgt (+'+HEALTH_BONUS+' Steuer)'):'unzureichend', cls:(t.bath>0&&t.doctor>0)?'ok':'bad'},
+      {k:'Unterhaltung',v:t.entertain>0?('versorgt (+'+ENTERTAIN_BONUS+' Steuer)'):'keine', cls:t.entertain>0?'ok':'bad'},
       {k:'Brandschutz', v:t.fireSafe>0?'gesichert':'ungeschützt', cls:t.fireSafe>0?'ok':'bad'},
       {k:'Statik',      v:t.engSafe>0?'geprüft':'ungeprüft', cls:t.engSafe>0?'ok':'bad'},
     ];
@@ -297,6 +298,20 @@ function describeTile(x,y){
       roadRow,
       {k:'Trägerintervall', v:'alle '+BUILD[t.type].every+' Ticks'},
     ], warns: hasRoad?[]:['Keine angrenzende Straße — der Bedienstete kann nicht losziehen.']};
+  }
+  if(typeof CULTURE!=='undefined' && CULTURE[t.type]){
+    const g=CULTURE[t.type], a=t.anchor||[x,y];
+    const mst=(inBounds(a[0],a[1])?grid[a[1]][a[0]]:t), f=g.foot;
+    const road=(typeof footAdjRoad==='function')?!!footAdjRoad(a[0],a[1],f):hasRoad;
+    return {glyph:g.glyph, title:g.label, rows:[
+      {k:'Funktion', v:'Unterhält nahe Häuser (Spektakel)'},
+      {k:'Grundfläche', v:f[0]+'×'+f[1]+' Felder'},
+      {k:'Reichweite', v:'entlang der Straße (Läufer)'},
+      {k:'Wirkung', v:'+'+ENTERTAIN_BONUS+' Steuer & mehr Zufriedenheit'},
+      {k:'Betrieb', v:mst.staffed?'in Betrieb':'unbesetzt', cls:mst.staffed?'ok':'bad'},
+      {k:'Straßenanschluss', v:road?'ja':'nein', cls:road?'ok':'bad'},
+      {k:'Trägerintervall', v:'alle '+g.every+' Ticks'},
+    ], warns: road?[]:['Keine Straße am Footprint — die Besucher-Läufer können nicht losziehen.']};
   }
   return {glyph:'❔', title:'Gebäude', rows:[], warns:[]};
 }
