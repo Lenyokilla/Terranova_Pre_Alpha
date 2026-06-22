@@ -8,6 +8,9 @@ function place(gx,gy){
       else if(c.type==='warehouse'){ const a=c.wh||[gx,gy];          // Lagerhaus: alle 4 Felder abreißen
         for(const [tx,ty] of [[a[0],a[1]],[a[0]+1,a[1]],[a[0],a[1]+1],[a[0]+1,a[1]+1]])
           if(inBounds(tx,ty)&&grid[ty][tx].type==='warehouse') razeTile(grid[ty][tx]);
+      } else if(c.anchor){ const [ax,ay]=c.anchor, f=(BUILD[c.type]&&BUILD[c.type].foot)||[1,1];   // Mehrfeld-Bauwerk: ganzen Footprint abreißen
+        for(let j=0;j<f[1];j++)for(let i=0;i<f[0];i++){ const tx=ax+i,ty=ay+j;
+          if(inBounds(tx,ty)&&grid[ty][tx].anchor&&grid[ty][tx].anchor[0]===ax&&grid[ty][tx].anchor[1]===ay) razeTile(grid[ty][tx]); }
       } else razeTile(c);
       updateHUD();
     } return;
@@ -19,7 +22,8 @@ function place(gx,gy){
     return;
   }
   const def=BUILD[tool]; if(!def||def.util)return;
-  if(tool==='warehouse'){ placeWarehouse(gx,gy); return; }              // 2×2-Sonderfall
+  if(tool==='warehouse'){ placeWarehouse(gx,gy); return; }              // 2×2-Sonderfall (Buchten-Lager)
+  if(def.foot){ placeMulti(gx,gy,tool); return; }                      // mehrfeldrige Spielstätte (ein Bauwerk)
   if(!buildableTerr(c)){flash(c.terr==='water'?'Auf Wasser kann nicht gebaut werden':'Auf Bergen/Fels kann nicht gebaut werden');return;}
   if(c.type!=='empty'){flash('Feld belegt');return;}
   if(tool==='fisher' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='water')){
@@ -54,6 +58,26 @@ function placeWarehouse(gx,gy){
   if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
   if(typeof sfxBuild==='function')sfxBuild();
 }
+// Mehrfeldrige Spielstätte: belegt foot=[w,h] Felder (Anker = N-Kachel = gx,gy).
+// Nur die Anker-Kachel ist Master (Logik/Jobs/Unterhalt); die übrigen sind Platzhalter.
+// Verlangt flachen, freien Untergrund (kein Hügel/Berg/Wasser/Fels) für die ganze Fläche.
+function placeMulti(gx,gy,type){
+  const def=BUILD[type], [w,h]=def.foot, cells=[];
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){ const tx=gx+i, ty=gy+j;
+    if(!inBounds(tx,ty)){ flash(def.label+' braucht '+w+'×'+h+' freie, flache Felder'); return; }
+    const t=grid[ty][tx];
+    if(!buildableTerr(t) || (TERR[t.terr]&&TERR[t.terr].elev>0)){ flash('Untergrund ungeeignet — '+w+'×'+h+' flache Felder nötig'); return; }
+    if(t.type!=='empty'){ flash(w+'×'+h+'-Fläche nicht frei'); return; }
+    cells.push([tx,ty]);
+  }
+  if(money<def.cost){ flash('Zu wenig Denar — nutze +100'); return; }
+  money-=def.cost;
+  cells.forEach(([tx,ty])=>{ const t=grid[ty][tx]; buildOn(t,type,def.service); t.anchor=[gx,gy]; t.master=(tx===gx&&ty===gy); });
+  updateHUD();
+  if(typeof statExp==='function')statExp(def.cost);
+  if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
+  if(typeof sfxBuild==='function')sfxBuild();
+}
 function flash(msg){hint.textContent=msg;hint.classList.remove('hide');
   clearTimeout(flash._t);flash._t=setTimeout(()=>hint.classList.add('hide'),1500);}
 
@@ -77,6 +101,7 @@ const CATS=[
   {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','fisher','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
   {key:'health',label:'Gesundheit', glyph:'⚕️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='health')},
+  {key:'fun',   label:'Kultur',     glyph:'🎭', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='entertain')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
 const DIRECT=['road','roadblock','house','raze'];     // immer direkt erreichbar (kein Untermenü)
