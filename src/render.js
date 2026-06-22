@@ -60,15 +60,19 @@ function drawRocksAt(x,y){
 function drawObjects(x,y){
  try{
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
+  if(c.anchor && !c.master) return;        // Mehrfeld-Sklave: wird vom Master mitgezeichnet
   let m=null;
   if(c.type==='house'){
     m=drawBuilding(x,y,'house',c.lvl,e*STEP,{fireRisk:c.fireRisk,plagueRisk:c.plagueRisk,waterShortage:c.water<=0,unemployed:false});
-    const yy=m.topY-6*cam.scale, sp=7*cam.scale, off='#5b4a3288';
-    dotAt(m.cx-sp*2,yy,c.water>0?'#3a7d9c':off);
-    dotAt(m.cx-sp*1,yy,c.food >0?'#b1542d':off);
-    dotAt(m.cx,      yy,c.taxed>0?'#c9a227':off);
-    dotAt(m.cx+sp*1,yy,c.goods>0?'#9c5bd0':off);
-    dotAt(m.cx+sp*2,yy,(c.bath>0&&c.doctor>0)?'#3fae9a':off);   // Gesundheit (Therme + Arzt)
+    const yy=m.topY-6*cam.scale, sp=6*cam.scale, off='#5b4a3288';
+    dotAt(m.cx-sp*2.5,yy,c.water>0?'#3a7d9c':off);
+    dotAt(m.cx-sp*1.5,yy,c.food >0?'#b1542d':off);
+    dotAt(m.cx-sp*0.5,yy,c.taxed>0?'#c9a227':off);
+    dotAt(m.cx+sp*0.5,yy,c.goods>0?'#9c5bd0':off);
+    dotAt(m.cx+sp*1.5,yy,(c.bath>0&&c.doctor>0)?'#3fae9a':off);   // Gesundheit (Therme + Arzt)
+    dotAt(m.cx+sp*2.5,yy,c.entertain>0?'#d6589e':off);            // Unterhaltung (Theater/Arena/Kolosseum)
+  } else if(BUILD[c.type]&&BUILD[c.type].foot){    // großes Mehrfeld-Bauwerk (Spielstätte): einmal über den ganzen Footprint
+    m=drawVenue(x,y,e*STEP,c.type);
   } else if(c.type && c.type!=='road'){    // alle übrigen Gebäude (inkl. Tempel & künftige Typen)
     m=drawBuilding(x,y,c.type,0,e*STEP);
   }
@@ -312,7 +316,12 @@ function render(){
     else if(td.elev>0)           items.push({d:x+y,k:'hill',x,y});     // erhöhter Geländeblock (Hügel)
     else if(td.trees&&c.type==='empty') items.push({d:x+y,k:'tree',x,y}); // Bäume auf flachem Waldboden
     else if(td.rocks&&c.type==='empty') items.push({d:x+y,k:'rock',x,y}); // Fels-/Marmorbrocken
-    if(hasObject(x,y))           items.push({d:x+y,k:'bld',x,y});      // Gebäude (auch auf Hügeln: nach dem Hügel)
+    if(hasObject(x,y)){                                               // Gebäude (auch auf Hügeln: nach dem Hügel)
+      if(c.anchor && !c.master){ /* Mehrfeld-Sklave: der Master zeichnet das ganze Bauwerk */ }
+      else if(BUILD[c.type]&&BUILD[c.type].foot){ const f=BUILD[c.type].foot;
+        items.push({d:(x+f[0]-1)+(y+f[1]-1)+0.02,k:'bld',x,y}); }     // große Spielstätte: Tiefe = vordere Ecke des Footprints
+      else items.push({d:x+y,k:'bld',x,y});
+    }
   }
   for(const w of walkers){const gx=w.x+(w.dx||0)*w.prog, gy=w.y+(w.dy||0)*w.prog;
     items.push({d:gx+gy+0.05,k:'walk',gx,gy,w});}
