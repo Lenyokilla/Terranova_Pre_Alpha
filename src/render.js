@@ -21,12 +21,13 @@ function drawRoad(x,y,g){
 function drawGround(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
   if(c.terr==='mountain'){ drawMountain(x,y); return; }   // echte Bergform statt Kasten
-  const topCol = c.type==='road' ? '#b9ad95' : td.top[0];
+  const roadLike = c.type==='road'||c.type==='roadblock';  // Sperre liegt auf der Straße
+  const topCol = roadLike ? '#b9ad95' : td.top[0];
   const sL = td.side? td.side[1] : shade(topCol,-0.10);   // SW (links) heller
   const sR = td.side? td.side[0] : shade(topCol,-0.26);   // SE (rechts) dunkler
-  const seam = c.type==='road' ? null : topCol;           // gleiche Farbe -> Kacheln verschmelzen zur Fläche
+  const seam = roadLike ? null : topCol;                  // gleiche Farbe -> Kacheln verschmelzen zur Fläche
   const g=terrainBlock(x,y,e,topCol,sL,sR,seam);
-  if(c.type==='road'){ drawRoad(x,y,g); return; }
+  if(roadLike){ drawRoad(x,y,g); return; }                // Sperre bekommt das Sperr-Objekt im Pass 2
   if(c.type==='empty'){
     if(td.water) waterDeco(g);
     else if(td.furrow) furrowDeco(g);
