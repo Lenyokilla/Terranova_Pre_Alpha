@@ -37,6 +37,7 @@ const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3
 const SERVICE_LIFE=55;
 const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
 const HEALTH_BONUS=3;       // Extra-Steuer für gesund versorgte Häuser (Therme + Arzt) — verknüpft Gesundheit mit dem Geldkreislauf
+const ENTERTAIN_BONUS=4;    // Extra-Steuer für unterhaltene Häuser (Theater/Arena/Kolosseum) — Kultur zahlt sich aus
 const WAGE=1;               // Lohn je beschäftigtem Arbeiter und Monat (laufender Abfluss neben dem Gebäude-Unterhalt)
 // ---- Spiel-Regeln ----
 const GOAL_POP=60;          // Ziel: so viele Einwohner
@@ -149,3 +150,29 @@ Object.keys(HEALTH).forEach(k=>{
 });
 // Gesundheits-Einrichtungen im Baumenü vor 'Abriss' einsortieren
 ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(HEALTH));
+
+// ============================================================
+//  UNTERHALTUNG & KULTUR  (MEHRFELDRIGE Wahrzeichen)
+//  Spielstätten besetzen ein Rechteck aus Feldern (foot:[Breite,Höhe]).
+//  Sie werden als EIN großes Bauwerk auf der Anker-Kachel gezeichnet
+//  (master), die übrigen Footprint-Kacheln sind Platzhalter (anchor,
+//  ohne eigene Logik). Ein besetztes & an eine Straße angeschlossenes
+//  Haus erhält über wandernde Läufer Unterhaltung (t.entertain) — das
+//  hebt die Zufriedenheit und bringt einen Steuerbonus.
+//  foot = Grundfläche · h = Bauhöhe · tiers = Sitzränge · life = Läufer-
+//  Reichweite · roof/accent = Stein-/Akzentfarbe. Neue Spielstätte:
+//  eine Zeile ergänzen — Menü, Arbeitskräfte, Reihenfolge folgen automatisch.
+// ============================================================
+const CULTURE = {
+  theater:      { label:'Theater',      glyph:'🎭', foot:[2,2], h:30, tiers:2, stage:true,  roof:'#caa24a', accent:'#f0dca0', cost:90,  up:3, every:14, jobs:3, life:30 },
+  amphitheater: { label:'Amphitheater', glyph:'🏟️', foot:[3,2], h:34, tiers:3, stage:false, roof:'#c98a4a', accent:'#efc99a', cost:170, up:4, every:13, jobs:4, life:42 },
+  colosseum:    { label:'Kolosseum',    glyph:'🎪', foot:[3,3], h:44, tiers:4, stage:false, arcade2:true, roof:'#cbb48a', accent:'#efe2c4', cost:300, up:6, every:12, jobs:6, life:54 },
+};
+Object.keys(CULTURE).forEach(k=>{
+  const g=CULTURE[k];
+  BUILD[k] = { label:g.label, glyph:g.glyph, cost:g.cost, service:'entertain', every:g.every, up:g.up, jobs:g.jobs, foot:g.foot, life:g.life };
+  LABOR[k] = [g.jobs,2];          // Bedienstete (Schauspieler/Gladiatoren etc.), Priorität wie Forum/Tempel
+  B3D[k]   = { wcol:g.accent };   // Läuferfarbe (Pflicht: sonst crasht der Spawner)
+});
+// Spielstätten im Baumenü vor 'Abriss' einsortieren
+ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(CULTURE));
