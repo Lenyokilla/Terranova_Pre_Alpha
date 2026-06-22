@@ -62,12 +62,13 @@ function drawObjects(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
   let m=null;
   if(c.type==='house'){
-    m=drawBuilding(x,y,'house',c.lvl,e*STEP);
+    m=drawBuilding(x,y,'house',c.lvl,e*STEP,{fireRisk:c.fireRisk,plagueRisk:c.plagueRisk,waterShortage:c.water<=0,unemployed:false});
     const yy=m.topY-6*cam.scale, sp=7*cam.scale, off='#5b4a3288';
-    dotAt(m.cx-sp*1.5,yy,c.water>0?'#3a7d9c':off);
-    dotAt(m.cx-sp*0.5,yy,c.food >0?'#b1542d':off);
-    dotAt(m.cx+sp*0.5,yy,c.taxed>0?'#c9a227':off);
-    dotAt(m.cx+sp*1.5,yy,c.goods>0?'#9c5bd0':off);
+    dotAt(m.cx-sp*2,yy,c.water>0?'#3a7d9c':off);
+    dotAt(m.cx-sp*1,yy,c.food >0?'#b1542d':off);
+    dotAt(m.cx,      yy,c.taxed>0?'#c9a227':off);
+    dotAt(m.cx+sp*1,yy,c.goods>0?'#9c5bd0':off);
+    dotAt(m.cx+sp*2,yy,(c.bath>0&&c.doctor>0)?'#3fae9a':off);   // Gesundheit (Therme + Arzt)
   } else if(c.type && c.type!=='road'){    // alle übrigen Gebäude (inkl. Tempel & künftige Typen)
     m=drawBuilding(x,y,c.type,0,e*STEP);
   }
@@ -75,6 +76,7 @@ function drawObjects(x,y){
     let wy=m.topY-13*cam.scale;
     if(c.collapseRisk){ drawCollapseMark(m.cx,wy); wy-=12*cam.scale; }
     if(c.fireRisk){ drawFireMark(m.cx,wy); wy-=12*cam.scale; }
+    if(c.plagueRisk){ drawPlagueMark(m.cx,wy); wy-=12*cam.scale; }
     if(BUILD[c.type]&&BUILD[c.type].jobs) drawWorkerBadge(m.cx-11*cam.scale, m.topY-9*cam.scale, c.staffed);
   }
  }catch(err){ /* ein fehlerhaftes Gebäude darf nie die ganze Karte ausblenden */ }
@@ -103,6 +105,14 @@ function drawCollapseMark(cx,cy){const s=cam.scale;
   ctx.fillStyle='#e7b53a';ctx.strokeStyle='#7a5512';ctx.lineWidth=Math.max(1,1*s);
   ctx.beginPath();ctx.moveTo(cx,cy-6*s);ctx.lineTo(cx+5.5*s,cy+3*s);ctx.lineTo(cx-5.5*s,cy+3*s);ctx.closePath();ctx.fill();ctx.stroke();
   ctx.fillStyle='#3a2a08';ctx.fillRect(cx-0.7*s,cy-3.5*s,1.4*s,4*s);ctx.fillRect(cx-0.7*s,cy+1.6*s,1.4*s,1.4*s);
+}
+// Seuchen-Warnung: kränklich-grüne Scheibe mit umschwirrenden Fliegen
+function drawPlagueMark(cx,cy){const s=cam.scale, fl=Math.sin(animT*7)*1.4*s;
+  ctx.fillStyle='rgba(108,138,68,0.92)';ctx.beginPath();ctx.arc(cx,cy-1*s,5.4*s,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(40,52,24,0.6)';ctx.lineWidth=Math.max(1,0.9*s);ctx.stroke();
+  ctx.fillStyle='#26310f';
+  for(const [ox,oy] of [[-2.4,-1.6],[2.0,-2.2],[0.6,1.8]]){
+    ctx.beginPath();ctx.arc(cx+ox*s,cy+(oy-1)*s+fl*0.3,1.05*s,0,7);ctx.fill(); }
 }
 // Ein Objekt liegt vor, wenn der Zelltyp ein Gebäude aus BUILD ist (außer Straße,
 // die als Boden gezeichnet wird). Registry-basiert -> Tempel & künftige Gebäude
