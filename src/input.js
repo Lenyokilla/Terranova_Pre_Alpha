@@ -76,6 +76,7 @@ const CATS=[
   {key:'mat',   label:'Baustoffe',  glyph:'🪵',  items:['woodcutter','quarry','marblequarry','warehouse']},
   {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','fisher','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
+  {key:'health',label:'Gesundheit', glyph:'⚕️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='health')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
 const DIRECT=['road','roadblock','house','raze'];     // immer direkt erreichbar (kein Untermenü)
