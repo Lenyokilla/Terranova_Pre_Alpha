@@ -98,6 +98,7 @@ function describeTile(x,y){
       {k:'Wasser',      v:t.water>0?'versorgt':'fehlt', cls:t.water>0?'ok':'bad'},
       {k:'Nahrung',     v:t.food >0?'versorgt':'fehlt', cls:t.food >0?'ok':'bad'},
       {k:'Luxus',       v:t.goods>0?('Keramik (+'+GOODS_BONUS+' Steuer)'):'keine'},
+      {k:'Gesundheit',  v:(t.bath>0&&t.doctor>0)?('versorgt (+'+HEALTH_BONUS+' Steuer)'):'unzureichend', cls:(t.bath>0&&t.doctor>0)?'ok':'bad'},
       {k:'Brandschutz', v:t.fireSafe>0?'gesichert':'ungeschützt', cls:t.fireSafe>0?'ok':'bad'},
       {k:'Statik',      v:t.engSafe>0?'geprüft':'ungeprüft', cls:t.engSafe>0?'ok':'bad'},
     ];
@@ -105,6 +106,9 @@ function describeTile(x,y){
     if(t.water<=0) warns.push('Kein Wasser — Bewohner ziehen nach und nach weg.');
     else if(t.food<=0) warns.push('Ohne Nahrung bleibt das Haus unter dem Anwesen.');
     else if(t.goods<=0) warns.push('Keramik vom Markt hebt das Haus zur Villa (höchste Stufe).');
+    if(t.plagueRisk) warns.push('🤒 Seuchengefahr — ohne Therme und Arzt erkranken Bewohner. Ein Barbier mindert das Risiko.');
+    else if(!(t.bath>0&&t.doctor>0)&&t.res>0){ const miss=[]; if(t.bath<=0)miss.push('Therme'); if(t.doctor<=0)miss.push('Arzt');
+      warns.push('Gesundheit unzureichend — es fehlt: '+miss.join(' & ')+'. Eine Einrichtung an einer Straße in der Nähe schützt vor Seuchen.'); }
     if(t.fireRisk) warns.push('🔥 Brandgefahr — eine Feuerwache in der Nähe (an einer Straße) schützt.');
     if(t.collapseRisk) warns.push('🏚 Einsturzgefahr — ein Bauingenieur in der Nähe sichert die Statik.');
     if(cap>0&&t.res>=cap) warns.push('Voll belegt — neue Häuser schaffen mehr Platz.');
@@ -282,6 +286,17 @@ function describeTile(x,y){
       {k:'Zweck', v:'Lenkt Träger & Versorger auf andere Wege'},
       {k:'Entfernen', v:'mit Abriss (Straße bleibt)'},
     ], warns:[]};
+  }
+  if(typeof HEALTH!=='undefined' && HEALTH[t.type]){
+    const g=HEALTH[t.type];
+    const need={bath:'Bad & Hygiene',doctor:'medizinische Versorgung',barber:'Zusatz-Hygiene'}[g.need]||'Gesundheit';
+    return {glyph:g.glyph, title:g.label, rows:[
+      {k:'Funktion', v:'Versorgt nahe Häuser: '+need},
+      {k:'Reichweite', v:'entlang der Straße (Läufer)'},
+      {k:'Gesund =', v:'Therme + Arzt (+'+HEALTH_BONUS+' Steuer, schützt vor Seuchen)'},
+      roadRow,
+      {k:'Trägerintervall', v:'alle '+BUILD[t.type].every+' Ticks'},
+    ], warns: hasRoad?[]:['Keine angrenzende Straße — der Bedienstete kann nicht losziehen.']};
   }
   return {glyph:'❔', title:'Gebäude', rows:[], warns:[]};
 }
