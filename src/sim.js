@@ -76,7 +76,7 @@ function deliverCargo(w){const [dx,dy]=w.dest;if(!inBounds(dx,dy))return;const t
 // ---- Einwanderung vom Kartenrand ----
 function landWalk(x,y){ if(!inBounds(x,y))return false; const t=grid[y][x];
   if((TERR[t.terr]||TERR.grass).build===false) return false;             // Wasser/Berg blockieren
-  const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery'||b==='grainfield'||b==='farm'||b==='mill'||b==='bakery') return false;
+  const b=t.type; if(b==='house'||b==='well'||b==='market'||b==='forum'||b==='claypit'||b==='pottery'||b==='grainfield'||b==='farm'||b==='mill'||b==='bakery'||b==='wall'||b==='tower'||b==='barracks') return false;
   return true; }
 function houseCap(h){return HOUSE[h.lvl].pop;}
 function needsResident(t){return t.type==='house'&&t.res<houseCap(t);}  // auch Stufe 0 (Hütte) -> Anschub für Arbeitskräfte
@@ -231,6 +231,7 @@ function tick(){
     }
   }
   walkers=next;
+  if(typeof tickUnits==='function') tickUnits();   // Militär: Kasernen stellen auf, Kohorten marschieren
   // Gefahren: Brand & Einsturz (Abdeckung durch Feuerwache / Bauingenieur)
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ const t=grid[y][x]; if(!riskable(t.type))continue;
     if(t.fireSafe>0)t.fireSafe--; if(t.engSafe>0)t.engSafe--;
@@ -285,7 +286,8 @@ function tick(){
   updateHUD();
 }
 // nach Bewegung Position übernehmen
-function commitMoves(){for(const w of walkers){if(w.tx!=null){w.x=w.tx;w.y=w.ty;w.tx=w.ty=null;w.dx=0;w.dy=0;}}}
+function commitMoves(){for(const w of walkers){if(w.tx!=null){w.x=w.tx;w.y=w.ty;w.tx=w.ty=null;w.dx=0;w.dy=0;}}
+  if(typeof commitUnitMoves==='function') commitUnitMoves();}
 
 let lastTick=performance.now(); let lastFrame=performance.now();
 function loop(now){
@@ -298,6 +300,7 @@ function loop(now){
   if(speed>0){                             // Läufer nur bei laufender Zeit interpolieren
     const curTick=TICK/speed, frac=Math.min((now-lastTick)/curTick,1);
     for(const w of walkers)w.prog=frac;
+    if(typeof units!=='undefined') for(const u of units) u.prog=frac;   // Kohorten gleiten feldweise
   }
   render(); requestAnimationFrame(loop);
 }
