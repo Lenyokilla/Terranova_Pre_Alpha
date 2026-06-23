@@ -62,7 +62,9 @@ function drawObjects(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
   if(c.anchor && !c.master) return;        // Mehrfeld-Sklave: wird vom Master mitgezeichnet
   let m=null;
-  if(c.type==='house'){
+  if(typeof MIL_BUILDING!=='undefined' && MIL_BUILDING[c.type] && typeof drawMilitaryBuilding==='function'){
+    m=drawMilitaryBuilding(x,y,e*STEP,c.type);     // Mauer/Turm/Tor/Kaserne (military.js)
+  } else if(c.type==='house'){
     m=drawBuilding(x,y,'house',c.lvl,e*STEP,{fireRisk:c.fireRisk,plagueRisk:c.plagueRisk,waterShortage:c.water<=0,unemployed:false});
     const yy=m.topY-6*cam.scale, sp=6*cam.scale, off='#5b4a3288';
     dotAt(m.cx-sp*3,yy,c.water>0?'#3a7d9c':off);
@@ -326,6 +328,10 @@ function render(){
   }
   for(const w of walkers){const gx=w.x+(w.dx||0)*w.prog, gy=w.y+(w.dy||0)*w.prog;
     items.push({d:gx+gy+0.05,k:'walk',gx,gy,w});}
+  if(typeof getUnits==='function'){                   // Militär-Kohorten tiefensortiert einreihen
+    for(const u of getUnits()){ const ugx=u.x+(u.dx||0)*(u.prog||0), ugy=u.y+(u.dy||0)*(u.prog||0);
+      items.push({d:ugx+ugy+0.06,k:'unit',u}); }
+  }
   if(typeof getCritters==='function'){                 // Schafe tiefensortiert -> werden von Gebäuden verdeckt
     for(const s of getCritters()) items.push({d:s.gx+s.gy+0.04,k:'sheep',s});
   }
@@ -337,10 +343,12 @@ function render(){
     else if(o.k==='rock') drawRocksAt(o.x,o.y);
     else if(o.k==='bld')  drawObjects(o.x,o.y);
     else if(o.k==='sheep')drawSheepOne(o.s);
+    else if(o.k==='unit') drawUnit(o.u);
     else                  drawWalker(o.w,o.gx,o.gy);
   }
   if(typeof selectedTile!=='undefined'&&selectedTile&&onScreen(selectedTile.x,selectedTile.y))
     drawSelectionRing(selectedTile.x,selectedTile.y);
+  if(typeof selectedUnit!=='undefined'&&selectedUnit&&typeof drawUnitRing==='function') drawUnitRing(selectedUnit);
   drawAllWildlife();
   drawWeather();
   drawAtmosphere(r.width,r.height);
