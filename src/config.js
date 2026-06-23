@@ -38,6 +38,7 @@ const SERVICE_LIFE=55;
 const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
 const HEALTH_BONUS=3;       // Extra-Steuer für gesund versorgte Häuser (Therme + Arzt) — verknüpft Gesundheit mit dem Geldkreislauf
 const ENTERTAIN_BONUS=4;    // Extra-Steuer für unterhaltene Häuser (Theater/Arena/Kolosseum) — Kultur zahlt sich aus
+const EDU_BONUS=4;          // Extra-Steuer für gebildete Häuser (Schule + Bibliothek); Akademie verdoppelt diesen Bonus
 const WAGE=1;               // Lohn je beschäftigtem Arbeiter und Monat (laufender Abfluss neben dem Gebäude-Unterhalt)
 // ---- Spiel-Regeln ----
 const GOAL_POP=60;          // Ziel: so viele Einwohner
@@ -176,3 +177,31 @@ Object.keys(CULTURE).forEach(k=>{
 });
 // Spielstätten im Baumenü vor 'Abriss' einsortieren
 ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(CULTURE));
+
+// ============================================================
+//  BILDUNG
+//  Wandernde Dienst-Läufer (wie Therme/Arzt) versorgen Häuser mit
+//  ihrem jeweiligen "need". Ein Haus gilt als gebildet, sobald es
+//  Schule UND Bibliothek erreicht — das hebt die Zufriedenheit und
+//  bringt einen Steuerbonus. Die Akademie ist die Prestige-Stufe:
+//  ist sie zusätzlich angeschlossen, VERDOPPELT sich der Bildungs-
+//  Steuerbonus (analog zum Barbier bei der Gesundheit). Neue
+//  Einrichtung: einfach eine Zeile ergänzen — Menü, Arbeitskräfte,
+//  Läuferfarbe und Baureihenfolge ziehen sich automatisch.
+//  Hinweis: die Bedarf-Flags heißen schul/biblio/akad (NICHT 'school',
+//  das markiert in findWaterPath einen Fischschwarm).
+//  roof = Dachfarbe (drawEducation), accent = Akzent-/Läuferfarbe (Pflicht).
+// ============================================================
+const EDUCATION = {
+  school:  { label:'Schule',     glyph:'📖', need:'schul',  roof:'#4a78b0', accent:'#cfe0f4', up:2, cost:55,  every:15 }, // Grundbildung
+  library: { label:'Bibliothek', glyph:'📚', need:'biblio', roof:'#6f9c45', accent:'#dcecbf', up:2, cost:70,  every:16 }, // zweite Stufe
+  academy: { label:'Akademie',   glyph:'🎓', need:'akad',   roof:'#9c6f3f', accent:'#efd8b8', up:3, cost:120, every:17 }, // Prestige (verdoppelt Bonus)
+};
+Object.keys(EDUCATION).forEach(k=>{
+  const g=EDUCATION[k];
+  BUILD[k] = { label:g.label, glyph:g.glyph, cost:g.cost, service:'education', every:g.every, up:g.up, jobs:2 };
+  LABOR[k] = [2,2];               // 2 Bedienstete (Lehrer/Gelehrte), Priorität wie Forum/Tempel
+  B3D[k]   = { wcol:g.accent };   // Läuferfarbe (Pflicht: sonst crasht der Spawner)
+});
+// Bildungs-Einrichtungen im Baumenü vor 'Abriss' einsortieren
+ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(EDUCATION));
