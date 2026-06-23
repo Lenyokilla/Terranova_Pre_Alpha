@@ -5,7 +5,9 @@ let cam={x:0,y:0,scale:0.42};
 let DPR=Math.min(window.devicePixelRatio||1,2);
 
 function resize(){const r=cv.parentElement.getBoundingClientRect();
-  cv.width=r.width*DPR;cv.height=r.height*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+  cv.width=r.width*DPR;cv.height=r.height*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(typeof setViewRect==='function')setViewRect(r);   // Rect-Cache aktualisieren (Punkt 1)
+  _lastSig=null;}                                       // bei Pause Neuzeichnen erzwingen (Punkt 4)
 
 function worldOf(gx,gy){return {wx:(gx-gy)*TW/2, wy:(gx+gy)*TH/2};}
 function project(gx,gy){const w=worldOf(gx,gy);return {x:cam.x+w.wx*cam.scale, y:cam.y+w.wy*cam.scale};}
