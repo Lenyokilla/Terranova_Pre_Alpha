@@ -566,8 +566,13 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   return { cx: c.cx, topY };
 }
 
+// Viewport-Rect wird einmal pro Frame in render() gesetzt (setViewRect), statt
+// für jede einzelne Zelle ein layout-auslösendes getBoundingClientRect() zu zahlen.
+let _viewRect = null;
+function setViewRect(r){ _viewRect = r; }
 function onScreen(gx, gy) {
-  const p = project(gx, gy); const r = cv.parentElement.getBoundingClientRect();
+  const r = _viewRect || (_viewRect = cv.parentElement.getBoundingClientRect());
+  const p = project(gx, gy);
   return p.x > -80 && p.x < r.width + 80 && p.y > -120 && p.y < r.height + 80;
 }
 
