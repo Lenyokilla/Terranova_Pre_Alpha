@@ -43,7 +43,7 @@
     try{
       for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ const t=grid[y][x];
         if(t.type==='house'&&t.res>0){ occ++;
-          let s=0; if(t.water>0)s+=0.35; if(t.food>0)s+=0.25; if(t.goods>0)s+=0.15; if(t.bath>0&&t.doctor>0)s+=0.15; if(t.entertain>0)s+=0.10; sat+=s; } }
+          let s=0; if(t.water>0)s+=0.30; if(t.food>0)s+=0.20; if(t.goods>0)s+=0.15; if(t.bath>0&&t.doctor>0)s+=0.13; if(t.entertain>0)s+=0.12; if(t.schul>0&&t.biblio>0)s+=0.10; sat+=s; } }
     }catch(e){}
     const satis = occ? (sat/occ*100) : 0;
     const wt = (typeof workersTotal==='number')?workersTotal:pop;
