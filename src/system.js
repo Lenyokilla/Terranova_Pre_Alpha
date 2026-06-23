@@ -28,6 +28,7 @@ function loadGame(silent){
     money=d.money|0; pop=d.pop|0; tickCount=d.tickCount|0;
     won=!!d.won; lost=!!d.lost;
     walkers=[];                                   // Läufer entstehen neu
+    if(typeof units!=='undefined')units=[]; if(typeof selectedUnit!=='undefined')selectedUnit=null;   // Kohorten neu aufstellen
     if(d.cam){ cam.x=d.cam.x; cam.y=d.cam.y; cam.scale=d.cam.scale; }
     closePanel();
     updateHUD();
@@ -39,6 +40,7 @@ function loadGame(silent){
 function newGame(){
   if(!confirm('Neue Karte starten? Der aktuelle Aufbau geht verloren.'))return;
   money=300; pop=0; won=false; lost=false; tickCount=0; walkers=[]; tool='hand';
+  if(typeof units!=='undefined')units=[]; if(typeof selectedUnit!=='undefined')selectedUnit=null;
   if(typeof statReset==='function') statReset();   // Statistik-Historie für neue Karte leeren
   closePanel();
   generateTerrain(); centerCam(); initClouds(); initAllWildlife();
@@ -327,6 +329,7 @@ function describeTile(x,y){
       {k:'Trägerintervall', v:'alle '+g.every+' Ticks'},
     ], warns: road?[]:['Keine Straße am Footprint — die Besucher-Läufer können nicht losziehen.']};
   }
+  if(typeof describeMilitary==='function'){ const md=describeMilitary(x,y); if(md) return md; }
   return {glyph:'❔', title:'Gebäude', rows:[], warns:[]};
 }
 
