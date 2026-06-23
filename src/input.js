@@ -103,6 +103,7 @@ const CATS=[
   {key:'health',label:'Gesundheit', glyph:'⚕️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='health')},
   {key:'edu',   label:'Bildung',    glyph:'🎓', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='education')},
   {key:'fun',   label:'Kultur',     glyph:'🎭', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='entertain')},
+  {key:'mil',   label:'Militär',    glyph:'⚔️', items:['wall','tower','gate','barracks']},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
 const DIRECT=['road','roadblock','house','raze'];     // immer direkt erreichbar (kein Untermenü)
@@ -149,6 +150,7 @@ function makeTool(key){
     const d2=BUILD[tool];
     let msg;
     if(tool==='roadblock') msg='Straßensperre — tippe auf eine Straße (Läufer kehren um)';
+    else if(tool==='wall') msg='Stadtmauer — über die Karte ziehen ('+BUILD.wall.cost+' Denar/Feld)';
     else if(d2.util) msg=(tool==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen');
     else msg=d2.label+' — tippe auf die Karte ('+d2.cost+' Denar)';
     flash(msg);};
@@ -211,12 +213,22 @@ function commitRoad(cells){
   if(built&&typeof statExp==='function')statExp(built*BUILD.road.cost);
   if(built)updateHUD(); return built;
 }
+// Stadtmauer entlang der gezogenen Strecke setzen (nur freies Bauland)
+function commitWall(cells){
+  let built=0;
+  for(const c of cells){const t=grid[c.y][c.x];
+    if(t.type!=='empty'||!buildableTerr(t))continue;
+    if(money<BUILD.wall.cost){flash('Zu wenig Denar — nutze +100');break;}
+    money-=BUILD.wall.cost; buildOn(t,'wall'); built++;}
+  if(built&&typeof statExp==='function')statExp(built*BUILD.wall.cost);
+  if(built)updateHUD(); return built;
+}
 
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);
   if(typeof audioInit==='function')audioInit(); if(typeof sfxClick==='function')sfxClick();
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===1){panLast={x:e.clientX,y:e.clientY};
-    if(tool==='road'){roadDrag=cellAt(e);previewCells=linePath(roadDrag,roadDrag);}
+    if(tool==='road'||tool==='wall'){roadDrag=cellAt(e);previewCells=linePath(roadDrag,roadDrag);}
     else if(tool==='hand'){tapInfo={x:e.clientX,y:e.clientY,moved:false};}
     else {paintSet.clear();paintAt(e);}}
   else if(pointers.size===2){roadDrag=null;previewCells=[];tapInfo=null;const p=[...pointers.values()];
@@ -229,21 +241,26 @@ cv.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;
     pinchLast={d,mx,my};return;}
   if(tool==='hand'){if(panLast){cam.x+=e.clientX-panLast.x;cam.y+=e.clientY-panLast.y;}panLast={x:e.clientX,y:e.clientY};
     if(tapInfo&&Math.hypot(e.clientX-tapInfo.x,e.clientY-tapInfo.y)>8)tapInfo.moved=true;}
-  else if(tool==='road'&&roadDrag){previewCells=linePath(roadDrag,cellAt(e));
+  else if((tool==='road'||tool==='wall')&&roadDrag){previewCells=linePath(roadDrag,cellAt(e));
     const n=previewCells.filter(c=>grid[c.y][c.x].type==='empty'&&buildableTerr(grid[c.y][c.x])).length;
-    setHint('Straße: '+n+' Felder · '+(n*BUILD.road.cost)+' Denar');}
+    const cost=(tool==='wall'?BUILD.wall.cost:BUILD.road.cost);
+    setHint((tool==='wall'?'Mauer: ':'Straße: ')+n+' Felder · '+(n*cost)+' Denar');}
   else if(tool==='raze'){paintAt(e);}});
 function endPtr(e){pointers.delete(e.pointerId);
   if(pointers.size<2)pinchLast=null; if(pointers.size===0)panLast=null;
-  if(tool==='road'&&roadDrag&&pointers.size===0){
-    const n=commitRoad(previewCells);
-    flash(n?('Straße gebaut: '+n+' Felder'):'Keine freien Felder');
+  if((tool==='road'||tool==='wall')&&roadDrag&&pointers.size===0){
+    const n=(tool==='wall')?commitWall(previewCells):commitRoad(previewCells);
+    flash(n?((tool==='wall'?'Mauer gebaut: ':'Straße gebaut: ')+n+' Felder'):'Keine freien Felder');
     if(n&&typeof sfxBuild==='function')sfxBuild();
     roadDrag=null;previewCells=[];}
   if(tool==='hand'&&pointers.size===0&&tapInfo){
     if(!tapInfo.moved){const {gx,gy}=cellAt(e);
-      if(inBounds(gx,gy)&&hasObject(gx,gy)){ if(typeof openPanel==='function')openPanel(gx,gy); }
-      else if(typeof closePanel==='function')closePanel();}
+      if(typeof selectedUnit!=='undefined'&&selectedUnit&&typeof commandUnit==='function'){   // gewählte Kohorte -> Marschbefehl
+        commandUnit(selectedUnit,gx,gy); selectedUnit=null; tapInfo=null; return; }
+      const u=(typeof unitAt==='function')?unitAt(gx,gy):null;
+      if(u){ selectedUnit=u; if(typeof closePanel==='function')closePanel(); flash('Kohorte gewählt — tippe ein Ziel'); tapInfo=null; return; }
+      if(inBounds(gx,gy)&&hasObject(gx,gy)){ if(typeof selectedUnit!=='undefined')selectedUnit=null; if(typeof openPanel==='function')openPanel(gx,gy); }
+      else { if(typeof selectedUnit!=='undefined')selectedUnit=null; if(typeof closePanel==='function')closePanel(); }}
     tapInfo=null;}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 function paintAt(e){const {gx,gy}=cellAt(e);const key=gx+','+gy;
