@@ -285,6 +285,7 @@ function drawAtmosphere(w,h){
 }
 function render(){
   const r=cv.parentElement.getBoundingClientRect();
+  setViewRect(r);                         // ein Rect/Frame -> onScreen liest den Cache
   ctx.clearRect(0,0,r.width,r.height);
   // Pass 1 — nur FLACHES Terrain (Gras, Feld, Wald-Boden, Straße, Wasser) in einem tiefen-sortierten Durchgang.
   // Erhöhtes Terrain (Hügel, Berge) und Bäume kommen in den Objekt-Pass, damit sie korrekt
