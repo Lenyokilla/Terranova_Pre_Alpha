@@ -888,11 +888,28 @@ function drawVenue(gx, gy, baseLift, kind) {
     return { o, ii };
   }
 
-  // --- 1) Außenmauer: Wandband zwischen Boden-Ellipse und angehobener Mauerkrone ---
+  // --- 1) Außenmauer ---
   const rOuter = 0.47;
+  const rim = (a) => P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
   const gRing = ellipse(rOuter, rOuter * 0.96, NP);
   const tRing = gRing.map(p => raise(p, wallH));
-  // Wandfläche (vorne sichtbar; Rückseite wird später überzeichnet)
+  // Front-zugewandte Silhouette: dort zeigt die Außennormale zum Betrachter
+  // (Radius minimal vergrößern → Bildpunkt wandert nach unten)
+  const facing = (a) => { const e = 0.012;
+    const p0 = rim(a);
+    const p1 = P(0.5 + (rOuter + e) * Math.cos(a), 0.5 + (rOuter * 0.96 + e) * Math.sin(a));
+    return (p1.y - p0.y) > 0; };
+  let aMid = 0, yMax = -Infinity;                        // vorderster (tiefster) Randpunkt
+  for (let i = 0; i < 720; i++) { const a = i / 720 * Math.PI * 2; const yy = rim(a).y; if (yy > yMax) { yMax = yy; aMid = a; } }
+  let aS = aMid, aE = aMid;                              // beidseitig erweitern, solange front-zugewandt
+  for (let i = 1; i <= 360; i++) { const a = aMid - i / 360 * Math.PI; if (!facing(a)) break; aS = a; }
+  for (let i = 1; i <= 360; i++) { const a = aMid + i / 360 * Math.PI; if (!facing(a)) break; aE = a; }
+
+  // Wandfläche als gefüllter Zylinder-Umriss: Vorderkante am Boden (aS→aE) + Rückkante an der
+  // Krone (über die Hinterseite zurück). Robust gegen Überlappung von Boden- und Kronen-Ellipse.
+  const cup = [], SN = 56;
+  for (let i = 0; i <= SN; i++) cup.push(rim(aS + (aE - aS) * i / SN));
+  for (let i = 0; i <= SN; i++) cup.push(raise(rim(aE + (2 * Math.PI - (aE - aS)) * i / SN), wallH));
   if (def.arches) {                                      // Wahrzeichen: heller Steinverlauf (oben hell → unten dunkel)
     const ysB = Math.max(...gRing.map(p => p.y)), ysT = Math.min(...tRing.map(p => p.y));
     const wg = ctx.createLinearGradient(0, ysT, 0, ysB);
@@ -901,28 +918,13 @@ function drawVenue(gx, gy, baseLift, kind) {
   } else {
     ctx.fillStyle = shade(stone, -0.26);
   }
-  ctx.beginPath();
-  gRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-  for (let i = tRing.length - 1; i >= 0; i--) ctx.lineTo(tRing[i].x, tRing[i].y);
-  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); cup.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
 
   // --- 2) Fassade ---
   if (def.arches) {
     // Echte Wahrzeichen-Fassade: mehrere Ebenen mit rundbogigen Arkaden, Pfeilern,
     // Schlusssteinen und Zwischengesimsen — darüber ein geschlossenes Attika-Geschoss.
-    const rim = (a) => P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
-    // Sichtbaren Frontbogen numerisch bestimmen: die Außenwand ist dort sichtbar, wo ihre
-    // Außennormale zum Betrachter zeigt (Radius vergrößern → Punkt wandert auf dem Schirm nach unten).
-    const facing = (a) => { const e = 0.012;
-      const p0 = P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
-      const p1 = P(0.5 + (rOuter + e) * Math.cos(a), 0.5 + (rOuter * 0.96 + e) * Math.sin(a));
-      return (p1.y - p0.y) > 0; };
-    let aMid = 0, yMax = -Infinity;                         // vorderster (tiefster) Randpunkt = Bogenmitte
-    for (let i = 0; i < 360; i++) { const a = i / 360 * Math.PI * 2; const yy = rim(a).y; if (yy > yMax) { yMax = yy; aMid = a; } }
-    let aS = aMid, aE = aMid;                               // nach links/rechts erweitern, solange front-zugewandt
-    for (let i = 1; i <= 180; i++) { const a = aMid - i / 180 * Math.PI; if (!facing(a)) break; aS = a; }
-    for (let i = 1; i <= 180; i++) { const a = aMid + i / 180 * Math.PI; if (!facing(a)) break; aE = a; }
-    aS += Math.PI * 0.012; aE -= Math.PI * 0.012;          // Bögen nicht exakt auf die Silhouettenkante setzen
+    aS += Math.PI * 0.012; aE -= Math.PI * 0.012;          // Bögen leicht von der Silhouettenkante einrücken
     const atticH = wallH * 0.20, arcZone = wallH - atticH; // oberstes Geschoss bleibt Vollwand
     const levels = def.arcLevels || 3, bandH = arcZone / levels;
     const nArch = Math.max(10, Math.round((w + h) * 2.0));  // Bögen je Ebene, skaliert mit Größe
@@ -1014,31 +1016,38 @@ function drawVenue(gx, gy, baseLift, kind) {
   // Öffnung — vordere/seitliche Ränge, die projektiv unter die Krone fallen, verdeckt die Wand.
   ctx.save();
   ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
-  // innere Mauerfläche (Brüstung): vertikales Band von der Krone hinab bis zum obersten Sitzrang,
-  // schließt die durchscheinende Lücke zwischen Fassade und Innenraum (nur Arenen, nicht das Theater)
-  if (!isStage) {
-    ring(rOuter, rOuter, wallH, wallH - rimDrop, shade(stone, -0.16), 'rgba(70,55,34,0.30)');
-    if (def.trim) {                                      // dünnes Zierband am Fuß der Brüstung
-      const lip = ellipse(rOuter, rOuter * 0.96, NP).map(p => raise(p, wallH - rimDrop));
-      ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1, 0.9 * s);
-      ctx.beginPath(); lip.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
-    }
-  }
-  const tiers = def.tiers, rInner = 0.20;
+  // innere Mauerfläche (Brüstung) liefert jetzt der Wand-Vollkörper; hier nur das Zierband am Fuß.
+  const tiers = def.tiers, rInner = 0.20, seatTop = wallH - rimDrop;
+  // konzentrische Sitzstufen: Auftritt (alternierend hell/dunkel) + abgesetzte Stufenkante (Riser) nach innen
   for (let i = 0; i < tiers; i++) {
     const f0 = i / tiers, f1 = (i + 1) / tiers;
     const rO = rOuter - (rOuter - rInner) * f0, rI = rOuter - (rOuter - rInner) * f1;
-    const dO = (wallH - rimDrop) - (wallH - rimDrop) * f0 + rimDrop * 0.0;
-    const dI = (wallH - rimDrop) * (1 - f1);
-    const band = shade(stone, i % 2 ? -0.10 : 0.02);
-    ring(rO, rI, (wallH - rimDrop) * (1 - f0), (wallH - rimDrop) * (1 - f1), band, 'rgba(70,55,34,0.35)');
+    const tread = shade(stone, i % 2 ? -0.05 : 0.07);
+    ring(rO, rI, seatTop * (1 - f0), seatTop * (1 - f1), tread, null);            // Auftritt
+    const edge = ellipse(rI, rI * 0.96, NP).map(p => raise(p, seatTop * (1 - f1)));// Stufenkante
+    ctx.strokeStyle = 'rgba(48,36,20,0.55)'; ctx.lineWidth = Math.max(1, 1.0 * s);
+    ctx.beginPath(); edge.forEach((p, j) => j ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
+  }
+  // scalaria: radiale Treppenaufgänge, die die Ränge segmentieren
+  const nStair = Math.max(8, Math.round((w + h) * 2));
+  ctx.strokeStyle = 'rgba(58,44,26,0.40)'; ctx.lineWidth = Math.max(1, 0.8 * s);
+  for (let k = 0; k < nStair; k++) {
+    const a = (k / nStair) * Math.PI * 2;
+    const pO = raise(P(0.5 + rOuter * Math.cos(a), 0.5 + rOuter * 0.96 * Math.sin(a)), seatTop);
+    const pI = raise(P(0.5 + rInner * Math.cos(a), 0.5 + rInner * 0.96 * Math.sin(a)), 2);
+    ctx.beginPath(); ctx.moveTo(pO.x, pO.y); ctx.lineTo(pI.x, pI.y); ctx.stroke();
+  }
+  if (def.trim) {                                          // rotes Zierband am Brüstungsfuß (oberste Stufenkante)
+    const lip = ellipse(rOuter, rOuter * 0.96, NP).map(p => raise(p, seatTop));
+    ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1.2, 1.3 * s);
+    ctx.beginPath(); lip.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
   }
 
   // --- 4) Sandarena in der Mitte (innerste, tiefste Fläche → zuletzt) ---
   const arena = ellipse(rInner, rInner * 0.96, NP).map(p => raise(p, 2));
-  ctx.fillStyle = '#d9c79a'; ctx.beginPath();
+  ctx.fillStyle = '#cdb784'; ctx.beginPath();
   arena.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(120,96,52,0.4)'; ctx.lineWidth = Math.max(1, 0.8 * s); ctx.stroke();
+  ctx.strokeStyle = 'rgba(88,68,38,0.55)'; ctx.lineWidth = Math.max(1, 1.0 * s); ctx.stroke();
   ctx.restore();   // Innenraum-Clip aufheben (Bühne/Banner/Masten danach unbeschnitten)
 
   // --- 5) Theater-Variante: hohe Bühnenwand (scaenae frons) an der hinteren (N-)Kante ---
