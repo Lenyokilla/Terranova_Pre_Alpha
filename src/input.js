@@ -101,6 +101,7 @@ const CATS=[
   {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','fisher','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},
   {key:'health',label:'Gesundheit', glyph:'⚕️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='health')},
+  {key:'edu',   label:'Bildung',    glyph:'🎓', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='education')},
   {key:'fun',   label:'Kultur',     glyph:'🎭', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='entertain')},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
