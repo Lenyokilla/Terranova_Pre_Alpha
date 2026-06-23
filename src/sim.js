@@ -290,6 +290,16 @@ function commitMoves(){for(const w of walkers){if(w.tx!=null){w.x=w.tx;w.y=w.ty;
   if(typeof commitUnitMoves==='function') commitUnitMoves();}
 
 let lastTick=performance.now(); let lastFrame=performance.now();
+let _lastSig=null;                         // Signatur des zuletzt gezeichneten Bildzustands
+// Billige Signatur aller Dinge, die das Standbild bei Pause verändern können.
+function _viewSig(){
+  let s=cam.x+'|'+cam.y+'|'+cam.scale;
+  s+='|'+(typeof selectedTile!=='undefined'&&selectedTile?selectedTile.x+','+selectedTile.y:'-');
+  s+='|'+(typeof selectedUnit!=='undefined'&&selectedUnit?'u':'-');
+  s+='|'+(typeof previewCells!=='undefined'?previewCells.length:0);
+  s+='|'+floaters.length;                 // 1->0 muss ein letztes Clear-Rendering auslösen
+  return s;
+}
 function loop(now){
   const rawdt=Math.min((now-lastFrame)/1000,0.05); lastFrame=now;
   const k=speed>0?speed:0;                 // Pause friert ein, Zeitraffer beschleunigt
@@ -302,7 +312,13 @@ function loop(now){
     for(const w of walkers)w.prog=frac;
     if(typeof units!=='undefined') for(const u of units) u.prog=frac;   // Kohorten gleiten feldweise
   }
-  render(); requestAnimationFrame(loop);
+  // Bei laufender Zeit immer zeichnen. Bei Pause nur, wenn sich das Bild ändert
+  // (Kamera/Auswahl/Vorschau) oder noch Floater animieren. Spart Akku im Leerlauf.
+  const sig=_viewSig();
+  const dirty = speed>0 || floaters.length>0 || sig!==_lastSig;
+  _lastSig=sig;
+  if(dirty) render();
+  requestAnimationFrame(loop);
 }
 // Tempo-gesteuerter Tick-Scheduler (statt festem Intervall) — respektiert Pause/Zeitraffer
 let _tickTimer=null;
