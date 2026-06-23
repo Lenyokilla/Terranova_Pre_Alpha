@@ -100,6 +100,7 @@ function describeTile(x,y){
       {k:'Luxus',       v:t.goods>0?('Keramik (+'+GOODS_BONUS+' Steuer)'):'keine'},
       {k:'Gesundheit',  v:(t.bath>0&&t.doctor>0)?('versorgt (+'+HEALTH_BONUS+' Steuer)'):'unzureichend', cls:(t.bath>0&&t.doctor>0)?'ok':'bad'},
       {k:'Unterhaltung',v:t.entertain>0?('versorgt (+'+ENTERTAIN_BONUS+' Steuer)'):'keine', cls:t.entertain>0?'ok':'bad'},
+      {k:'Bildung',     v:(t.schul>0&&t.biblio>0)?('versorgt (+'+(EDU_BONUS+(t.akad>0?EDU_BONUS:0))+' Steuer'+(t.akad>0?', Akademie':'')+')'):'unzureichend', cls:(t.schul>0&&t.biblio>0)?'ok':'bad'},
       {k:'Brandschutz', v:t.fireSafe>0?'gesichert':'ungeschützt', cls:t.fireSafe>0?'ok':'bad'},
       {k:'Statik',      v:t.engSafe>0?'geprüft':'ungeprüft', cls:t.engSafe>0?'ok':'bad'},
     ];
@@ -110,6 +111,8 @@ function describeTile(x,y){
     if(t.plagueRisk) warns.push('🤒 Seuchengefahr — ohne Therme und Arzt erkranken Bewohner. Ein Barbier mindert das Risiko.');
     else if(!(t.bath>0&&t.doctor>0)&&t.res>0){ const miss=[]; if(t.bath<=0)miss.push('Therme'); if(t.doctor<=0)miss.push('Arzt');
       warns.push('Gesundheit unzureichend — es fehlt: '+miss.join(' & ')+'. Eine Einrichtung an einer Straße in der Nähe schützt vor Seuchen.'); }
+    if(!(t.schul>0&&t.biblio>0)&&t.res>0){ const miss=[]; if(t.schul<=0)miss.push('Schule'); if(t.biblio<=0)miss.push('Bibliothek');
+      warns.push('Bildung unzureichend — es fehlt: '+miss.join(' & ')+'. Eine Akademie verdoppelt zusätzlich den Steuerbonus.'); }
     if(t.fireRisk) warns.push('🔥 Brandgefahr — eine Feuerwache in der Nähe (an einer Straße) schützt.');
     if(t.collapseRisk) warns.push('🏚 Einsturzgefahr — ein Bauingenieur in der Nähe sichert die Statik.');
     if(cap>0&&t.res>=cap) warns.push('Voll belegt — neue Häuser schaffen mehr Platz.');
@@ -295,6 +298,17 @@ function describeTile(x,y){
       {k:'Funktion', v:'Versorgt nahe Häuser: '+need},
       {k:'Reichweite', v:'entlang der Straße (Läufer)'},
       {k:'Gesund =', v:'Therme + Arzt (+'+HEALTH_BONUS+' Steuer, schützt vor Seuchen)'},
+      roadRow,
+      {k:'Trägerintervall', v:'alle '+BUILD[t.type].every+' Ticks'},
+    ], warns: hasRoad?[]:['Keine angrenzende Straße — der Bedienstete kann nicht losziehen.']};
+  }
+  if(typeof EDUCATION!=='undefined' && EDUCATION[t.type]){
+    const g=EDUCATION[t.type];
+    const need={schul:'Grundbildung',biblio:'Wissen & Lektüre',akad:'Gelehrsamkeit (Prestige)'}[g.need]||'Bildung';
+    return {glyph:g.glyph, title:g.label, rows:[
+      {k:'Funktion', v:'Versorgt nahe Häuser: '+need},
+      {k:'Reichweite', v:'entlang der Straße (Läufer)'},
+      {k:'Gebildet =', v:'Schule + Bibliothek (+'+EDU_BONUS+' Steuer); Akademie verdoppelt'},
       roadRow,
       {k:'Trägerintervall', v:'alle '+BUILD[t.type].every+' Ticks'},
     ], warns: hasRoad?[]:['Keine angrenzende Straße — der Bedienstete kann nicht losziehen.']};
