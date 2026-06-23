@@ -65,12 +65,13 @@ function drawObjects(x,y){
   if(c.type==='house'){
     m=drawBuilding(x,y,'house',c.lvl,e*STEP,{fireRisk:c.fireRisk,plagueRisk:c.plagueRisk,waterShortage:c.water<=0,unemployed:false});
     const yy=m.topY-6*cam.scale, sp=6*cam.scale, off='#5b4a3288';
-    dotAt(m.cx-sp*2.5,yy,c.water>0?'#3a7d9c':off);
-    dotAt(m.cx-sp*1.5,yy,c.food >0?'#b1542d':off);
-    dotAt(m.cx-sp*0.5,yy,c.taxed>0?'#c9a227':off);
-    dotAt(m.cx+sp*0.5,yy,c.goods>0?'#9c5bd0':off);
-    dotAt(m.cx+sp*1.5,yy,(c.bath>0&&c.doctor>0)?'#3fae9a':off);   // Gesundheit (Therme + Arzt)
-    dotAt(m.cx+sp*2.5,yy,c.entertain>0?'#d6589e':off);            // Unterhaltung (Theater/Arena/Kolosseum)
+    dotAt(m.cx-sp*3,yy,c.water>0?'#3a7d9c':off);
+    dotAt(m.cx-sp*2,yy,c.food >0?'#b1542d':off);
+    dotAt(m.cx-sp*1,yy,c.taxed>0?'#c9a227':off);
+    dotAt(m.cx,     yy,c.goods>0?'#9c5bd0':off);
+    dotAt(m.cx+sp*1,yy,(c.bath>0&&c.doctor>0)?'#3fae9a':off);   // Gesundheit (Therme + Arzt)
+    dotAt(m.cx+sp*2,yy,c.entertain>0?'#d6589e':off);            // Unterhaltung (Theater/Arena/Kolosseum)
+    dotAt(m.cx+sp*3,yy,(c.schul>0&&c.biblio>0)?'#5566cc':off);  // Bildung (Schule + Bibliothek)
   } else if(BUILD[c.type]&&BUILD[c.type].foot){    // großes Mehrfeld-Bauwerk (Spielstätte): einmal über den ganzen Footprint
     m=drawVenue(x,y,e*STEP,c.type);
   } else if(c.type && c.type!=='road'){    // alle übrigen Gebäude (inkl. Tempel & künftige Typen)
