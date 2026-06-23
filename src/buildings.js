@@ -847,6 +847,7 @@ function drawVenue(gx, gy, baseLift, kind) {
   const def = (typeof CULTURE !== 'undefined' && CULTURE[kind]) ? CULTURE[kind]
             : { foot:[2,2], h:30, tiers:2, roof:'#c8b48a', accent:'#efe2c4' };
   const s = cam.scale, [w, h] = def.foot, stone = def.roof, accent = def.accent;
+  const trim = def.trim || shade(stone, -0.45);            // Farbe für rote Zierlinien / Sonnensegel
   const wallH = def.h, rimDrop = def.h * 0.26;          // Sitzränge liegen etwas tiefer als die Mauerkrone
   const g = footCorners(gx, gy, w, h, baseLift, 0);     // Boden-Eckpunkte des Footprints
 
@@ -904,12 +905,23 @@ function drawVenue(gx, gy, baseLift, kind) {
   if (def.arches) {
     // Echte Wahrzeichen-Fassade: mehrere Ebenen mit rundbogigen Arkaden, Pfeilern,
     // Schlusssteinen und Zwischengesimsen — darüber ein geschlossenes Attika-Geschoss.
-    const aS = Math.PI * 0.06, aE = Math.PI * 0.94;        // sichtbarer Frontbogen (zum Betrachter)
+    const rim = (a) => P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
+    // Sichtbaren Frontbogen numerisch bestimmen: die Außenwand ist dort sichtbar, wo ihre
+    // Außennormale zum Betrachter zeigt (Radius vergrößern → Punkt wandert auf dem Schirm nach unten).
+    const facing = (a) => { const e = 0.012;
+      const p0 = P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
+      const p1 = P(0.5 + (rOuter + e) * Math.cos(a), 0.5 + (rOuter * 0.96 + e) * Math.sin(a));
+      return (p1.y - p0.y) > 0; };
+    let aMid = 0, yMax = -Infinity;                         // vorderster (tiefster) Randpunkt = Bogenmitte
+    for (let i = 0; i < 360; i++) { const a = i / 360 * Math.PI * 2; const yy = rim(a).y; if (yy > yMax) { yMax = yy; aMid = a; } }
+    let aS = aMid, aE = aMid;                               // nach links/rechts erweitern, solange front-zugewandt
+    for (let i = 1; i <= 180; i++) { const a = aMid - i / 180 * Math.PI; if (!facing(a)) break; aS = a; }
+    for (let i = 1; i <= 180; i++) { const a = aMid + i / 180 * Math.PI; if (!facing(a)) break; aE = a; }
+    aS += Math.PI * 0.012; aE -= Math.PI * 0.012;          // Bögen nicht exakt auf die Silhouettenkante setzen
     const atticH = wallH * 0.20, arcZone = wallH - atticH; // oberstes Geschoss bleibt Vollwand
     const levels = def.arcLevels || 3, bandH = arcZone / levels;
-    const nArch = Math.max(8, Math.round((w + h) * 1.6));  // Bögen je Ebene, skaliert mit Größe
+    const nArch = Math.max(10, Math.round((w + h) * 2.0));  // Bögen je Ebene, skaliert mit Größe
     const da = (aE - aS) / nArch, aHalf = da * 0.40;       // Rest zwischen den Bögen = Pfeiler
-    const rim = (a) => P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
 
     for (let L = 0; L < levels; L++) {
       const hBot = L * bandH, hTop = (L + 1) * bandH, spring = hBot + bandH * 0.52;
@@ -947,7 +959,8 @@ function drawVenue(gx, gy, baseLift, kind) {
       const cornice = (dh, col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath();
         for (let k = 0; k <= nArch; k++) { const p = raise(rim(aS + da * k), hTop - dh); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); } ctx.stroke(); };
       cornice(0, shade(stone, 0.20), Math.max(1.2, 1.4 * s));
-      cornice(1.4, 'rgba(40,28,16,0.32)', Math.max(1, 0.7 * s));
+      cornice(0.7, trim, Math.max(1, 1.0 * s));            // rote Zierlinie
+      cornice(1.8, 'rgba(40,28,16,0.32)', Math.max(1, 0.7 * s));
     }
 
     // --- Attika: geschlossenes Obergeschoss mit Pilastern und schmalen Fenstern ---
@@ -963,6 +976,11 @@ function drawVenue(gx, gy, baseLift, kind) {
       for (let k = 0; k <= nArch; k++) {                   // Pilaster-Andeutung
         const p0 = raise(rim(aS + da * k), aB), p1 = raise(rim(aS + da * k), aT);
         ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+      }
+      // rote Zierbänder oben und unten an der Attika
+      for (const hb of [aB + (aT - aB) * 0.10, aT - (aT - aB) * 0.10]) {
+        ctx.strokeStyle = trim; ctx.lineWidth = Math.max(1, 1.0 * s); ctx.beginPath();
+        for (let k = 0; k <= nArch; k++) { const p = raise(rim(aS + da * k), hb); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); } ctx.stroke();
       }
     }
   } else {
@@ -1020,29 +1038,50 @@ function drawVenue(gx, gy, baseLift, kind) {
       ctx.beginPath(); ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y); ctx.stroke(); }
   }
 
-  // --- 6) Akzent-Banner an den vorderen Ecken (Prestige: nur Kolosseum) ---
+  // --- 6) Velarium: animiertes rotes Sonnensegel + Masten rund um den oberen Rand ---
   let topY = Math.min(...tRing.map(p => p.y));
-  // Velarium-Masten: schlanke Pfosten am oberen Rand (hielten beim echten Kolosseum das Sonnensegel)
   if (def.velarium) {
-    const aS2 = Math.PI * 0.04, aE2 = Math.PI * 0.96, nM = Math.max(11, Math.round((w + h) * 1.4));
+    const nM = Math.max(14, Math.round((w + h) * 2));
+    const mast = (a) => raise(P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a)), wallH);
+
+    // Öffnungsgrad 0..1 — meist geschlossen, spannt sich "ab und zu" auf und wieder zu.
+    const clock = (typeof animT !== 'undefined') ? animT : 0;
+    const off = ((gx * 7 + gy * 13) % 19);                 // Versatz: mehrere Kolosseen laufen nicht synchron
+    const T = 24;                                          // Periode in animT-Einheiten (~Sekunden)
+    const ph = ((((clock + off) % T) + T) % T) / T;
+    const sm = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+    let vel = 0;
+    if (ph < 0.40) vel = 0;
+    else if (ph < 0.50) vel = sm((ph - 0.40) / 0.10);
+    else if (ph < 0.80) vel = 1;
+    else if (ph < 0.90) vel = 1 - sm((ph - 0.80) / 0.10);
+    else vel = 0;
+
+    if (vel > 0.001) {                                     // Segeltuch ringförmig nach innen aufspannen (Mitte offen)
+      ctx.save();
+      ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
+      const rIn = rOuter - (rOuter - 0.30) * vel;
+      const inner = (a) => raise(P(0.5 + rIn * Math.cos(a), 0.5 + (rIn * 0.96) * Math.sin(a)), wallH - 3 * vel);
+      for (let k = 0; k < nM; k++) {
+        const a0 = (k / nM) * Math.PI * 2, a1 = ((k + 1) / nM) * Math.PI * 2;
+        ctx.fillStyle = (k % 2) ? 'rgba(178,58,44,0.62)' : 'rgba(150,42,34,0.62)';  // rote Bahnen, leicht alternierend
+        poly([mast(a0), mast(a1), inner(a1), inner(a0)]);
+      }
+      ctx.strokeStyle = 'rgba(110,26,20,0.5)'; ctx.lineWidth = Math.max(1, 0.8 * s);  // innerer Saum
+      ctx.beginPath();
+      for (let k = 0; k <= nM; k++) { const p = inner((k / nM) * Math.PI * 2); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Masten rund um den ganzen Rand (die Tragmasten des Segels)
     ctx.lineWidth = Math.max(1.2, 1.3 * s);
-    for (let k = 0; k <= nM; k++) {
-      const a = aS2 + (aE2 - aS2) * k / nM;
-      const base = raise(P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a)), wallH);
-      const tip = { x: base.x, y: base.y - 6 * s };
-      ctx.strokeStyle = shade(stone, -0.30);
+    for (let k = 0; k < nM; k++) {
+      const base = mast((k / nM) * Math.PI * 2), tip = { x: base.x, y: base.y - 6 * s };
+      ctx.strokeStyle = shade(stone, -0.34);
       ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
       ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(tip.x, tip.y, 1.1 * s, 0, Math.PI * 2); ctx.fill();
       topY = Math.min(topY, tip.y);
-    }
-  }
-  if (def.arcade2) {
-    for (const u of [0.12, 0.88]) { const base = raise(P(u, 0.94), wallH);
-      ctx.strokeStyle = shade(stone, -0.1); ctx.lineWidth = Math.max(1.4, 1.8 * s);
-      const pole = { x: base.x, y: base.y - 12 * s };
-      ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(pole.x, pole.y); ctx.stroke();
-      ctx.fillStyle = accent; ctx.beginPath(); ctx.moveTo(pole.x, pole.y); ctx.lineTo(pole.x + 7 * s, pole.y + 2 * s); ctx.lineTo(pole.x, pole.y + 5 * s); ctx.closePath(); ctx.fill();
-      topY = Math.min(topY, pole.y);
     }
   }
 
