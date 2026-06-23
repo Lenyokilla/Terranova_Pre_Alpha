@@ -452,6 +452,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'roadblock') return drawRoadblock(gx, gy, baseLift);
   if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   if (kind && typeof HEALTH !== 'undefined' && HEALTH[kind]) return drawHealth(gx, gy, baseLift, kind);
+  if (kind && typeof EDUCATION !== 'undefined' && EDUCATION[kind]) return drawEducation(gx, gy, baseLift, kind);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
   const s = cam.scale;
@@ -771,6 +772,69 @@ function drawHealth(gx, gy, baseLift, kind) {
   const mx = (mb.x + mt.x) / 2, my = (mb.y + mt.y) / 2;
   ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(mx, my, 2.6 * s, 0, 7); ctx.fill();
   ctx.strokeStyle = shade(roof, -0.20); ctx.lineWidth = Math.max(1, 1 * s); ctx.stroke();
+
+  return { cx: b0.cx, topY: apex.y };
+}
+
+// Bildungs-Einrichtung — Dachfarbe & Akzent kommen aus EDUCATION[kind].
+// Gleiche zivile Bauform wie die Gesundheitsbauten (Marmorsockel, Säulenfront,
+// farbiges Walmdach), aber statt der runden Emblem-Scheibe trägt das Gebälk ein
+// aufrechtes BUCH-Emblem in Akzentfarbe — so liest es sich als Ort des Wissens.
+function drawEducation(gx, gy, baseLift, kind) {
+  const g = (typeof EDUCATION !== 'undefined' && EDUCATION[kind]) ? EDUCATION[kind] : { roof: '#4a78b0', accent: '#cfe0f4' };
+  const s = cam.scale, marble = '#efe7d4', stone = '#e3d8bf', roof = g.roof, accent = g.accent;
+  const hBase = 6, colH = 16, entH = 4, roofH = 11;
+
+  // ---- Sockel-Schatten ----
+  const b0 = isoCorners(gx, gy, baseLift, 0), b1 = isoCorners(gx, gy, baseLift, hBase);
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.20)'; ctx.shadowBlur = 10 * s; ctx.shadowOffsetX = 13 * s; ctx.shadowOffsetY = 7 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([b0.W, b0.S, b0.E, b0.N]); ctx.restore();
+
+  // ---- gemauerter Sockel (zwei Frontflächen) ----
+  const gSW = ctx.createLinearGradient(b0.W.x, b1.Wt.y, b0.S.x, b0.S.y);
+  gSW.addColorStop(0, shade(stone, 0.03)); gSW.addColorStop(1, shade(stone, -0.13));
+  ctx.fillStyle = gSW; poly([b0.W, b0.S, b1.St, b1.Wt]);
+  const gSE = ctx.createLinearGradient(b0.S.x, b1.St.y, b0.E.x, b0.E.y);
+  gSE.addColorStop(0, shade(stone, -0.22)); gSE.addColorStop(1, shade(stone, -0.39));
+  ctx.fillStyle = gSE; poly([b0.S, b0.E, b1.Et, b1.St]);
+  wallBrickLines(b0.W, b0.S, b1.Wt, b1.St, 2, 'rgba(80,60,40,0.22)', s);
+  wallBrickLines(b0.S, b0.E, b1.St, b1.Et, 2, 'rgba(60,40,30,0.28)', s);
+
+  // ---- Plattform-Oberseite + kleine Kolonnade an der Front ----
+  ctx.fillStyle = shade(marble, -0.04); poly([b1.Nt, b1.Et, b1.St, b1.Wt]);
+  const us = [0.18, 0.5, 0.82];
+  for (const u of us) column(lerp(b1.Wt, b1.St, u), colH);
+  for (let i = us.length - 1; i >= 0; i--) column(lerp(b1.St, b1.Et, us[i]), colH);
+  column(b1.St, colH);
+
+  // ---- Gebälk ----
+  const e2 = isoCorners(gx, gy, baseLift, hBase + colH), e3 = isoCorners(gx, gy, baseLift, hBase + colH + entH);
+  const eSW = ctx.createLinearGradient(e2.Wt.x, e3.Wt.y, e2.St.x, e2.St.y);
+  eSW.addColorStop(0, marble); eSW.addColorStop(1, shade(marble, -0.10));
+  ctx.fillStyle = eSW; poly([e2.Wt, e2.St, e3.St, e3.Wt]);
+  const eSE = ctx.createLinearGradient(e2.St.x, e3.St.y, e2.Et.x, e2.Et.y);
+  eSE.addColorStop(0, shade(marble, -0.22)); eSE.addColorStop(1, shade(marble, -0.36));
+  ctx.fillStyle = eSE; poly([e2.St, e2.Et, e3.Et, e3.St]);
+
+  // ---- farbiges Walmdach (Dachfarbe der Einrichtung) ----
+  const apex = { x: (e3.Nt.x + e3.Et.x + e3.St.x + e3.Wt.x) / 4, y: (e3.Nt.y + e3.Et.y + e3.St.y + e3.Wt.y) / 4 - roofH * s };
+  ctx.fillStyle = shade(roof, -0.34); poly([e3.Nt, e3.Wt, apex]); poly([e3.Nt, e3.Et, apex]);
+  ctx.fillStyle = shade(roof, 0.08);  poly([e3.Wt, e3.St, apex]);
+  ctx.fillStyle = shade(roof, -0.16); poly([e3.St, e3.Et, apex]);
+  tileFace(e3.Wt, e3.St, apex, shade(roof, 0.08));
+  tileFace(e3.St, e3.Et, apex, shade(roof, -0.16));
+  ctx.strokeStyle = 'rgba(30,20,10,0.32)'; ctx.lineWidth = Math.max(1, 1.2 * s);
+  ctx.beginPath(); ctx.moveTo(e3.Wt.x, e3.Wt.y); ctx.lineTo(e3.St.x, e3.St.y); ctx.lineTo(e3.Et.x, e3.Et.y); ctx.stroke();
+
+  // ---- Buch-Emblem in Akzentfarbe (mittig auf dem Gebälk) ----
+  const mb = lerp(e2.St, e2.Et, 0.5), mt = lerp(e3.St, e3.Et, 0.5);
+  const mx = (mb.x + mt.x) / 2, my = (mb.y + mt.y) / 2;
+  const bw = 4.0 * s, bh = 3.0 * s;
+  ctx.fillStyle = accent; ctx.fillRect(mx - bw, my - bh, bw * 2, bh * 2);
+  ctx.strokeStyle = shade(roof, -0.20); ctx.lineWidth = Math.max(1, 1 * s);
+  ctx.strokeRect(mx - bw, my - bh, bw * 2, bh * 2);
+  ctx.beginPath(); ctx.moveTo(mx, my - bh); ctx.lineTo(mx, my + bh); ctx.stroke();   // Buchrücken
 
   return { cx: b0.cx, topY: apex.y };
 }
