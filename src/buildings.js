@@ -886,26 +886,100 @@ function drawVenue(gx, gy, baseLift, kind) {
   const rOuter = 0.47;
   const gRing = ellipse(rOuter, rOuter * 0.96, NP);
   const tRing = gRing.map(p => raise(p, wallH));
-  // Wandfläche (vorne sichtbar; Rückseite wird später überzeichnet) mit Vertikal-Gradient
-  ctx.fillStyle = shade(stone, -0.26);
+  // Wandfläche (vorne sichtbar; Rückseite wird später überzeichnet)
+  if (def.arches) {                                      // Wahrzeichen: heller Steinverlauf (oben hell → unten dunkel)
+    const ysB = Math.max(...gRing.map(p => p.y)), ysT = Math.min(...tRing.map(p => p.y));
+    const wg = ctx.createLinearGradient(0, ysT, 0, ysB);
+    wg.addColorStop(0, shade(stone, -0.10)); wg.addColorStop(1, shade(stone, -0.34));
+    ctx.fillStyle = wg;
+  } else {
+    ctx.fillStyle = shade(stone, -0.26);
+  }
   ctx.beginPath();
   gRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
   for (let i = tRing.length - 1; i >= 0; i--) ctx.lineTo(tRing[i].x, tRing[i].y);
   ctx.closePath(); ctx.fill();
 
-  // --- 2) Arkadenbögen entlang der vorderen Mauerhälfte (kräftiges Wahrzeichen-Detail) ---
-  const archRows = def.arcade2 ? 2 : 1;
-  const nArch = (w + h) * 3;
-  for (let r = 0; r < archRows; r++) {
-    const v0 = r / archRows, v1 = (r + 0.72) / archRows;
-    for (let k = 0; k < nArch; k++) {
-      const a = Math.PI * (0.08 + 0.84 * (k + 0.5) / nArch);   // vordere Hälfte (unten zum Betrachter)
-      const cu = 0.5 + rOuter * Math.cos(a), cv = 0.5 + (rOuter * 0.96) * Math.sin(a);
-      if (cv < 0.5) continue;                                  // nur die dem Betrachter zugewandte Front
-      const base = P(cu, cv);
-      const top = raise(base, wallH * (1 - v0) ), bot = raise(base, wallH * (1 - v1));
-      ctx.strokeStyle = 'rgba(40,28,16,0.5)'; ctx.lineWidth = Math.max(1.2, 1.6 * s);
-      ctx.beginPath(); ctx.moveTo(bot.x, bot.y); ctx.lineTo(top.x, top.y); ctx.stroke();   // dunkle Bogenöffnung (angedeutet)
+  // --- 2) Fassade ---
+  if (def.arches) {
+    // Echte Wahrzeichen-Fassade: mehrere Ebenen mit rundbogigen Arkaden, Pfeilern,
+    // Schlusssteinen und Zwischengesimsen — darüber ein geschlossenes Attika-Geschoss.
+    const aS = Math.PI * 0.06, aE = Math.PI * 0.94;        // sichtbarer Frontbogen (zum Betrachter)
+    const atticH = wallH * 0.20, arcZone = wallH - atticH; // oberstes Geschoss bleibt Vollwand
+    const levels = def.arcLevels || 3, bandH = arcZone / levels;
+    const nArch = Math.max(8, Math.round((w + h) * 1.6));  // Bögen je Ebene, skaliert mit Größe
+    const da = (aE - aS) / nArch, aHalf = da * 0.40;       // Rest zwischen den Bögen = Pfeiler
+    const rim = (a) => P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a));
+
+    for (let L = 0; L < levels; L++) {
+      const hBot = L * bandH, hTop = (L + 1) * bandH, spring = hBot + bandH * 0.52;
+      for (let k = 0; k < nArch; k++) {
+        const ac = aS + da * (k + 0.5);
+        // dunkle Bogenöffnung: Fuß → Kämpfer → Halbkreis → Kämpfer → Fuß
+        const op = [];
+        op.push(raise(rim(ac - aHalf), hBot + bandH * 0.06));
+        op.push(raise(rim(ac - aHalf), spring));
+        const arcN = 7;
+        for (let j = 0; j <= arcN; j++) {
+          const t = -1 + 2 * j / arcN;                     // -1..1 über die Bogenbreite
+          const hh = spring + (hTop - bandH * 0.10 - spring) * Math.sqrt(Math.max(0, 1 - t * t));
+          op.push(raise(rim(ac + t * aHalf), hh));
+        }
+        op.push(raise(rim(ac + aHalf), spring));
+        op.push(raise(rim(ac + aHalf), hBot + bandH * 0.06));
+        ctx.fillStyle = `rgba(34,24,14,${(0.55 - L * 0.07).toFixed(3)})`; // höhere Ebenen heller → Tiefe
+        poly(op);
+        // Schlussstein über dem Bogenscheitel
+        const ks = raise(rim(ac), hTop - bandH * 0.07);
+        ctx.fillStyle = shade(stone, 0.14);
+        ctx.beginPath();
+        ctx.moveTo(ks.x - 2.2 * s, ks.y); ctx.lineTo(ks.x + 2.2 * s, ks.y);
+        ctx.lineTo(ks.x + 1.4 * s, ks.y + 4 * s); ctx.lineTo(ks.x - 1.4 * s, ks.y + 4 * s);
+        ctx.closePath(); ctx.fill();
+      }
+      // helle Pfeilerkanten zwischen den Bögen
+      ctx.strokeStyle = shade(stone, 0.10); ctx.lineWidth = Math.max(1, 0.7 * s);
+      for (let k = 0; k <= nArch; k++) {
+        const a0 = raise(rim(aS + da * k), hBot + bandH * 0.04), a1 = raise(rim(aS + da * k), hTop - bandH * 0.04);
+        ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+      }
+      // Zwischengesims (helle Kante + dünner Schatten darunter)
+      const cornice = (dh, col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath();
+        for (let k = 0; k <= nArch; k++) { const p = raise(rim(aS + da * k), hTop - dh); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); } ctx.stroke(); };
+      cornice(0, shade(stone, 0.20), Math.max(1.2, 1.4 * s));
+      cornice(1.4, 'rgba(40,28,16,0.32)', Math.max(1, 0.7 * s));
+    }
+
+    // --- Attika: geschlossenes Obergeschoss mit Pilastern und schmalen Fenstern ---
+    if (def.attic) {
+      const aB = arcZone, aT = wallH;
+      ctx.strokeStyle = 'rgba(40,28,16,0.42)'; ctx.lineWidth = Math.max(2, 2.4 * s);
+      for (let k = 0; k < nArch; k++) {                    // Fensterschlitze
+        const c = rim(aS + da * (k + 0.5));
+        const lo = raise(c, aB + (aT - aB) * 0.22), hi = raise(c, aB + (aT - aB) * 0.80);
+        ctx.beginPath(); ctx.moveTo(lo.x, lo.y); ctx.lineTo(hi.x, hi.y); ctx.stroke();
+      }
+      ctx.strokeStyle = shade(stone, 0.12); ctx.lineWidth = Math.max(1, 0.7 * s);
+      for (let k = 0; k <= nArch; k++) {                   // Pilaster-Andeutung
+        const p0 = raise(rim(aS + da * k), aB), p1 = raise(rim(aS + da * k), aT);
+        ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+      }
+    }
+  } else {
+    // einfache Variante (Theater/Amphitheater): angedeutete Bogenöffnungen als Linien
+    const archRows = def.arcade2 ? 2 : 1;
+    const nArch = (w + h) * 3;
+    for (let r = 0; r < archRows; r++) {
+      const v0 = r / archRows, v1 = (r + 0.72) / archRows;
+      for (let k = 0; k < nArch; k++) {
+        const a = Math.PI * (0.08 + 0.84 * (k + 0.5) / nArch);
+        const cu = 0.5 + rOuter * Math.cos(a), cv = 0.5 + (rOuter * 0.96) * Math.sin(a);
+        if (cv < 0.5) continue;
+        const base = P(cu, cv);
+        const top = raise(base, wallH * (1 - v0)), bot = raise(base, wallH * (1 - v1));
+        ctx.strokeStyle = 'rgba(40,28,16,0.5)'; ctx.lineWidth = Math.max(1.2, 1.6 * s);
+        ctx.beginPath(); ctx.moveTo(bot.x, bot.y); ctx.lineTo(top.x, top.y); ctx.stroke();
+      }
     }
   }
   // Gesims auf der Mauerkrone
@@ -943,6 +1017,20 @@ function drawVenue(gx, gy, baseLift, kind) {
 
   // --- 6) Akzent-Banner an den vorderen Ecken (Prestige: nur Kolosseum) ---
   let topY = Math.min(...tRing.map(p => p.y));
+  // Velarium-Masten: schlanke Pfosten am oberen Rand (hielten beim echten Kolosseum das Sonnensegel)
+  if (def.velarium) {
+    const aS2 = Math.PI * 0.04, aE2 = Math.PI * 0.96, nM = Math.max(11, Math.round((w + h) * 1.4));
+    ctx.lineWidth = Math.max(1.2, 1.3 * s);
+    for (let k = 0; k <= nM; k++) {
+      const a = aS2 + (aE2 - aS2) * k / nM;
+      const base = raise(P(0.5 + rOuter * Math.cos(a), 0.5 + (rOuter * 0.96) * Math.sin(a)), wallH);
+      const tip = { x: base.x, y: base.y - 6 * s };
+      ctx.strokeStyle = shade(stone, -0.30);
+      ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+      ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(tip.x, tip.y, 1.1 * s, 0, Math.PI * 2); ctx.fill();
+      topY = Math.min(topY, tip.y);
+    }
+  }
   if (def.arcade2) {
     for (const u of [0.12, 0.88]) { const base = raise(P(u, 0.94), wallH);
       ctx.strokeStyle = shade(stone, -0.1); ctx.lineWidth = Math.max(1.4, 1.8 * s);
