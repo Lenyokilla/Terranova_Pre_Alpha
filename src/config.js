@@ -166,7 +166,7 @@ ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(HEALTH));
 // ============================================================
 const CULTURE = {
   theater:      { label:'Theater',      glyph:'🎭', foot:[2,2], h:30, tiers:2, stage:true,  roof:'#caa24a', accent:'#f0dca0', cost:90,  up:3, every:14, jobs:3, life:30 },
-  amphitheater: { label:'Amphitheater', glyph:'🏟️', foot:[3,2], h:34, tiers:3, stage:false, roof:'#c98a4a', accent:'#efc99a', cost:170, up:4, every:13, jobs:4, life:42 },
+  amphitheater: { label:'Amphitheater', glyph:'🏟️', foot:[3,2], h:38, tiers:3, stage:false, arches:true, arcLevels:2, roof:'#d9c49b', accent:'#caa24a', cost:170, up:4, every:13, jobs:4, life:42 },
   colosseum:    { label:'Kolosseum',    glyph:'🎪', foot:[4,4], h:52, tiers:5, stage:false, arcade2:true, arches:true, arcLevels:3, attic:true, velarium:true, roof:'#e7e2d6', accent:'#c9a24a', trim:'#b23a2c', cost:300, up:6, every:12, jobs:6, life:58 },
 };
 Object.keys(CULTURE).forEach(k=>{
