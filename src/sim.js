@@ -121,6 +121,7 @@ function tick(){
         if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--;       // Markt verkauft Keramik aus Lager
                                   w.food=(c.bread||0)>0; if(w.food)c.bread--; }   // Nahrung nur mit Brot aus der Mühle
         if(c.service==='health'){ w.need=(typeof HEALTH!=='undefined'&&HEALTH[c.type])?HEALTH[c.type].need:null; }   // Therme/Arzt/Barbier versorgen ihren Bedarf
+        if(c.service==='education'){ w.need=(typeof EDUCATION!=='undefined'&&EDUCATION[c.type])?EDUCATION[c.type].need:null; }   // Schule/Bibliothek/Akademie versorgen ihren Bedarf
         walkers.push(w);
       }
     }
@@ -214,10 +215,11 @@ function tick(){
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0)+((t.schul>0&&t.biblio>0)?(EDU_BONUS+(t.akad>0?EDU_BONUS:0)):0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
           else if(w.service==='religion')t.faith=SERVICE_LIFE;   // Priester segnet Haus (Haken für spätere Götter-Gunst)
           else if(w.service==='health'){ if(w.need)t[w.need]=SERVICE_LIFE; }   // Therme→bath, Arzt→doctor, Barbier→barber
           else if(w.service==='entertain')t.entertain=SERVICE_LIFE;   // Theater/Arena/Kolosseum unterhalten das Haus
+          else if(w.service==='education'){ if(w.need)t[w.need]=SERVICE_LIFE; }   // Schule→schul, Bibliothek→biblio, Akademie→akad
         }
       }
       w.life--; if(w.life<=0)continue;
@@ -245,6 +247,7 @@ function tick(){
     if(h.water>0)h.water--; if(h.food>0)h.food--; if(h.taxed>0)h.taxed--; if(h.goods>0)h.goods--;
     if(h.bath>0)h.bath--; if(h.doctor>0)h.doctor--; if(h.barber>0)h.barber--;   // Hygiene-Abdeckung klingt ab (wie Wasser/Nahrung)
     if(h.entertain>0)h.entertain--;                                              // Unterhaltung klingt ab
+    if(h.schul>0)h.schul--; if(h.biblio>0)h.biblio--; if(h.akad>0)h.akad--;       // Bildungs-Abdeckung klingt ab
     h.lvl = (h.water>0&&h.food>0&&h.goods>0)?3 : (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
     const cap=houseCap(h);
     if(h.res>cap) h.res=cap;                                  // Rückstufung -> Abwanderung
