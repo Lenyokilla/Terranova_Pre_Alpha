@@ -1014,6 +1014,16 @@ function drawVenue(gx, gy, baseLift, kind) {
   // Öffnung — vordere/seitliche Ränge, die projektiv unter die Krone fallen, verdeckt die Wand.
   ctx.save();
   ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
+  // innere Mauerfläche (Brüstung): vertikales Band von der Krone hinab bis zum obersten Sitzrang,
+  // schließt die durchscheinende Lücke zwischen Fassade und Innenraum (nur Arenen, nicht das Theater)
+  if (!isStage) {
+    ring(rOuter, rOuter, wallH, wallH - rimDrop, shade(stone, -0.16), 'rgba(70,55,34,0.30)');
+    if (def.trim) {                                      // dünnes Zierband am Fuß der Brüstung
+      const lip = ellipse(rOuter, rOuter * 0.96, NP).map(p => raise(p, wallH - rimDrop));
+      ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1, 0.9 * s);
+      ctx.beginPath(); lip.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
+    }
+  }
   const tiers = def.tiers, rInner = 0.20;
   for (let i = 0; i < tiers; i++) {
     const f0 = i / tiers, f1 = (i + 1) / tiers;
