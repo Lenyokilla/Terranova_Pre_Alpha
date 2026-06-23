@@ -987,6 +987,10 @@ function drawVenue(gx, gy, baseLift, kind) {
   ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
 
   // --- 3) Sitzränge (cavea): konzentrische Ellipsen, von außen/hoch nach innen/tief ---
+  // Innenraum auf die Mauerkrone (tRing) clippen: so erscheint die cavea NUR durch die
+  // Öffnung — vordere/seitliche Ränge, die projektiv unter die Krone fallen, verdeckt die Wand.
+  ctx.save();
+  ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
   const tiers = def.tiers, rInner = 0.20;
   for (let i = 0; i < tiers; i++) {
     const f0 = i / tiers, f1 = (i + 1) / tiers;
@@ -1002,6 +1006,7 @@ function drawVenue(gx, gy, baseLift, kind) {
   ctx.fillStyle = '#d9c79a'; ctx.beginPath();
   arena.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(120,96,52,0.4)'; ctx.lineWidth = Math.max(1, 0.8 * s); ctx.stroke();
+  ctx.restore();   // Innenraum-Clip aufheben (Bühne/Banner/Masten danach unbeschnitten)
 
   // --- 5) Theater-Variante: hohe Bühnenwand (scaenae frons) an der hinteren (N-)Kante ---
   if (isStage) {
