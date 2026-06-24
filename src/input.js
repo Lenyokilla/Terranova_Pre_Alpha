@@ -91,6 +91,18 @@ function updateHUD(){elMoney.textContent=money;elPop.textContent=pop;elGoal.text
 }
 document.getElementById('cheat').onclick=()=>{money+=500;updateHUD();flash('+500 Denar (Testmodus)');};
 
+// ---- Aufklappbares System-Menü (☰ → Speichern/Laden/Neu/Bericht/Ton) ----
+(()=>{
+  const sys=document.getElementById('sys'), tog=document.getElementById('sysToggle');
+  if(!sys||!tog) return;
+  tog.onclick=(e)=>{ e.stopPropagation(); sys.classList.toggle('open'); };
+  // Nach Auswahl eines Eintrags Menü wieder einklappen
+  sys.addEventListener('click',(e)=>{ const b=e.target.closest('button');
+    if(b && b.id!=='sysToggle') sys.classList.remove('open'); });
+  // Tippen außerhalb schließt das Menü
+  document.addEventListener('click',(e)=>{ if(!sys.contains(e.target)) sys.classList.remove('open'); });
+})();
+
 // ---- Baumenü: Kategorien + Direktzugriff ----
 // Kategorien gruppieren die Baugebäude. Die Tempel werden automatisch aus BUILD
 // gezogen (service==='religion'), damit neue Götter aus config.js ohne Menü-
