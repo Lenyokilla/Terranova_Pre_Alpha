@@ -17,11 +17,58 @@ function drawRoad(x,y,g){
   ctx.strokeStyle='rgba(228,219,193,.55)';ctx.lineWidth=Math.max(1,1.2*s);     // Bordsteine
   ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.lineTo(C.x,C.y);ctx.lineTo(D.x,D.y);ctx.closePath();ctx.stroke();
 }
+// ---- Brücke: Steindeck über Wasser ---------------------------------------
+// Eine Brücke ist eine Straße (type='road') auf einer Wasserkachel. Sie wird
+// im Boden-Pass gezeichnet (Läufer kommen tiefensortiert im Objekt-Pass darüber).
+// Das Deck füllt die ganze Raute -> benachbarte Brückenfelder schließen lückenlos
+// an. Geländer kommen auf die Seitenkanten quer zur Reiserichtung (aus den
+// Nachbar-Straßen abgeleitet), sonst auf die vorderen Kanten.
+function bridgeNbr(x,y){ return inBounds(x,y) && (grid[y][x].type==='road'||grid[y][x].type==='roadblock'); }
+function drawParapet(p1,p2,s){
+  const ph=5*s;
+  const a={x:p1.x,y:p1.y-ph}, b={x:p2.x,y:p2.y-ph};
+  ctx.fillStyle='#b6a884'; poly([p1,p2,b,a]);                                   // Brüstungs-Wand
+  ctx.fillStyle='#e6dcc1'; poly([a,b,{x:b.x,y:b.y-1.5*s},{x:a.x,y:a.y-1.5*s}]); // helle Oberkante
+  ctx.fillStyle='#9c8d68';                                                       // Pfosten
+  for(const t of [0,0.5,1]){const px=lerp(p1,p2,t).x, py=lerp(p1,p2,t).y;
+    ctx.fillRect(px-1.1*s,py-ph-1*s,2.2*s,ph+2.2*s);}
+}
+function drawBridge(x,y,wg){
+  const s=cam.scale, lift=6*s;
+  const T={x:wg.tt.x,y:wg.tt.y-lift},R={x:wg.rt.x,y:wg.rt.y-lift},
+        B={x:wg.bt.x,y:wg.bt.y-lift},L={x:wg.lt.x,y:wg.lt.y-lift};
+  // weicher Schatten auf dem Wasser unter dem Deck
+  ctx.fillStyle='rgba(10,28,42,.20)';
+  ctx.beginPath();ctx.ellipse(wg.cx,wg.cy+3*s,TW*0.30*s,TH*0.30*s,0,0,7);ctx.fill();
+  // Deck-Dicke (vordere Flanken)
+  ctx.fillStyle='#6f5c3e'; poly([wg.lt,wg.bt,B,L]);   // SW-Flanke
+  ctx.fillStyle='#5d4c32'; poly([wg.bt,wg.rt,R,B]);   // SE-Flanke
+  // Deck-Oberfläche (Steinplatten)
+  ctx.fillStyle='#c7bb9d'; poly([T,R,B,L]);
+  ctx.strokeStyle='rgba(92,78,52,.45)';ctx.lineWidth=Math.max(1,0.9*s);         // Plattenfugen
+  for(let k=1;k<3;k++){const u=k/3;
+    ctx.beginPath();ctx.moveTo(lerp(T,R,u).x,lerp(T,R,u).y);ctx.lineTo(lerp(L,B,u).x,lerp(L,B,u).y);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(lerp(T,L,u).x,lerp(T,L,u).y);ctx.lineTo(lerp(R,B,u).x,lerp(R,B,u).y);ctx.stroke();}
+  // Geländer abhängig von der Reiserichtung
+  const ax=bridgeNbr(x-1,y)||bridgeNbr(x+1,y), ay=bridgeNbr(x,y-1)||bridgeNbr(x,y+1);
+  let rails;
+  if(ax&&!ay) rails=[[T,R],[L,B]];        // Reise entlang x -> Geländer NE & SW
+  else if(ay&&!ax) rails=[[L,T],[R,B]];   // Reise entlang y -> Geländer NW & SE
+  else rails=[[L,B],[B,R]];               // mehrdeutig/Einzelfeld -> vordere Kanten
+  for(const [p,q] of rails) drawParapet(p,q,s);
+}
 // Boden-Pass: Terrain, Straßen, flache Deko (keine Gebäude)
 function drawGround(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
   if(c.terr==='mountain'){ drawMountain(x,y); return; }   // echte Bergform statt Kasten
   const roadLike = c.type==='road'||c.type==='roadblock';  // Sperre liegt auf der Straße
+  if(roadLike && c.terr==='water'){                        // BRÜCKE: Wasser + Brückendeck statt Pflaster
+    const base=td.top[0];
+    const g=terrainBlock(x,y,0,base,shade(base,-0.10),shade(base,-0.26),base);
+    waterDeco(g);
+    drawBridge(x,y,g);
+    return;
+  }
   const topCol = roadLike ? '#b9ad95' : td.top[0];
   const sL = td.side? td.side[1] : shade(topCol,-0.10);   // SW (links) heller
   const sR = td.side? td.side[0] : shade(topCol,-0.26);   // SE (rechts) dunkler
