@@ -1017,7 +1017,7 @@ function drawVenue(gx, gy, baseLift, kind) {
 
     // 2+3) feine Sitzränge, Treppengänge und seitliche Ausgänge über die gemeinsame Routine
     paintCavea(arc, NPa, rOut, rIn, seatTop, Math.max(7, tiers * 4), 7,
-               [{ t: 0.15, w: 0.05, top: 0.40 }, { t: 0.85, w: 0.05, top: 0.40 }], false);
+               [{ t: 0.30, w: 0.05, top: 0.42 }, { t: 0.64, w: 0.05, top: 0.42 }], false);
     if (def.trim) arcStroke(rOut, seatTop, def.trim, Math.max(1.2, 1.3 * s)); // rote Brüstungszier
 
     // 4) Orchestra: halbrunde Bodenfläche (Innenbogen, geschlossen über die Sehne)
@@ -1204,7 +1204,7 @@ function drawVenue(gx, gy, baseLift, kind) {
     return raise(P(0.5 + r * Math.cos(a), 0.5 + (r * 0.96) * Math.sin(a)), dh); };
   paintCavea(ringPt, NP, rOuter, rInner, seatTop, Math.max(8, tiers * 3),
              Math.max(8, Math.round((w + h) * 2)),
-             [{ t: 0.19, w: 0.032, top: 0.50 }, { t: 0.31, w: 0.032, top: 0.50 }], true);
+             [{ t: 0.05, w: 0.032, top: 0.52 }, { t: 0.18, w: 0.032, top: 0.52 }], true);
   if (def.trim) {                                          // rotes Zierband am Brüstungsfuß (oberste Stufenkante)
     const lip = ellipse(rOuter, rOuter * 0.96, NP).map(p => raise(p, seatTop));
     ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1.2, 1.3 * s);
