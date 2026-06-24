@@ -865,6 +865,58 @@ function drawVenue(gx, gy, baseLift, kind) {
     return pts; };
   const NP = 40;
 
+  // ===== Gemeinsame Cavea-Darstellung (Theater / Amphitheater / Kolosseum) =====
+  // Feine Sitzränge: jede Reihe = flache, helle Sitzfläche + dunklere Stufe (Riser).
+  // Dazu schmale radiale Treppengänge (scalaria) und gelegentliche Ausgänge (vomitoria).
+  // pt(r,t,dh): Punkt auf Ring r bei Parameter t∈[0,1], um dh (Welt-px) angehoben.
+  // closed=true → voller Ring (Arena), false → offener Bogen (Theater).
+  function paintCavea(pt, NPt, rO0, rI0, seatTop, rows, nStair, exits, closed) {
+    const treadHi = shade(stone, 0.17), treadLo = shade(stone, 0.10);
+    const riserCol = shade(stone, -0.32), edgeCol = 'rgba(36,26,12,0.58)';
+    const fillBand = (rO, rI, hO, hI, fill, t0, t1) => {
+      t0 = (t0 == null ? 0 : t0); t1 = (t1 == null ? 1 : t1);
+      ctx.beginPath();
+      for (let i = 0; i <= NPt; i++) { const t = t0 + (t1 - t0) * i / NPt; const p = pt(rO, t, hO); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+      for (let i = NPt; i >= 0; i--) { const t = t0 + (t1 - t0) * i / NPt; const p = pt(rI, t, hI); ctx.lineTo(p.x, p.y); }
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+    };
+    const strokeRing = (r, dh, col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw;
+      ctx.beginPath(); for (let i = 0; i <= NPt; i++) { const p = pt(r, i / NPt, dh); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); } ctx.stroke(); };
+
+    // 1) feine Sitzränge: außen/hoch → innen/tief. Breite, helle Sitzfläche + schmale, dunkle Stufe.
+    for (let r = 0; r < rows; r++) {
+      const f0 = r / rows, f1 = (r + 1) / rows;
+      const rO = rO0 - (rO0 - rI0) * f0, rI = rO0 - (rO0 - rI0) * f1;
+      const hO = seatTop * (1 - f0), hI = seatTop * (1 - f1);
+      const rMid = rO - (rO - rI) * 0.62;
+      fillBand(rO, rMid, hO, hO, r % 2 ? treadHi : treadLo);   // Sitzfläche (flach, hell)
+      fillBand(rMid, rI, hO, hI, riserCol);                    // Stufe (Abfall, dunkel)
+      strokeRing(rMid, hO, edgeCol, Math.max(1, 0.6 * s));     // Vorderkante der Reihe
+    }
+
+    // 2) Ausgänge (vomitoria): dunkle, gewölbte Tunnelmündungen über die unteren Ränge
+    if (exits) for (const ex of exits) {
+      const tc = ex.t, wt = ex.w, topF = ex.top != null ? ex.top : 0.48;
+      const rTop = rO0 - (rO0 - rI0) * topF, hTop = seatTop * (1 - topF);
+      fillBand(rTop, rI0, hTop, 3, 'rgba(20,14,6,0.70)', tc - wt, tc + wt);    // dunkler Schacht
+      ctx.strokeStyle = shade(stone, 0.14); ctx.lineWidth = Math.max(1, 1.0 * s);  // helle Wangen
+      for (const sgn of [-1, 1]) { const a = pt(rTop, tc + sgn * wt, hTop), b = pt(rI0, tc + sgn * wt, 3);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      ctx.strokeStyle = shade(stone, 0.10); ctx.lineWidth = Math.max(1.4, 1.6 * s);   // Rundbogensturz
+      ctx.beginPath();
+      for (let i = 0; i <= 10; i++) { const t = tc - wt + 2 * wt * i / 10;
+        const p = pt(rTop, t, hTop + Math.sin(Math.PI * i / 10) * seatTop * 0.07); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+      ctx.stroke();
+    }
+
+    // 3) scalaria: schmale radiale Treppengänge
+    ctx.strokeStyle = 'rgba(54,40,22,0.34)'; ctx.lineWidth = Math.max(1, 0.7 * s);
+    for (let k = 0; k <= nStair; k++) { if (closed && k === nStair) break;
+      const t = k / nStair, o = pt(rO0, t, seatTop), ii = pt(rI0, t, 2);
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(ii.x, ii.y); ctx.stroke();
+    }
+  }
+
   // --- Bodenschatten über den ganzen Footprint ---
   ctx.save();
   ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 12 * s; ctx.shadowOffsetX = 14 * s; ctx.shadowOffsetY = 8 * s;
@@ -963,22 +1015,10 @@ function drawVenue(gx, gy, baseLift, kind) {
     }
     arcStroke(rOut, seatTop, shade(stone, 0.16), Math.max(1.4, 1.7 * s));  // Gesims auf der Krone
 
-    // 2) Sitzränge: außen/hoch → innen/tief, jeder Rang als geneigtes Band + Stufenkante
-    for (let i = 0; i < tiers; i++) {
-      const f0 = i / tiers, f1 = (i + 1) / tiers;
-      const rO = rOut - (rOut - rIn) * f0, rI = rOut - (rOut - rIn) * f1;
-      const hO = seatTop * (1 - f0),       hI = seatTop * (1 - f1);
-      band(rO, rI, hO, hI, shade(stone, i % 2 ? -0.03 : 0.08));            // Auftritt (Sitzreihe)
-      arcStroke(rI, hI, 'rgba(48,36,20,0.55)', Math.max(1, 1.0 * s));      // Stufenkante innen
-    }
+    // 2+3) feine Sitzränge, Treppengänge und seitliche Ausgänge über die gemeinsame Routine
+    paintCavea(arc, NPa, rOut, rIn, seatTop, Math.max(7, tiers * 4), 7,
+               [{ t: 0.15, w: 0.05, top: 0.40 }, { t: 0.85, w: 0.05, top: 0.40 }], false);
     if (def.trim) arcStroke(rOut, seatTop, def.trim, Math.max(1.2, 1.3 * s)); // rote Brüstungszier
-
-    // 3) scalaria: radiale Treppengänge segmentieren die Ränge
-    ctx.strokeStyle = 'rgba(58,44,26,0.42)'; ctx.lineWidth = Math.max(1, 0.9 * s);
-    const nStair = 7;
-    for (let k = 0; k <= nStair; k++) { const t = k / nStair;
-      const o = arc(rOut, t, seatTop), ii = arc(rIn, t, 0);
-      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(ii.x, ii.y); ctx.stroke(); }
 
     // 4) Orchestra: halbrunde Bodenfläche (Innenbogen, geschlossen über die Sehne)
     band(rIn, 0, 1.5, 1.5, shade(accent, -0.10));   // rI=0 → Sehne durch die Mitte
@@ -1159,25 +1199,12 @@ function drawVenue(gx, gy, baseLift, kind) {
   ctx.beginPath(); tRing.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
   // innere Mauerfläche (Brüstung) liefert jetzt der Wand-Vollkörper; hier nur das Zierband am Fuß.
   const tiers = def.tiers, rInner = 0.20, seatTop = wallH - rimDrop;
-  // konzentrische Sitzstufen: Auftritt (alternierend hell/dunkel) + abgesetzte Stufenkante (Riser) nach innen
-  for (let i = 0; i < tiers; i++) {
-    const f0 = i / tiers, f1 = (i + 1) / tiers;
-    const rO = rOuter - (rOuter - rInner) * f0, rI = rOuter - (rOuter - rInner) * f1;
-    const tread = shade(stone, i % 2 ? -0.05 : 0.07);
-    ring(rO, rI, seatTop * (1 - f0), seatTop * (1 - f1), tread, null);            // Auftritt
-    const edge = ellipse(rI, rI * 0.96, NP).map(p => raise(p, seatTop * (1 - f1)));// Stufenkante
-    ctx.strokeStyle = 'rgba(48,36,20,0.55)'; ctx.lineWidth = Math.max(1, 1.0 * s);
-    ctx.beginPath(); edge.forEach((p, j) => j ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
-  }
-  // scalaria: radiale Treppenaufgänge, die die Ränge segmentieren
-  const nStair = Math.max(8, Math.round((w + h) * 2));
-  ctx.strokeStyle = 'rgba(58,44,26,0.40)'; ctx.lineWidth = Math.max(1, 0.8 * s);
-  for (let k = 0; k < nStair; k++) {
-    const a = (k / nStair) * Math.PI * 2;
-    const pO = raise(P(0.5 + rOuter * Math.cos(a), 0.5 + rOuter * 0.96 * Math.sin(a)), seatTop);
-    const pI = raise(P(0.5 + rInner * Math.cos(a), 0.5 + rInner * 0.96 * Math.sin(a)), 2);
-    ctx.beginPath(); ctx.moveTo(pO.x, pO.y); ctx.lineTo(pI.x, pI.y); ctx.stroke();
-  }
+  // feine Sitzränge + Treppengänge + Ausgänge über die gemeinsame Routine (voller Ring)
+  const ringPt = (r, t, dh) => { const a = t * Math.PI * 2;
+    return raise(P(0.5 + r * Math.cos(a), 0.5 + (r * 0.96) * Math.sin(a)), dh); };
+  paintCavea(ringPt, NP, rOuter, rInner, seatTop, Math.max(8, tiers * 3),
+             Math.max(8, Math.round((w + h) * 2)),
+             [{ t: 0.19, w: 0.032, top: 0.50 }, { t: 0.31, w: 0.032, top: 0.50 }], true);
   if (def.trim) {                                          // rotes Zierband am Brüstungsfuß (oberste Stufenkante)
     const lip = ellipse(rOuter, rOuter * 0.96, NP).map(p => raise(p, seatTop));
     ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1.2, 1.3 * s);
