@@ -34,7 +34,7 @@ function place(gx,gy){
     flash('Steinbruch muss an ein Steinvorkommen grenzen');return;}
   if(tool==='marblequarry' && !neighbors(gx,gy).some(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].terr==='marble')){
     flash('Marmorbruch muss an ein Marmorvorkommen grenzen');return;}
-  if(money<def.cost){flash('Zu wenig Denar — nutze +100');return;}
+  if(money<def.cost){flash('Zu wenig Denar — nutze +500');return;}
   money-=def.cost; buildOn(c,tool,def.service); updateHUD();
   if(typeof statExp==='function')statExp(def.cost);
   if(typeof floatText==='function')floatText(gx,gy,'-'+def.cost+' D','#e8916a');
@@ -50,7 +50,7 @@ function placeWarehouse(gx,gy){
     if(!buildableTerr(t)){ flash('Untergrund ungeeignet (Wasser/Berg/Fels)');return; }
     if(t.type!=='empty'){ flash('2×2-Fläche nicht frei');return; }
   }
-  if(money<def.cost){ flash('Zu wenig Denar — nutze +100');return; }
+  if(money<def.cost){ flash('Zu wenig Denar — nutze +500');return; }
   money-=def.cost;
   cells.forEach(([tx,ty],i)=>{ const t=grid[ty][tx]; buildOn(t,'warehouse'); t.wh=[gx,gy]; t.bay=i; t.whMaster=(i===0); });
   updateHUD();
@@ -70,7 +70,7 @@ function placeMulti(gx,gy,type){
     if(t.type!=='empty'){ flash(w+'×'+h+'-Fläche nicht frei'); return; }
     cells.push([tx,ty]);
   }
-  if(money<def.cost){ flash('Zu wenig Denar — nutze +100'); return; }
+  if(money<def.cost){ flash('Zu wenig Denar — nutze +500'); return; }
   money-=def.cost;
   cells.forEach(([tx,ty])=>{ const t=grid[ty][tx]; buildOn(t,type,def.service); t.anchor=[gx,gy]; t.master=(tx===gx&&ty===gy); });
   updateHUD();
@@ -85,11 +85,11 @@ function flash(msg){hint.textContent=msg;hint.classList.remove('hide');
 const elMoney=document.getElementById('money'),elPop=document.getElementById('pop'),hint=document.getElementById('hint');
 const elGoal=document.getElementById('goal'),banner=document.getElementById('banner');
 function updateHUD(){elMoney.textContent=money;elPop.textContent=pop;elGoal.textContent='/'+GOAL_POP;
-  if(lost){banner.textContent='💸 Bankrott! Tippe +100 zum Weiterspielen';banner.className='lose';}
+  if(lost){banner.textContent='💸 Bankrott! Tippe +500 zum Weiterspielen';banner.className='lose';}
   else banner.className='hide';
   if(typeof refreshPanel==='function')refreshPanel();
 }
-document.getElementById('cheat').onclick=()=>{money+=100;updateHUD();flash('+100 Denar (Testmodus)');};
+document.getElementById('cheat').onclick=()=>{money+=500;updateHUD();flash('+500 Denar (Testmodus)');};
 
 // ---- Baumenü: Kategorien + Direktzugriff ----
 // Kategorien gruppieren die Baugebäude. Die Tempel werden automatisch aus BUILD
@@ -208,7 +208,7 @@ function commitRoad(cells){
   let built=0;
   for(const c of cells){const t=grid[c.y][c.x];
     if(t.type!=='empty'||!buildableTerr(t))continue;
-    if(money<BUILD.road.cost){flash('Zu wenig Denar — nutze +100');break;}
+    if(money<BUILD.road.cost){flash('Zu wenig Denar — nutze +500');break;}
     money-=BUILD.road.cost; t.type='road'; built++;}
   if(built&&typeof statExp==='function')statExp(built*BUILD.road.cost);
   if(built)updateHUD(); return built;
@@ -218,7 +218,7 @@ function commitWall(cells){
   let built=0;
   for(const c of cells){const t=grid[c.y][c.x];
     if(t.type!=='empty'||!buildableTerr(t))continue;
-    if(money<BUILD.wall.cost){flash('Zu wenig Denar — nutze +100');break;}
+    if(money<BUILD.wall.cost){flash('Zu wenig Denar — nutze +500');break;}
     money-=BUILD.wall.cost; buildOn(t,'wall'); built++;}
   if(built&&typeof statExp==='function')statExp(built*BUILD.wall.cost);
   if(built)updateHUD(); return built;
