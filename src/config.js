@@ -3,7 +3,7 @@
 /* ============================================================
    TERRA — Mobiler City-Builder · isometrisches Grundgerüst
    ============================================================ */
-const GRID=30;
+const GRID=42;          // doppelte Spielfläche (war 30 = 900 Felder; 42 = 1764 ≈ 2×)
 const TW=64, TH=32;       // isometrische Diamant-Maße (Welt-px)
 const TICK=420;
 
