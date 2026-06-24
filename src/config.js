@@ -10,6 +10,7 @@ const TICK=420;
 const BUILD={
   hand:    {label:'Hand',     glyph:'✥',  cost:0,  util:true},
   road:    {label:'Straße',   glyph:'⌗',  cost:4,  up:0},
+  bridge:  {label:'Brücke',   glyph:'🌉', cost:14, up:0},   // Straße auf Wasser — Läufer queren wie auf einer Straße
   house:   {label:'Haus',     glyph:'🛖', cost:12, up:0},
   well:    {label:'Brunnen',  glyph:'💧', cost:30, service:'water', every:13, up:1, jobs:1},
   market:  {label:'Markt',    glyph:'🧺', cost:55, service:'market', every:15, up:2, jobs:2},
@@ -31,7 +32,7 @@ const BUILD={
   roadblock:{label:'Sperre',  glyph:'🚧', cost:0,  util:true},   // Straßensperre: Läufer meiden diese Kachel (Steuerung)
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['road','roadblock','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
+const ORDER=['road','bridge','roadblock','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3 = Villa (verlangt zusätzlich Keramik)
 const SERVICE_LIFE=55;
