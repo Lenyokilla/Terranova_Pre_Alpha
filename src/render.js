@@ -355,7 +355,9 @@ function render(){
   // Bau-Vorschau über dem Boden
   for(const c of previewCells){ if(!onScreen(c.x,c.y))continue;
     const tile=grid[c.y][c.x], e=(TERR[tile.terr]||TERR.grass).elev;
-    const free=tile.type==='empty'&&buildableTerr(tile);
+    const free=(typeof tool!=='undefined'&&tool==='bridge')
+      ? (tile.type==='empty'&&tile.terr==='water')      // Brücke: nur freies Wasser ist gültig
+      : (tile.type==='empty'&&buildableTerr(tile));
     terrainBlock(c.x,c.y,e,free?'rgba(201,162,39,.6)':'rgba(192,83,58,.55)',
       'rgba(150,110,20,.5)','rgba(150,110,20,.5)',null);
   }
