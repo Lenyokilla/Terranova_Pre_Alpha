@@ -1216,6 +1216,40 @@ function drawVenue(gx, gy, baseLift, kind) {
   ctx.fillStyle = '#cdb784'; ctx.beginPath();
   arena.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(88,68,38,0.55)'; ctx.lineWidth = Math.max(1, 1.0 * s); ctx.stroke();
+
+  // --- 4b) rote Podiumsmauer: trennt die Ränge deutlich von der Arena, mit dunklen Torbögen ---
+  {
+    const arenaH = 2, podH = arenaH + Math.max(5, seatTop * 0.17);
+    const red = def.trim || '#b23a2c';
+    const ringAt = (r, dh) => ellipse(r, r * 0.96, NP).map(p => raise(p, dh));
+    const wptR = (a, dh) => raise(P(0.5 + rInner * Math.cos(a), 0.5 + (rInner * 0.96) * Math.sin(a)), dh);
+    const top = ringAt(rInner, podH), bot = ringAt(rInner, arenaH);
+    // Wandkörper als senkrechte Segment-Quads (nur die Lateralfläche, Arena bleibt frei)
+    for (let i = 0; i < NP; i++) { const j = (i + 1) % NP;
+      const a = top[i], b = top[j], c = bot[j], d = bot[i];
+      const front = (d.y + c.y) > (a.y + b.y);            // unteres Segment näher → Innenfläche heller
+      ctx.fillStyle = shade(red, front ? -0.04 : 0.06);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
+    }
+    // dunkle Torbögen (Ausgänge) in der Mauer
+    const gates = [0.05, 0.18, 0.55, 0.68], gw = 0.030, springF = 0.46, topF = 0.88;
+    for (const gt of gates) {
+      const ac = gt * Math.PI * 2;
+      const sp = arenaH + (podH - arenaH) * springF, hT = arenaH + (podH - arenaH) * topF;
+      const aL = ac - gw * Math.PI * 2, aR = ac + gw * Math.PI * 2;
+      const op = [wptR(aL, arenaH), wptR(aL, sp)];
+      for (let k = 0; k <= 8; k++) { const a = aL + (aR - aL) * k / 8;
+        op.push(wptR(a, sp + (hT - sp) * Math.sin(Math.PI * k / 8))); }
+      op.push(wptR(aR, sp)); op.push(wptR(aR, arenaH));
+      ctx.fillStyle = 'rgba(20,12,7,0.80)'; ctx.beginPath();
+      op.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
+    }
+    // helles Kranzgesims oben + Schattenfuge unten
+    ctx.strokeStyle = shade(red, 0.22); ctx.lineWidth = Math.max(1.3, 1.6 * s);
+    ctx.beginPath(); top.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(40,20,12,0.5)'; ctx.lineWidth = Math.max(1, 1.0 * s);
+    ctx.beginPath(); bot.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
+  }
   ctx.restore();   // Innenraum-Clip aufheben (Bühne/Banner/Masten danach unbeschnitten)
 
   // --- 5) Theater-Variante: hohe Bühnenwand (scaenae frons) an der hinteren (N-)Kante ---
