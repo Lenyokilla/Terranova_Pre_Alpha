@@ -52,10 +52,18 @@
 #banner.lose{border-color:#c0533a;color:#ffd0c4}
 
 /* ===== System-Buttons (Speichern / Laden / Neu) ===== */
-#sys{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:6;}
+#sys{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;z-index:6;}
 #sys button{width:40px;height:40px;border-radius:11px;border:1px solid var(--panel-line);
-  background:rgba(28,21,13,.85);color:var(--paper);font-size:18px;backdrop-filter:blur(4px);}
+  background:rgba(28,21,13,.85);color:var(--paper);font-size:18px;backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;}
 #sys button:active{background:var(--gold);}
+#sysToggle{order:-1;}                                   /* ☰ bleibt immer oben */
+#sys.open #sysToggle{border-color:var(--gold);color:var(--gold);background:#2c2012;}
+/* eingeklappt: nur der ☰-Knopf ist sichtbar */
+#sys:not(.open) button:not(#sysToggle){display:none;}
+/* aufgeklappt: Einträge sanft einblenden (gilt auch für dynamisch ergänzte Buttons) */
+#sys.open button:not(#sysToggle){animation:sysIn .16s ease both;}
+@keyframes sysIn{from{opacity:0;transform:translateY(-7px) scale(.9);}to{opacity:1;transform:none;}}
 
 /* ===== Tempo: Pause / 1× / 2× / 3× ===== */
 #speed{position:absolute;left:10px;bottom:10px;display:flex;gap:0;z-index:4;
