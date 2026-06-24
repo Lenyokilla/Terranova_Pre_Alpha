@@ -894,19 +894,34 @@ function drawVenue(gx, gy, baseLift, kind) {
       strokeRing(rMid, hO, edgeCol, Math.max(1, 0.6 * s));     // Vorderkante der Reihe
     }
 
-    // 2) Ausgänge (vomitoria): dunkle, gewölbte Tunnelmündungen über die unteren Ränge
+    // 2) Ausgänge (vomitoria): recessed Treppengassen MITTEN durch die Ränge + dunkle Bogenmündung
     if (exits) for (const ex of exits) {
-      const tc = ex.t, wt = ex.w, topF = ex.top != null ? ex.top : 0.48;
-      const rTop = rO0 - (rO0 - rI0) * topF, hTop = seatTop * (1 - topF);
-      fillBand(rTop, rI0, hTop, 3, 'rgba(20,14,6,0.70)', tc - wt, tc + wt);    // dunkler Schacht
-      ctx.strokeStyle = shade(stone, 0.14); ctx.lineWidth = Math.max(1, 1.0 * s);  // helle Wangen
-      for (const sgn of [-1, 1]) { const a = pt(rTop, tc + sgn * wt, hTop), b = pt(rI0, tc + sgn * wt, 3);
+      const tc = ex.t, wt = ex.w;
+      const fT = ex.top != null ? ex.top : 0.10, fB = ex.bot != null ? ex.bot : 0.84;
+      const rA = rO0 - (rO0 - rI0) * fT, rB = rO0 - (rO0 - rI0) * fB;
+      const hA = seatTop * (1 - fT), hB = seatTop * (1 - fB);
+      // recessed Treppe: helle Trittstufe + dunkle Setzstufe (steingefärbt, kein schwarzes Loch)
+      const ns = 9;
+      for (let q = 0; q < ns; q++) {
+        const f0 = q / ns, f1 = (q + 1) / ns;
+        const r0 = rA + (rB - rA) * f0, r1 = rA + (rB - rA) * f1;
+        const h0 = hA + (hB - hA) * f0, h1 = hA + (hB - hA) * f1, rm = r0 + (r1 - r0) * 0.5;
+        fillBand(r0, rm, h0, h0, shade(stone, q % 2 ? 0.04 : -0.02), tc - wt, tc + wt);  // Trittstufe
+        fillBand(rm, r1, h0, h1, shade(stone, -0.26), tc - wt, tc + wt);                 // Setzstufe (dunkel)
+      }
+      // helle Seitenwangen (Brüstungen) der Treppe
+      ctx.strokeStyle = shade(stone, 0.18); ctx.lineWidth = Math.max(1.1, 1.2 * s);
+      for (const sgn of [-1, 1]) { const a = pt(rA, tc + sgn * wt, hA), b = pt(rB, tc + sgn * wt, hB);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-      ctx.strokeStyle = shade(stone, 0.10); ctx.lineWidth = Math.max(1.4, 1.6 * s);   // Rundbogensturz
-      ctx.beginPath();
-      for (let i = 0; i <= 10; i++) { const t = tc - wt + 2 * wt * i / 10;
-        const p = pt(rTop, t, hTop + Math.sin(Math.PI * i / 10) * seatTop * 0.07); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
-      ctx.stroke();
+      // dunkle Rundbogen-Tunnelmündung am oberen Ende (Vomitorium-Eingang)
+      const sp = hA + seatTop * 0.05, ht = sp + seatTop * 0.07;
+      const dp = [pt(rA, tc - wt, hA), pt(rA, tc - wt, sp)];
+      for (let k = 0; k <= 8; k++) { const t = tc - wt + 2 * wt * k / 8;
+        dp.push(pt(rA, t, sp + (ht - sp) * Math.sin(Math.PI * k / 8))); }
+      dp.push(pt(rA, tc + wt, sp)); dp.push(pt(rA, tc + wt, hA));
+      ctx.fillStyle = 'rgba(16,10,5,0.85)';
+      ctx.beginPath(); dp.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shade(stone, 0.20); ctx.lineWidth = Math.max(1, 1.0 * s); ctx.stroke();  // helle Laibung
     }
 
     // 3) scalaria: schmale radiale Treppengänge
@@ -1017,7 +1032,7 @@ function drawVenue(gx, gy, baseLift, kind) {
 
     // 2+3) feine Sitzränge, Treppengänge und seitliche Ausgänge über die gemeinsame Routine
     paintCavea(arc, NPa, rOut, rIn, seatTop, Math.max(7, tiers * 4), 7,
-               [{ t: 0.30, w: 0.05, top: 0.42 }, { t: 0.64, w: 0.05, top: 0.42 }], false);
+               [{ t: 0.30, w: 0.035 }, { t: 0.64, w: 0.035 }], false);
     if (def.trim) arcStroke(rOut, seatTop, def.trim, Math.max(1.2, 1.3 * s)); // rote Brüstungszier
 
     // 4) Orchestra: halbrunde Bodenfläche (Innenbogen, geschlossen über die Sehne)
@@ -1204,7 +1219,7 @@ function drawVenue(gx, gy, baseLift, kind) {
     return raise(P(0.5 + r * Math.cos(a), 0.5 + (r * 0.96) * Math.sin(a)), dh); };
   paintCavea(ringPt, NP, rOuter, rInner, seatTop, Math.max(8, tiers * 3),
              Math.max(8, Math.round((w + h) * 2)),
-             [{ t: 0.05, w: 0.032, top: 0.52 }, { t: 0.18, w: 0.032, top: 0.52 }], true);
+             [{ t: 0.30, w: 0.020 }, { t: 0.42, w: 0.020 }, { t: 0.58, w: 0.020 }, { t: 0.70, w: 0.020 }], true);
   if (def.trim) {                                          // rotes Zierband am Brüstungsfuß (oberste Stufenkante)
     const lip = ellipse(rOuter, rOuter * 0.96, NP).map(p => raise(p, seatTop));
     ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1.2, 1.3 * s);
