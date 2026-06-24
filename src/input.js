@@ -118,7 +118,7 @@ const CATS=[
   {key:'mil',   label:'Militär',    glyph:'⚔️', items:['wall','tower','gate','barracks']},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
-const DIRECT=['road','roadblock','house','raze'];     // immer direkt erreichbar (kein Untermenü)
+const DIRECT=['road','bridge','roadblock','house','raze'];     // immer direkt erreichbar (kein Untermenü)
 
 const dockEl=document.getElementById('dock'); dockEl.style.position='relative';
 const toolsEl=document.getElementById('tools');           // untere Leiste: Kategorien + Direktzugriff
@@ -162,6 +162,7 @@ function makeTool(key){
     const d2=BUILD[tool];
     let msg;
     if(tool==='roadblock') msg='Straßensperre — tippe auf eine Straße (Läufer kehren um)';
+    else if(tool==='bridge') msg='Brücke — über Wasser ziehen ('+BUILD.bridge.cost+' Denar/Feld)';
     else if(tool==='wall') msg='Stadtmauer — über die Karte ziehen ('+BUILD.wall.cost+' Denar/Feld)';
     else if(d2.util) msg=(tool==='hand'?'Karte schieben & zoomen':'Tippe ein Gebäude zum Abreißen');
     else msg=d2.label+' — tippe auf die Karte ('+d2.cost+' Denar)';
@@ -236,11 +237,24 @@ function commitWall(cells){
   if(built)updateHUD(); return built;
 }
 
+// Brücke entlang der gezogenen Strecke setzen — nur auf freiem Wasser.
+// Eine Brücke ist technisch eine Straße (type='road') auf einer Wasserkachel:
+// dadurch queren Läufer/Träger sie ohne jede Änderung an der Wegfindung.
+function commitBridge(cells){
+  let built=0;
+  for(const c of cells){const t=grid[c.y][c.x];
+    if(t.type!=='empty'||t.terr!=='water')continue;             // Brücke nur über Wasser
+    if(money<BUILD.bridge.cost){flash('Zu wenig Denar — nutze +500');break;}
+    money-=BUILD.bridge.cost; t.type='road'; built++;}
+  if(built&&typeof statExp==='function')statExp(built*BUILD.bridge.cost);
+  if(built)updateHUD(); return built;
+}
+
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);
   if(typeof audioInit==='function')audioInit(); if(typeof sfxClick==='function')sfxClick();
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===1){panLast={x:e.clientX,y:e.clientY};
-    if(tool==='road'||tool==='wall'){roadDrag=cellAt(e);previewCells=linePath(roadDrag,roadDrag);}
+    if(tool==='road'||tool==='wall'||tool==='bridge'){roadDrag=cellAt(e);previewCells=linePath(roadDrag,roadDrag);}
     else if(tool==='hand'){tapInfo={x:e.clientX,y:e.clientY,moved:false};}
     else {paintSet.clear();paintAt(e);}}
   else if(pointers.size===2){roadDrag=null;previewCells=[];tapInfo=null;const p=[...pointers.values()];
@@ -253,16 +267,20 @@ cv.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;
     pinchLast={d,mx,my};return;}
   if(tool==='hand'){if(panLast){cam.x+=e.clientX-panLast.x;cam.y+=e.clientY-panLast.y;}panLast={x:e.clientX,y:e.clientY};
     if(tapInfo&&Math.hypot(e.clientX-tapInfo.x,e.clientY-tapInfo.y)>8)tapInfo.moved=true;}
-  else if((tool==='road'||tool==='wall')&&roadDrag){previewCells=linePath(roadDrag,cellAt(e));
-    const n=previewCells.filter(c=>grid[c.y][c.x].type==='empty'&&buildableTerr(grid[c.y][c.x])).length;
-    const cost=(tool==='wall'?BUILD.wall.cost:BUILD.road.cost);
-    setHint((tool==='wall'?'Mauer: ':'Straße: ')+n+' Felder · '+(n*cost)+' Denar');}
+  else if((tool==='road'||tool==='wall'||tool==='bridge')&&roadDrag){previewCells=linePath(roadDrag,cellAt(e));
+    let n,cost;
+    if(tool==='bridge'){ n=previewCells.filter(c=>grid[c.y][c.x].type==='empty'&&grid[c.y][c.x].terr==='water').length; cost=BUILD.bridge.cost;
+      setHint('Brücke: '+n+' Felder · '+(n*cost)+' Denar'); }
+    else { n=previewCells.filter(c=>grid[c.y][c.x].type==='empty'&&buildableTerr(grid[c.y][c.x])).length;
+      cost=(tool==='wall'?BUILD.wall.cost:BUILD.road.cost);
+      setHint((tool==='wall'?'Mauer: ':'Straße: ')+n+' Felder · '+(n*cost)+' Denar'); }}
   else if(tool==='raze'){paintAt(e);}});
 function endPtr(e){pointers.delete(e.pointerId);
   if(pointers.size<2)pinchLast=null; if(pointers.size===0)panLast=null;
-  if((tool==='road'||tool==='wall')&&roadDrag&&pointers.size===0){
-    const n=(tool==='wall')?commitWall(previewCells):commitRoad(previewCells);
-    flash(n?((tool==='wall'?'Mauer gebaut: ':'Straße gebaut: ')+n+' Felder'):'Keine freien Felder');
+  if((tool==='road'||tool==='wall'||tool==='bridge')&&roadDrag&&pointers.size===0){
+    const n=(tool==='wall')?commitWall(previewCells):(tool==='bridge')?commitBridge(previewCells):commitRoad(previewCells);
+    const what=(tool==='wall')?'Mauer':(tool==='bridge')?'Brücke':'Straße';
+    flash(n?(what+' gebaut: '+n+' Felder'):(tool==='bridge'?'Keine freien Wasserfelder':'Keine freien Felder'));
     if(n&&typeof sfxBuild==='function')sfxBuild();
     roadDrag=null;previewCells=[];}
   if(tool==='hand'&&pointers.size===0&&tapInfo){
