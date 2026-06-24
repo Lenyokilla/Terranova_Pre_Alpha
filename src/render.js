@@ -57,6 +57,12 @@ function drawBridge(x,y,wg){
   else rails=[[L,B],[B,R]];               // mehrdeutig/Einzelfeld -> vordere Kanten
   for(const [p,q] of rails) drawParapet(p,q,s);
 }
+// Brücke (nur das Deck) auf bereits gezeichnetem Wasser — für den Objekt-Pass.
+// Geometrie wie eine flache Raute (elev 0); drawBridge hebt das Deck darüber an.
+function drawBridgeAt(gx,gy){
+  const t=project(gx,gy),r=project(gx+1,gy),b=project(gx+1,gy+1),l=project(gx,gy+1);
+  drawBridge(gx,gy,{tt:t,rt:r,bt:b,lt:l, cx:(t.x+b.x)/2, cy:(t.y+b.y)/2});
+}
 // Boden-Pass: Terrain, Straßen, flache Deko (keine Gebäude)
 function drawGround(x,y){
   const c=grid[y][x], td=TERR[c.terr]||TERR.grass, e=td.elev;
@@ -367,6 +373,7 @@ function render(){
     const c=grid[y][x], td=TERR[c.terr]||TERR.grass;
     if(c.terr==='mountain')      items.push({d:x+y,k:'mtn',x,y});      // Bergform
     else if(td.elev>0)           items.push({d:x+y,k:'hill',x,y});     // erhöhter Geländeblock (Hügel)
+    else if(c.terr==='water'&&(c.type==='road'||c.type==='roadblock')) items.push({d:x+y,k:'bridge',x,y}); // Brücke auf Wasser
     else if(td.trees&&c.type==='empty') items.push({d:x+y,k:'tree',x,y}); // Bäume auf flachem Waldboden
     else if(td.rocks&&c.type==='empty') items.push({d:x+y,k:'rock',x,y}); // Fels-/Marmorbrocken
     if(hasObject(x,y)){                                               // Gebäude (auch auf Hügeln: nach dem Hügel)
@@ -389,6 +396,7 @@ function render(){
   for(const o of items){
     if(o.k==='mtn')       drawMountain(o.x,o.y);
     else if(o.k==='hill') drawGround(o.x,o.y);
+    else if(o.k==='bridge')drawBridgeAt(o.x,o.y);
     else if(o.k==='tree') drawTreesAt(o.x,o.y);
     else if(o.k==='rock') drawRocksAt(o.x,o.y);
     else if(o.k==='bld')  drawObjects(o.x,o.y);
