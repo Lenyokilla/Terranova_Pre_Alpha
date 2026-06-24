@@ -899,11 +899,68 @@ function drawVenue(gx, gy, baseLift, kind) {
     };
 
     // 1) gekrümmte Stütz-/Außenmauer der cavea (hoher Rücken): Vorderkante Boden → Krone zurück
-    ctx.fillStyle = shade(stone, -0.24);
+    const wpt = (a, dh) => raise(P(0.5 + rOut * Math.cos(a), 0.5 + (rOut * 0.96) * Math.sin(a)), dh);
+    {
+      const ysB = arc(rOut, 0.5, 0).y, ysT = arc(rOut, 0.5, seatTop).y;
+      const wg0 = ctx.createLinearGradient(0, ysT, 0, ysB);
+      wg0.addColorStop(0, shade(stone, -0.12)); wg0.addColorStop(1, shade(stone, -0.34));
+      ctx.fillStyle = wg0;
+    }
     ctx.beginPath();
     for (let i = 0; i <= NPa; i++) { const p = arc(rOut, i / NPa, 0);       i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
     for (let i = NPa; i >= 0; i--) { const p = arc(rOut, i / NPa, seatTop); ctx.lineTo(p.x, p.y); }
     ctx.closePath(); ctx.fill();
+
+    // --- Arkaden-Außenfassade NUR auf den zum Betrachter zeigenden Segmenten (rechts/vorn) ---
+    // front-zugewandt: beim Schritt radial nach außen wandert der Bildpunkt nach unten
+    const facing = (a) => { const e = 0.012;
+      const p0 = P(0.5 + rOut * Math.cos(a),       0.5 + (rOut * 0.96) * Math.sin(a));
+      const p1 = P(0.5 + (rOut + e) * Math.cos(a), 0.5 + (rOut * 0.96 + e) * Math.sin(a));
+      return (p1.y - p0.y) > 0; };
+    {
+      const levels = 2, atticH = seatTop * 0.14, arcZone = seatTop - atticH, bandH = arcZone / levels;
+      const nArch = Math.max(7, Math.round((w + h) * 2));
+      const da = (aEc - aSc) / nArch, aHalf = da * 0.42;
+      for (let L = 0; L < levels; L++) {
+        const hBot = L * bandH, hTop = (L + 1) * bandH, spring = hBot + bandH * 0.50;
+        for (let k = 0; k < nArch; k++) {
+          const ac = aSc + da * (k + 0.5);
+          if (!facing(ac)) continue;                       // hintere/abgewandte Bögen überspringen
+          const op = [];                                    // dunkle Bogenöffnung: Fuß→Kämpfer→Halbkreis→Kämpfer→Fuß
+          op.push(wpt(ac - aHalf, hBot + bandH * 0.06));
+          op.push(wpt(ac - aHalf, spring));
+          const arcN = 6;
+          for (let j = 0; j <= arcN; j++) { const tt = -1 + 2 * j / arcN;
+            const hh = spring + (hTop - bandH * 0.12 - spring) * Math.sqrt(Math.max(0, 1 - tt * tt));
+            op.push(wpt(ac + tt * aHalf, hh)); }
+          op.push(wpt(ac + aHalf, spring));
+          op.push(wpt(ac + aHalf, hBot + bandH * 0.06));
+          ctx.fillStyle = `rgba(40,28,16,${(0.46 - L * 0.08).toFixed(3)})`;
+          poly(op);
+          const ks = wpt(ac, hTop - bandH * 0.10);          // Schlussstein
+          ctx.fillStyle = shade(stone, 0.12);
+          ctx.beginPath(); ctx.moveTo(ks.x - 1.8 * s, ks.y); ctx.lineTo(ks.x + 1.8 * s, ks.y);
+          ctx.lineTo(ks.x + 1.1 * s, ks.y + 3 * s); ctx.lineTo(ks.x - 1.1 * s, ks.y + 3 * s); ctx.closePath(); ctx.fill();
+        }
+        // helle Pfeiler/Pilaster zwischen den Bögen (nur sichtbare)
+        ctx.strokeStyle = shade(stone, 0.12); ctx.lineWidth = Math.max(1, 0.8 * s);
+        for (let k = 0; k <= nArch; k++) { const a = aSc + da * k; if (!facing(a)) continue;
+          const p0 = wpt(a, hBot + bandH * 0.04), p1 = wpt(a, hTop - bandH * 0.04);
+          ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); }
+        // Zwischengesims als Segmentstücke über sichtbaren Bögen
+        ctx.strokeStyle = shade(stone, 0.18); ctx.lineWidth = Math.max(1.1, 1.3 * s);
+        for (let k = 0; k < nArch; k++) { const a0 = aSc + da * k, a1 = aSc + da * (k + 1);
+          if (!facing((a0 + a1) / 2)) continue;
+          const p0 = wpt(a0, hTop - bandH * 0.03), p1 = wpt(a1, hTop - bandH * 0.03);
+          ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); }
+      }
+      // rotes Zierband im Attikabereich, nur über sichtbaren Segmenten
+      if (def.trim) { ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1, 1.0 * s);
+        for (let k = 0; k < nArch; k++) { const a0 = aSc + da * k, a1 = aSc + da * (k + 1);
+          if (!facing((a0 + a1) / 2)) continue;
+          const p0 = wpt(a0, arcZone + atticH * 0.5), p1 = wpt(a1, arcZone + atticH * 0.5);
+          ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); } }
+    }
     arcStroke(rOut, seatTop, shade(stone, 0.16), Math.max(1.4, 1.7 * s));  // Gesims auf der Krone
 
     // 2) Sitzränge: außen/hoch → innen/tief, jeder Rang als geneigtes Band + Stufenkante
