@@ -873,6 +873,90 @@ function drawVenue(gx, gy, baseLift, kind) {
   // --- helle Steinplattform als Sockel ---
   ctx.fillStyle = shade(stone, -0.04); poly([g.N, g.E, g.S, g.W]);
 
+  // ===== Theater: halbkreisförmige Sitztribüne (cavea) blickt auf eine vordere Bühne =====
+  // Eigenständige Variante: hinten (N) ein Sitzhalbrund, das nach innen/unten abfällt,
+  // davor (S, zum Betrachter) Orchestra + erhöhte Bühne mit niedriger scaenae frons.
+  if (def.stage) {
+    const tiers   = def.tiers;
+    const seatTop = wallH;                  // Höhe der äußersten (hintersten) Sitzreihe
+    const rOut = 0.46, rIn = 0.19;          // Außenrand der Ränge → Innenrand (Orchestra)
+    const aMidB = Math.PI * 1.5;            // Blickrichtung "hinten" (N) = offene Seite zum Spieler
+    const halfA = Math.PI * 0.60;           // Halbspanne → ~216° Gesamtbogen, wickelt seitlich um
+    const aSc = aMidB - halfA, aEc = aMidB + halfA;
+    const NPa = 56;
+
+    // Punkt auf Ring r bei Bogenparameter t∈[0,1], um dh (Welt-px) angehoben
+    const arc = (r, t, dh) => { const a = aSc + (aEc - aSc) * t;
+      return raise(P(0.5 + r * Math.cos(a), 0.5 + (r * 0.96) * Math.sin(a)), dh); };
+    const arcStroke = (r, dh, col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw;
+      ctx.beginPath(); for (let k = 0; k <= NPa; k++) { const p = arc(r, k / NPa, dh); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); } ctx.stroke(); };
+    // gefülltes Band zwischen Außenbogen (rO,dhO) und Innenbogen (rI,dhI)
+    const band = (rO, rI, dhO, dhI, fill) => {
+      ctx.beginPath();
+      for (let i = 0; i <= NPa; i++) { const p = arc(rO, i / NPa, dhO); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+      for (let i = NPa; i >= 0; i--) { const p = arc(rI, i / NPa, dhI); ctx.lineTo(p.x, p.y); }
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+    };
+
+    // 1) gekrümmte Stütz-/Außenmauer der cavea (hoher Rücken): Vorderkante Boden → Krone zurück
+    ctx.fillStyle = shade(stone, -0.24);
+    ctx.beginPath();
+    for (let i = 0; i <= NPa; i++) { const p = arc(rOut, i / NPa, 0);       i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+    for (let i = NPa; i >= 0; i--) { const p = arc(rOut, i / NPa, seatTop); ctx.lineTo(p.x, p.y); }
+    ctx.closePath(); ctx.fill();
+    arcStroke(rOut, seatTop, shade(stone, 0.16), Math.max(1.4, 1.7 * s));  // Gesims auf der Krone
+
+    // 2) Sitzränge: außen/hoch → innen/tief, jeder Rang als geneigtes Band + Stufenkante
+    for (let i = 0; i < tiers; i++) {
+      const f0 = i / tiers, f1 = (i + 1) / tiers;
+      const rO = rOut - (rOut - rIn) * f0, rI = rOut - (rOut - rIn) * f1;
+      const hO = seatTop * (1 - f0),       hI = seatTop * (1 - f1);
+      band(rO, rI, hO, hI, shade(stone, i % 2 ? -0.03 : 0.08));            // Auftritt (Sitzreihe)
+      arcStroke(rI, hI, 'rgba(48,36,20,0.55)', Math.max(1, 1.0 * s));      // Stufenkante innen
+    }
+    if (def.trim) arcStroke(rOut, seatTop, def.trim, Math.max(1.2, 1.3 * s)); // rote Brüstungszier
+
+    // 3) scalaria: radiale Treppengänge segmentieren die Ränge
+    ctx.strokeStyle = 'rgba(58,44,26,0.42)'; ctx.lineWidth = Math.max(1, 0.9 * s);
+    const nStair = 7;
+    for (let k = 0; k <= nStair; k++) { const t = k / nStair;
+      const o = arc(rOut, t, seatTop), ii = arc(rIn, t, 0);
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(ii.x, ii.y); ctx.stroke(); }
+
+    // 4) Orchestra: halbrunde Bodenfläche (Innenbogen, geschlossen über die Sehne)
+    band(rIn, 0, 1.5, 1.5, shade(accent, -0.10));   // rI=0 → Sehne durch die Mitte
+    arcStroke(rIn, 1.5, 'rgba(88,68,38,0.5)', Math.max(1, 0.9 * s));
+
+    // 5) Bühne (pulpitum) + niedrige scaenae frons, vorne (S) mittig vor der Orchestra
+    const stageH = 4, scH = wallH * 0.52;            // Podesthöhe / Höhe der Bühnenwand
+    const gpt = (r, t) => { const a = aSc + (aEc - aSc) * t;
+      return P(0.5 + r * Math.cos(a), 0.5 + (r * 0.96) * Math.sin(a)); };
+    const eLg = gpt(rIn, 0), eRg = gpt(rIn, 1);      // Sehnen-Endpunkte der Orchestra (Boden)
+    const fLg = lerp(eLg, g.S, 0.34), fRg = lerp(eRg, g.S, 0.34); // vordere Kante Richtung S-Ecke
+    const bLt = raise(eLg, stageH), bRt = raise(eRg, stageH), fLt = raise(fLg, stageH), fRt = raise(fRg, stageH);
+    ctx.fillStyle = shade(stone, -0.20); poly([fLg, fRg, fRt, fLt]);        // Sockel vorne
+    ctx.fillStyle = shade(stone, -0.12); poly([eRg, fRg, fRt, bRt]);        // Sockel rechts
+    ctx.fillStyle = shade(stone, -0.28); poly([eLg, fLg, fLt, bLt]);        // Sockel links
+    ctx.fillStyle = shade(stone,  0.05); poly([bLt, bRt, fRt, fLt]);        // Bühnenboden
+    // scaenae frons: Wand auf der Vorderkante, Schauseite (S) zum Betrachter
+    const wL = raise(fLt, scH), wR = raise(fRt, scH);
+    const wg = ctx.createLinearGradient(0, wL.y, 0, fLt.y);
+    wg.addColorStop(0, shade(stone, 0.06)); wg.addColorStop(1, shade(stone, -0.18));
+    ctx.fillStyle = wg; poly([fLt, fRt, wR, wL]);
+    ctx.strokeStyle = shade(stone, 0.18); ctx.lineWidth = Math.max(1.2, 1.5 * s);  // Kranzgesims
+    ctx.beginPath(); ctx.moveTo(wL.x, wL.y); ctx.lineTo(wR.x, wR.y); ctx.stroke();
+    if (def.trim) { ctx.strokeStyle = def.trim; ctx.lineWidth = Math.max(1, 1.0 * s);
+      const tL = lerp(wL, fLt, 0.18), tR = lerp(wR, fRt, 0.18);
+      ctx.beginPath(); ctx.moveTo(tL.x, tL.y); ctx.lineTo(tR.x, tR.y); ctx.stroke(); }
+    ctx.strokeStyle = shade(stone, -0.30); ctx.lineWidth = Math.max(1, 1.1 * s);   // Pilaster/Säulen
+    for (let k = 1; k <= 4; k++) { const u = k / 5;
+      const a0 = lerp(fLt, fRt, u), a1 = lerp(wL, wR, u);
+      ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke(); }
+
+    let topYt = Math.min(arc(rOut, 0.5, seatTop).y, wL.y, wR.y);
+    return { cx: g.bx, topY: topYt };
+  }
+
   const isStage = !!def.stage;
   const aFront = 0.05, aBack = 0.95;   // bei Theatern nur die vordere Hälfte als Sitzhalbrund
 
