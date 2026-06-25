@@ -101,8 +101,30 @@ function spawnSettler(){ const fp=findImmigrantPath(); if(!fp)return false;
 function settlerArrive(w){ const [hx,hy]=w.dest; if(!inBounds(hx,hy))return; const h=grid[hy][hx];
   if(h.type==='house'&&h.res<houseCap(h)) h.res++; }
 
+// ---- ATTRAKTIVITÄT (Desirability) ----
+// Schmuckbauten (Gärten/Skulpturen) verteilen Schönheit radial auf die
+// umliegenden Felder; Industrie & Lager ziehen sie ab. Das Feld wird einmal
+// pro Tick komplett neu aufgebaut (Schmuck ist statisch -> kein Cache nötig)
+// und liegt danach als t.desire auf jeder Kachel bereit (Steuer + Aufstieg).
+function stampDesire(cx,cy,base,range){
+  for(let dy=-range;dy<=range;dy++)for(let dx=-range;dx<=range;dx++){
+    const dist=Math.max(Math.abs(dx),Math.abs(dy)); if(dist>range)continue;
+    const x=cx+dx, y=cy+dy; if(!inBounds(x,y))continue;
+    grid[y][x].desire += Math.round(base*(range+1-dist)/(range+1));   // 1.0 im Zentrum, fällt linear nach außen ab
+  }
+}
+function computeDesire(){
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++) grid[y][x].desire=0;
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){ const t=grid[y][x]; if(isSlave(t))continue;
+    const d=BUILD[t.type];
+    if(d&&d.deco) stampDesire(x,y,d.desire,d.range);                                   // Garten/Skulptur: +Schönheit
+    else if(typeof DECO_UGLY!=='undefined' && DECO_UGLY[t.type]!=null) stampDesire(x,y,DECO_UGLY[t.type],UGLY_RANGE);  // Industrie/Lager: -Schönheit
+  }
+}
+
 function tick(){
   tickCount++;
+  computeDesire();                          // Attraktivitätsfeld für diesen Tick aufbauen (vor Steuer & Aufstieg)
   // ---- Globale Arbeitskräfte (Einwohner = Arbeiter), ohne Straßenbindung ----
   let labor=pop;
   const RANK={well:0,firehouse:1,engineer:2,market:3,forum:4,grainfield:5,farm:5,fisher:5,claypit:6,pottery:7,mill:8,bakery:9};
@@ -215,7 +237,7 @@ function tick(){
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
           else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0)+((t.schul>0&&t.biblio>0)?(EDU_BONUS+(t.akad>0?EDU_BONUS:0)):0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0)+((t.schul>0&&t.biblio>0)?(EDU_BONUS+(t.akad>0?EDU_BONUS:0)):0)+(((t.desire||0)>=ATTRACT_MIN)?ATTRACT_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
           else if(w.service==='religion')t.faith=SERVICE_LIFE;   // Priester segnet Haus (Haken für spätere Götter-Gunst)
           else if(w.service==='health'){ if(w.need)t[w.need]=SERVICE_LIFE; }   // Therme→bath, Arzt→doctor, Barbier→barber
           else if(w.service==='entertain')t.entertain=SERVICE_LIFE;   // Theater/Arena/Kolosseum unterhalten das Haus
@@ -249,7 +271,8 @@ function tick(){
     if(h.bath>0)h.bath--; if(h.doctor>0)h.doctor--; if(h.barber>0)h.barber--;   // Hygiene-Abdeckung klingt ab (wie Wasser/Nahrung)
     if(h.entertain>0)h.entertain--;                                              // Unterhaltung klingt ab
     if(h.schul>0)h.schul--; if(h.biblio>0)h.biblio--; if(h.akad>0)h.akad--;       // Bildungs-Abdeckung klingt ab
-    h.lvl = (h.water>0&&h.food>0&&h.goods>0)?3 : (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
+    const baseLvl = (h.water>0&&h.food>0&&h.goods>0)?3 : (h.water>0&&h.food>0)?2 : (h.water>0?1:0);
+    h.lvl = (baseLvl===3 && (h.desire||0)>=DESIRE_LVL4) ? 4 : baseLvl;   // Prestige: voll versorgte Villa auf attraktivem Grund -> Palast
     const cap=houseCap(h);
     if(h.res>cap) h.res=cap;                                  // Rückstufung -> Abwanderung
     if(h.water>0){ h.decay=0; }
