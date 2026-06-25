@@ -1753,40 +1753,134 @@ function drawWarehouse(gx, gy, baseLift) {
 }
 
 // Straßensperre: rot-weißer Schlagbaum quer über die Straße (Läufer kehren um)
+function isGarden(x, y) { return inBounds(x, y) && grid[y][x].type === 'garden'; }
+// stabiler Pseudo-Zufall je Kachel (kein Flackern zwischen Frames)
+function hash01(a, b) { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) ^ 0x9e3779b9; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return ((h >>> 0) % 1000) / 1000; }
+
+// kleiner Zierbaum (eine Kachel, eigene Tiefe -> keine Sortierprobleme)
+function drawGardenTree(P, s, seed) {
+  const th = 13 * s + seed * 3 * s, r = 6 * s + seed * 2 * s;
+  ctx.save(); ctx.translate(P.x, P.y + 2 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, 7); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.6, 2 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(P.x, P.y - th * 0.55); ctx.stroke(); ctx.lineCap = 'butt';
+  const cy = P.y - th;
+  ctx.fillStyle = '#3f6e2f'; ctx.beginPath(); ctx.arc(P.x, cy, r, 0, 7); ctx.fill();
+  ctx.fillStyle = '#56913c'; ctx.beginPath(); ctx.arc(P.x - r * 0.3, cy - r * 0.35, r * 0.7, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.arc(P.x - r * 0.45, cy - r * 0.5, r * 0.3, 0, 7); ctx.fill();
+  return cy - r - 2 * s;
+}
+
+// kleiner Gartenpavillon (Gazebo) — sitzt auf dem Mittelpunkt eines 2×2-Blocks.
+// Wird von der SÜDÖST-Kachel des Blocks gezeichnet (kommt in der Tiefensortierung
+// zuletzt) und überdeckt damit korrekt die drei flachen Rasenkacheln dahinter.
+function drawGardenPavilion(P, s) {
+  const col = '#ece4cf', roof = '#b15f3a', hw = 11 * s, hh = 5.5 * s, colH = 17 * s;
+  const pN = { x: P.x, y: P.y - hh }, pE = { x: P.x + hw, y: P.y }, pS = { x: P.x, y: P.y + hh }, pW = { x: P.x - hw, y: P.y };
+  ctx.save(); ctx.translate(P.x, P.y + 2 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(0, 0, 13 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = shade(col, -0.06); poly([pN, pE, pS, pW]);                      // Steinpodest
+  ctx.strokeStyle = 'rgba(60,50,34,.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pW.x, pW.y); ctx.lineTo(pN.x, pN.y); ctx.lineTo(pE.x, pE.y); ctx.stroke();
+  const up = p => ({ x: p.x, y: p.y - colH });
+  ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, 2.4 * s); ctx.lineCap = 'round';   // vier Säulen
+  for (const p of [pN, pW, pE, pS]) { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - colH); ctx.stroke(); }
+  ctx.lineCap = 'butt';
+  const rN = up(pN), rE = up(pE), rS = up(pS), rW = up(pW), apex = { x: P.x, y: P.y - colH - 13 * s };
+  ctx.fillStyle = shade(roof, 0.06); poly([rW, rN, apex]);                        // Kegeldach (4 Flächen)
+  ctx.fillStyle = roof; poly([rN, rE, apex]);
+  ctx.fillStyle = shade(roof, -0.16); poly([rE, rS, apex]);
+  ctx.fillStyle = shade(roof, -0.26); poly([rS, rW, apex]);
+  ctx.fillStyle = '#d8b24a'; ctx.beginPath(); ctx.arc(apex.x, apex.y, 1.8 * s, 0, 7); ctx.fill();   // Spitze
+  return apex.y - 2 * s;
+}
+
 function drawGarden(gx, gy, baseLift) {
   const s = cam.scale;
   const c = isoCorners(gx, gy, baseLift, 0);
   const ctr = { x: c.bx, y: c.by };
-  // weicher Bodenschatten
-  ctx.save(); ctx.translate(c.bx, c.by + 2 * s); ctx.scale(1, TH / TW);
-  ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
-  // Steineinfassung (volle Raute) + eingerückte Rasenfläche
-  ctx.fillStyle = '#c9bd9c'; poly([c.N, c.E, c.S, c.W]);
-  const k = 0.88, I = p => ({ x: ctr.x + (p.x - ctr.x) * k, y: ctr.y + (p.y - ctr.y) * k });
-  const iN = I(c.N), iE = I(c.E), iS = I(c.S), iW = I(c.W);
+  // ---- Nachbarschaft bestimmen (Auto-Tiling) ----
+  // Kanten der Raute <-> orthogonale Nachbarn:
+  //   N–E-Kante = (gx,gy-1) · E–S = (gx+1,gy) · S–W = (gx,gy+1) · W–N = (gx-1,gy)
+  const nNE = isGarden(gx, gy - 1), nSE = isGarden(gx + 1, gy), nSW = isGarden(gx, gy + 1), nWN = isGarden(gx - 1, gy);
+  const dNW = isGarden(gx - 1, gy - 1);
+  const exposed = (!nNE) + (!nSE) + (!nSW) + (!nWN);   // Anzahl freier (nicht angrenzender) Kanten
+  const interior = exposed === 0;
+
+  // Bodenschatten nur an Außenrändern (Innenflächen nicht doppelt abdunkeln)
+  if (exposed) {
+    ctx.save(); ctx.translate(c.bx, c.by + 2 * s); ctx.scale(1, TH / TW);
+    ctx.fillStyle = 'rgba(0,0,0,.10)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  }
+  // Rasen: VOLLE Raute (kantenlos tilebar) mit Verlauf
   const lawn = '#6f9a44';
-  const g = ctx.createLinearGradient(iN.x, iN.y, iS.x, iS.y);
+  const g = ctx.createLinearGradient(c.N.x, c.N.y, c.S.x, c.S.y);
   g.addColorStop(0, shade(lawn, 0.12)); g.addColorStop(1, shade(lawn, -0.14));
-  ctx.fillStyle = g; poly([iN, iE, iS, iW]);
-  // Kieswege (Kreuz durch die Kantenmitten)
-  const mNE = lerp(iN, iE, 0.5), mES = lerp(iE, iS, 0.5), mSW = lerp(iS, iW, 0.5), mWN = lerp(iW, iN, 0.5);
-  ctx.strokeStyle = 'rgba(228,218,194,.75)'; ctx.lineWidth = Math.max(1.5, 2 * s);
-  ctx.beginPath(); ctx.moveTo(mNE.x, mNE.y); ctx.lineTo(mSW.x, mSW.y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(mES.x, mES.y); ctx.lineTo(mWN.x, mWN.y); ctx.stroke();
-  // vier Büsche in den Quadranten + Blütentupfer
-  const bush = (corner, r) => {
-    const p = { x: ctr.x + (corner.x - ctr.x) * 0.5, y: ctr.y + (corner.y - ctr.y) * 0.5 };
-    ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 1.6 * s, r * 1.05, r * 0.5, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = '#4f7d34'; ctx.beginPath(); ctx.arc(p.x, p.y - r * 0.4, r, 0, 7); ctx.fill();
-    ctx.fillStyle = '#6aa047'; ctx.beginPath(); ctx.arc(p.x - r * 0.3, p.y - r * 0.6, r * 0.7, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(p.x - r * 0.4, p.y - r * 0.8, r * 0.3, 0, 7); ctx.fill();
-    return p;
+  ctx.fillStyle = g; poly([c.N, c.E, c.S, c.W]);
+
+  // Kantenmitten
+  const mNE = lerp(c.N, c.E, 0.5), mES = lerp(c.E, c.S, 0.5), mSW = lerp(c.S, c.W, 0.5), mWN = lerp(c.W, c.N, 0.5);
+  // ---- Kieswege: verbinden sich zu benachbarten Gärten (Netz) ----
+  ctx.strokeStyle = 'rgba(228,218,194,.72)'; ctx.lineWidth = Math.max(1.6, 2.2 * s); ctx.lineCap = 'round';
+  const link = (m, on) => { if (on) { ctx.beginPath(); ctx.moveTo(ctr.x, ctr.y); ctx.lineTo(m.x, m.y); ctx.stroke(); } };
+  link(mNE, nNE); link(mES, nSE); link(mSW, nSW); link(mWN, nWN);
+  if (exposed === 4) {                                  // freistehender Garten: klassisches Wegekreuz
+    ctx.beginPath(); ctx.moveTo(mNE.x, mNE.y); ctx.lineTo(mSW.x, mSW.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mES.x, mES.y); ctx.lineTo(mWN.x, mWN.y); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  if (exposed < 4) { ctx.fillStyle = 'rgba(228,218,194,.55)'; ctx.beginPath(); ctx.ellipse(ctr.x, ctr.y, 3 * s, 1.7 * s, 0, 0, 7); ctx.fill(); }   // Wegekreuzung
+
+  // ---- Hecken NUR an freien Kanten -> Innenkanten verschwinden, Flächen verschmelzen ----
+  const hedge = (P0, P1) => {
+    const e0 = lerp(P0, ctr, 0.06), e1 = lerp(P1, ctr, 0.06);
+    ctx.strokeStyle = 'rgba(150,140,116,.5)'; ctx.lineWidth = Math.max(1, 1.4 * s);   // dünne Steinkante
+    ctx.beginPath(); ctx.moveTo(P0.x, P0.y); ctx.lineTo(P1.x, P1.y); ctx.stroke();
+    for (const t of [0.22, 0.5, 0.78]) {                                              // Heckenbüsche (reihen sich über Kacheln zu einer Hecke)
+      const p = lerp(lerp(e0, e1, t), ctr, 0.06), r = 3.3 * s;
+      ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 1.2 * s, r, r * 0.45, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#4f7d34'; ctx.beginPath(); ctx.arc(p.x, p.y - r * 0.3, r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#67a043'; ctx.beginPath(); ctx.arc(p.x - r * 0.3, p.y - r * 0.55, r * 0.62, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.arc(p.x - r * 0.4, p.y - r * 0.7, r * 0.26, 0, 7); ctx.fill();
+    }
   };
-  bush(c.N, 4.4 * s); bush(c.E, 4.4 * s); bush(c.S, 4.4 * s); bush(c.W, 4.4 * s);
-  // ein paar Blüten auf dem Rasen
-  const flowers = [['#e4d24a', 0, -1], ['#d85a7a', -3, 2], ['#e08a3a', 3, 1], ['#cf6fae', 1, 4]];
-  for (const [col, dx, dy] of flowers) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ctr.x + dx * s, ctr.y + dy * s, 1.2 * s, 0, 7); ctx.fill(); }
-  return { cx: c.cx, topY: ctr.y - 8 * s };
+  if (!nNE) hedge(c.N, c.E);
+  if (!nSE) hedge(c.E, c.S);
+  if (!nSW) hedge(c.S, c.W);
+  if (!nWN) hedge(c.W, c.N);
+
+  // ---- Mittelstück: Pavillon für ausgerichtete 2×2-Blöcke, sonst Bäume/Blüten ----
+  let topY = ctr.y - 8 * s;
+  // Diese Kachel ist die SÜDOST-Ecke eines 2×2-Blocks, wenn W-, N- und NW-Nachbar Gärten sind.
+  const block2 = nNE && nWN && dNW;
+  let pavilion = false;
+  if (block2) {
+    // Freistehender 2×2 (nichts grenzt erweiternd an) -> IMMER ein Pavillon (dein Beispiel: 4 -> 1 großer mit Pavillon).
+    // In größeren Anlagen verteilt die Parität (ungerade/ungerade) die Pavillons überlappungsfrei,
+    // dazwischen wachsen Bäume & Blumenbeete.
+    const ext = [[gx - 1, gy - 2], [gx, gy - 2], [gx - 2, gy - 1], [gx - 2, gy], [gx - 1, gy + 1], [gx, gy + 1], [gx + 1, gy - 1], [gx + 1, gy]];
+    const standalone = !ext.some(([ex, ey]) => isGarden(ex, ey));
+    pavilion = standalone || (gx % 2 === 1 && gy % 2 === 1);
+  }
+  if (pavilion) {
+    topY = drawGardenPavilion(c.N, s);                  // Mittelpunkt = gemeinsamer Eckpunkt der vier Kacheln
+  } else if (interior) {                                 // voll umschlossene Kachel: üppige Bepflanzung
+    const r = hash01(gx, gy);
+    if (r < 0.5) topY = drawGardenTree(ctr, s, r);
+    else {                                               // Blumenbeet
+      const cols = ['#e4d24a', '#d85a7a', '#e08a3a', '#cf6fae', '#e8e0c0'];
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, rr = 3.2 * s;
+        ctx.fillStyle = cols[(i + ((r * 5) | 0)) % cols.length];
+        ctx.beginPath(); ctx.arc(ctr.x + Math.cos(a) * rr, ctr.y + Math.sin(a) * rr * (TH / TW), 1.4 * s, 0, 7); ctx.fill(); }
+    }
+  } else {                                               // Randkachel: ein dezentes Element zur offenen Seite
+    const r = hash01(gx, gy);
+    if (r < 0.4) drawGardenTree(ctr, s, r * 0.5), topY = ctr.y - 14 * s;
+    else { const cols = ['#e4d24a', '#d85a7a', '#e08a3a', '#cf6fae'];
+      for (const [col, dx, dy] of [[cols[0], 0, -1], [cols[1], -3, 2], [cols[2], 3, 1], [cols[3], 1, 4]]) {
+        ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ctr.x + dx * s, ctr.y + dy * s, 1.2 * s, 0, 7); ctx.fill(); } }
+  }
+  return { cx: c.cx, topY };
 }
 
 function drawStatue(gx, gy, baseLift) {
