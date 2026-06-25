@@ -34,7 +34,7 @@ const BUILD={
 };
 const ORDER=['road','bridge','roadblock','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
 
-const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9}];  // lvl3 = Villa (verlangt zusätzlich Keramik)
+const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9},{pop:25,tax:14}];  // lvl3 = Villa (verlangt Keramik) · lvl4 = Palast (verlangt zusätzlich hohe Attraktivität)
 const SERVICE_LIFE=55;
 const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
 const HEALTH_BONUS=3;       // Extra-Steuer für gesund versorgte Häuser (Therme + Arzt) — verknüpft Gesundheit mit dem Geldkreislauf
@@ -63,6 +63,7 @@ const H3D=[
   {top:'#cda46c',left:'#9a7647',right:'#b58d57',h:19,glyph:'🏠'},
   {top:'#e7dcc2',left:'#b7a682',right:'#d3c3a0',h:27,glyph:'🏡'},
   {top:'#f0e8d2',left:'#cab593',right:'#e0d0ac',h:35,glyph:'🏛️'},
+  {top:'#f5efe0',left:'#d8c8a4',right:'#ece0c2',h:44,glyph:'🏰'},
 ];
 const B3D={
   well:  {top:'#4f93b0',left:'#2f6580',right:'#3f7c98',h:18,glyph:'💧', wcol:'#3a7d9c'},
@@ -206,3 +207,35 @@ Object.keys(EDUCATION).forEach(k=>{
 });
 // Bildungs-Einrichtungen im Baumenü vor 'Abriss' einsortieren
 ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(EDUCATION));
+
+// ============================================================
+//  ATTRAKTIVITÄT (Desirability) · GÄRTEN & SKULPTUREN
+//  Schmuckbauten strahlen Attraktivität auf die umliegenden Felder aus
+//  — ein STATISCHES Radialfeld, KEINE Läufer, kein Personal, kein
+//  Straßenanschluss nötig. Industrie & Lager in der Nähe mindern sie.
+//  Häuser auf attraktivem Grund erhalten einen Steuerbonus; sind sie
+//  voll versorgt (Villa) UND steht die Attraktivität hoch genug, steigen
+//  sie zur höchsten Stufe (Palast) auf. Neue Schmuckbauten: einfach eine
+//  Zeile in DECO ergänzen — Menü, Render, Sim ziehen sich alles aus der
+//  Tabelle. desire = Schönheit im Zentrum · range = Reichweite (Felder).
+// ============================================================
+const DECO = {
+  garden: { label:'Garten',   glyph:'🌳', desire:3, range:2, cost:18, up:0 }, // kleiner Schönheitsspender, günstig
+  statue: { label:'Skulptur', glyph:'🗿', desire:7, range:3, cost:45, up:1 }, // starker Schönheitsspender, große Reichweite
+};
+Object.keys(DECO).forEach(k=>{
+  const g=DECO[k];
+  // KEIN service/jobs/wcol -> reines Schmuckfeld (kein Spawner, kein Personal)
+  BUILD[k] = { label:g.label, glyph:g.glyph, cost:g.cost, up:g.up, deco:true, desire:g.desire, range:g.range };
+});
+// Schmuckbauten im Baumenü vor 'Abriss' einsortieren
+ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(DECO));
+
+// Industrie & Lager mindern die Attraktivität in der Nähe (Reichweite UGLY_RANGE).
+// Werte negativ — der Schmuck muss die Wohngegend von der Produktion trennen.
+const DECO_UGLY = { claypit:-3, pottery:-3, quarry:-3, marblequarry:-3, woodcutter:-2, warehouse:-2, mill:-2, bakery:-1, farm:-1 };
+const UGLY_RANGE   = 2;
+// ---- Schwellen ----
+const ATTRACT_BONUS = 4;   // Extra-Steuer für Häuser auf attraktivem Grund (analog zu Keramik/Gesundheit/Kultur/Bildung)
+const ATTRACT_MIN   = 3;   // ab dieser Attraktivität greift der Steuerbonus
+const DESIRE_LVL4   = 8;   // ab dieser Attraktivität steigt ein voll versorgtes Haus (Villa) zum Palast (Stufe 4) auf
