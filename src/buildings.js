@@ -1354,13 +1354,43 @@ function drawClaypit(gx, gy, baseLift) {
   return { cx: gr.cx, topY: gr.Nt.y };
 }
 
+// kleines Tongefäß für Regal/Hof (kind: 'amph' | 'bowl' | 'jar'), scl skaliert zusätzlich
+function potShape(x, y, col, kind, s, scl) {
+  scl = scl || 1; const k = s * scl;
+  if (kind === 'bowl') {
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(x - 2.6 * k, y); ctx.quadraticCurveTo(x, y + 2.2 * k, x + 2.6 * k, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(col, -0.22); ctx.beginPath(); ctx.ellipse(x, y, 2.6 * k, 0.7 * k, 0, 0, 7); ctx.fill();
+  } else if (kind === 'jar') {
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y - 2 * k, 2.3 * k, 2.4 * k, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = shade(col, -0.2); ctx.fillRect(x - 1.2 * k, y - 4.7 * k, 2.4 * k, 1 * k);
+    ctx.fillStyle = 'rgba(255,235,205,0.20)'; ctx.beginPath(); ctx.ellipse(x - 0.8 * k, y - 2.4 * k, 0.6 * k, 1.4 * k, 0, 0, 7); ctx.fill();
+  } else { // Amphore
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x - 0.7 * k, y - 6 * k);
+    ctx.lineTo(x + 0.7 * k, y - 6 * k);
+    ctx.lineTo(x + 0.9 * k, y - 4.4 * k);
+    ctx.quadraticCurveTo(x + 2.5 * k, y - 3.2 * k, x + 1.3 * k, y - 0.5 * k);
+    ctx.quadraticCurveTo(x, y + 0.5 * k, x - 1.3 * k, y - 0.5 * k);
+    ctx.quadraticCurveTo(x - 2.5 * k, y - 3.2 * k, x - 0.9 * k, y - 4.4 * k);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = shade(col, -0.18); ctx.lineWidth = Math.max(1, 0.7 * k);
+    ctx.beginPath(); ctx.arc(x - 1.2 * k, y - 4.5 * k, 1 * k, -0.5, 1.9); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + 1.2 * k, y - 4.5 * k, 1 * k, Math.PI - 1.9, Math.PI + 0.5); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,235,205,0.22)'; ctx.beginPath(); ctx.ellipse(x - 0.5 * k, y - 3 * k, 0.6 * k, 1.7 * k, 0, 0, 7); ctx.fill();
+  }
+}
+
 function drawPottery(gx, gy, baseLift) {
-  const s = cam.scale, wall = '#caa46e', roof = '#b15f3a';
-  const h = 14;
+  const s = cam.scale, wall = '#caa46e', roof = '#b15f3a', terra = '#b3672f';
+  const h = 13;
   const c = isoCorners(gx, gy, baseLift, h);
+  // Schatten
   ctx.save();
   ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
   ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  // Wände (Backstein-Brennhaus)
   const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
   gSW.addColorStop(0, shade(wall, 0.05)); gSW.addColorStop(1, shade(wall, -0.12));
   ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
@@ -1369,13 +1399,113 @@ function drawPottery(gx, gy, baseLift) {
   ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
   wallBrickLines(c.W, c.S, c.Wt, c.St, 2, 'rgba(130, 65, 45, 0.38)', s);
   wallBrickLines(c.S, c.E, c.St, c.Et, 2, 'rgba(95, 45, 30, 0.44)', s);
-  wallArch(c.W, c.S, c.Wt, c.St, 0.30, 0.70, 0.0, 0.65, '#231a12', '#9a4e35', s);
-  const kb = lerp(c.S, c.E, 0.6), kt = lerp(c.St, c.Et, 0.6);
+
+  // --- glühendes Brennofen-Maul in der SE-Wand (flackernd) ---
+  const kb = lerp(c.S, c.E, 0.60), kt = lerp(c.St, c.Et, 0.60);
   const kx = (kb.x + kt.x) / 2, ky = (kb.y + kt.y) / 2 + 1 * s;
-  ctx.fillStyle = '#a85834'; ctx.beginPath(); ctx.arc(kx, ky, 3 * s, 0, 7); ctx.fill();
+  const flick = 0.55 + 0.30 * Math.abs(Math.sin(animT * 4.3 + 1.1));
+  ctx.fillStyle = 'rgba(35,20,12,0.92)'; ctx.beginPath(); ctx.arc(kx, ky, 3.4 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(245,150,55,' + flick.toFixed(2) + ')'; ctx.beginPath(); ctx.arc(kx, ky, 2.3 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,228,150,' + (flick * 0.9).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(kx, ky - 0.3 * s, 1.1 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
+
+  // Dach
   const topY = hipRoof(c, roof, 9, true);
-  ctx.fillStyle = 'rgba(100,95,90,0.35)';
-  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(c.cx + (i - 1) * 3 * s, topY - (4 + i * 4) * s, (2 + i * 1.2) * s, 0, 7); ctx.fill(); }
+
+  // --- Schornstein + driftender, aufsteigender Rauch ---
+  const ch = lerp(c.N, c.E, 0.40);
+  ctx.fillStyle = shade(roof, -0.35); ctx.fillRect(ch.x - 1.8 * s, topY - 7 * s, 3.6 * s, 7 * s);
+  ctx.fillStyle = shade(roof, -0.55); ctx.fillRect(ch.x - 1.8 * s, topY - 7 * s, 3.6 * s, 1.4 * s);
+  for (let i = 0; i < 4; i++) {
+    const t = (animT * 0.55 + i * 0.27) % 1;          // Aufstiegsphase 0..1
+    const a = (1 - t) * 0.30;
+    const yy = topY - 7 * s - t * 17 * s;
+    const xx = ch.x + Math.sin(animT * 1.1 + i * 1.7) * 2.2 * s + t * 3 * s;
+    const r = (1.5 + t * 3.4) * s;
+    ctx.fillStyle = 'rgba(120,112,104,' + a.toFixed(2) + ')';
+    ctx.beginPath(); ctx.arc(xx, yy, r, 0, 7); ctx.fill();
+  }
+
+  // ====== offener Werkhof VOR dem Gebäude (an der Grundfläche verankert) ======
+  const bx = c.bx, by = c.by;
+  const fy = by + (c.S.y - by) * 0.50;     // mittlere Hof-Höhe im Vordergrund
+  // gestampfter Lehmboden als Untergrund
+  ctx.fillStyle = 'rgba(120,95,68,0.30)';
+  ctx.beginPath(); ctx.ellipse(bx, fy + 5 * s, 18 * s, 8 * s, 0, 0, 7); ctx.fill();
+
+  // --- Tonklumpen + Wasserschale (links) ---
+  const cxp = bx - 12 * s, cyp = fy + 6 * s;
+  ctx.fillStyle = '#7a6a55'; ctx.beginPath(); ctx.ellipse(cxp, cyp, 4 * s, 2.6 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8d7d66'; ctx.beginPath(); ctx.ellipse(cxp - 0.6 * s, cyp - 1.3 * s, 2.6 * s, 1.6 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5e7a86'; ctx.beginPath(); ctx.ellipse(cxp + 5.5 * s, cyp + 1.8 * s, 2.4 * s, 1.5 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#9ec6d8'; ctx.beginPath(); ctx.ellipse(cxp + 5.5 * s, cyp + 1.5 * s, 1.6 * s, 1 * s, 0, 0, 7); ctx.fill();
+
+  // --- Trockengestell mit fertigen Gefäßen (rechts) ---
+  const rx = bx + 14 * s, ry = fy + 1 * s;
+  ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.4, 1.7 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(rx - 6.5 * s, ry + 6 * s); ctx.lineTo(rx - 6.5 * s, ry - 9 * s); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(rx + 6.5 * s, ry + 5 * s); ctx.lineTo(rx + 6.5 * s, ry - 10 * s); ctx.stroke();
+  ctx.lineCap = 'butt';
+  for (const yy of [ry - 1.5 * s, ry - 9 * s]) {
+    ctx.strokeStyle = '#7d5733'; ctx.lineWidth = Math.max(1.6, 2.0 * s);
+    ctx.beginPath(); ctx.moveTo(rx - 7.5 * s, yy + 1 * s); ctx.lineTo(rx + 7.5 * s, yy - 1 * s); ctx.stroke();
+  }
+  potShape(rx - 4 * s, ry - 9.0 * s, terra, 'amph', s, 0.9);
+  potShape(rx - 0.3 * s, ry - 9.4 * s, '#9c5a2c', 'bowl', s, 1.0);
+  potShape(rx + 3.8 * s, ry - 9.8 * s, '#c47a3a', 'jar', s, 0.9);
+  potShape(rx - 3.6 * s, ry - 1.5 * s, '#a85834', 'jar', s, 0.95);
+  potShape(rx + 0.4 * s, ry - 2.0 * s, terra, 'amph', s, 0.9);
+  potShape(rx + 4.2 * s, ry - 2.4 * s, '#8f5128', 'bowl', s, 1.0);
+
+  // --- Töpfer an der drehenden Scheibe (Mittelpunkt des Hofs) ---
+  const wx = bx - 3 * s, wy = fy - 1 * s;
+  const lean = Math.sin(animT * 2.0) * 0.7 * s;                 // sanftes Wiegen
+  // Rumpf (sitzend)
+  ctx.fillStyle = '#9c6b3f';
+  ctx.beginPath();
+  ctx.moveTo(wx - 3.4 * s + lean, wy - 10 * s);
+  ctx.lineTo(wx + 3.4 * s + lean, wy - 10 * s);
+  ctx.lineTo(wx + 2.7 * s, wy - 1 * s);
+  ctx.lineTo(wx - 2.7 * s, wy - 1 * s);
+  ctx.closePath(); ctx.fill();
+  // Kopf + Haar
+  ctx.fillStyle = '#caa07a'; ctx.beginPath(); ctx.arc(wx + lean, wy - 12.2 * s, 2.3 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#4a3220'; ctx.beginPath(); ctx.arc(wx + lean, wy - 12.9 * s, 2.3 * s, Math.PI * 0.92, Math.PI * 2.08); ctx.fill();
+
+  // Drehscheibe vor dem Töpfer (rotierend)
+  const dx0 = wx + 2 * s, dy0 = wy - 0.5 * s;
+  ctx.fillStyle = '#6e4a2a'; ctx.fillRect(dx0 - 1.8 * s, dy0, 3.6 * s, 7 * s);       // Ständer
+  ctx.fillStyle = '#7d5733'; ctx.beginPath(); ctx.ellipse(dx0, dy0, 6.6 * s, 3.3 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(225,200,160,0.45)'; ctx.lineWidth = Math.max(1, 0.9 * s); ctx.beginPath(); ctx.ellipse(dx0, dy0, 6.6 * s, 3.3 * s, 0, 0, 7); ctx.stroke();
+  const rot = animT * 6.0;                                                          // schnelle Rotation
+  ctx.strokeStyle = 'rgba(48,30,16,0.55)'; ctx.lineWidth = Math.max(1, 1.0 * s);
+  for (let k = 0; k < 4; k++) { const a = rot + k * Math.PI / 2; ctx.beginPath(); ctx.moveTo(dx0, dy0); ctx.lineTo(dx0 + Math.cos(a) * 6.6 * s, dy0 + Math.sin(a) * 3.3 * s); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(40,26,14,0.8)'; ctx.beginPath(); ctx.arc(dx0, dy0, 1.2 * s, 0, 7); ctx.fill();
+
+  // entstehender Topf auf der Scheibe (wächst/formt sich)
+  const grow = Math.sin(animT * 1.3) * 0.5 + 0.5;       // 0..1
+  const ph = (4.2 + grow * 3.0) * s;                    // Höhe
+  const pw = (2.8 + (1 - grow) * 1.1) * s;              // Bauchweite
+  ctx.fillStyle = terra;
+  ctx.beginPath();
+  ctx.moveTo(dx0 - 1.9 * s, dy0 - 1 * s);
+  ctx.quadraticCurveTo(dx0 - pw, dy0 - ph * 0.5, dx0 - 1.2 * s, dy0 - ph);
+  ctx.lineTo(dx0 + 1.2 * s, dy0 - ph);
+  ctx.quadraticCurveTo(dx0 + pw, dy0 - ph * 0.5, dx0 + 1.9 * s, dy0 - 1 * s);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(terra, -0.28); ctx.beginPath(); ctx.ellipse(dx0, dy0 - ph, 1.2 * s, 0.5 * s, 0, 0, 7); ctx.fill(); // offene Mündung
+  ctx.fillStyle = 'rgba(255,235,205,0.24)'; ctx.beginPath(); ctx.ellipse(dx0 - 0.8 * s, dy0 - ph * 0.55, 0.8 * s, ph * 0.32, 0, 0, 7); ctx.fill();
+
+  // Arme/Hände am Topf (leichtes Bewegen)
+  const hb = Math.sin(animT * 3.0) * 0.7 * s;
+  ctx.strokeStyle = '#caa07a'; ctx.lineWidth = Math.max(1.4, 1.8 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(wx - 2.7 * s + lean, wy - 8 * s); ctx.lineTo(dx0 - 1.2 * s, dy0 - ph + 0.5 * s + hb); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(wx + 2.7 * s + lean, wy - 8 * s); ctx.lineTo(dx0 + 1.2 * s, dy0 - ph + 0.5 * s - hb); ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // fertige Amphoren ganz vorn abgestellt
+  potShape(bx - 1 * s, fy + 9 * s, terra, 'amph', s, 1.2);
+  potShape(bx + 3.5 * s, fy + 9.5 * s, '#9c5a2c', 'amph', s, 1.05);
+
   return { cx: c.cx, topY };
 }
 
