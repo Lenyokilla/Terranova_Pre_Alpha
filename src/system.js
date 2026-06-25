@@ -93,9 +93,10 @@ function describeTile(x,y){
   const hasRoad=!!adjRoad(x,y);
   const roadRow={k:'Straßenanschluss', v:hasRoad?'ja':'nein', cls:hasRoad?'ok':'bad'};
   if(t.type==='house'){
-    const cap=houseCap(t), names=['Hütte','Wohnhaus','Anwesen','Villa'];
+    const cap=houseCap(t), names=['Hütte','Wohnhaus','Anwesen','Villa','Palast'];
+    const att=t.desire||0;
     const rows=[
-      {k:'Ausbaustufe', v:names[t.lvl]+' ('+(t.lvl+1)+'/4)'},
+      {k:'Ausbaustufe', v:names[t.lvl]+' ('+(t.lvl+1)+'/5)'},
       {k:'Einwohner',   v:t.res+' / '+cap},
       {k:'Wasser',      v:t.water>0?'versorgt':'fehlt', cls:t.water>0?'ok':'bad'},
       {k:'Nahrung',     v:t.food >0?'versorgt':'fehlt', cls:t.food >0?'ok':'bad'},
@@ -103,13 +104,15 @@ function describeTile(x,y){
       {k:'Gesundheit',  v:(t.bath>0&&t.doctor>0)?('versorgt (+'+HEALTH_BONUS+' Steuer)'):'unzureichend', cls:(t.bath>0&&t.doctor>0)?'ok':'bad'},
       {k:'Unterhaltung',v:t.entertain>0?('versorgt (+'+ENTERTAIN_BONUS+' Steuer)'):'keine', cls:t.entertain>0?'ok':'bad'},
       {k:'Bildung',     v:(t.schul>0&&t.biblio>0)?('versorgt (+'+(EDU_BONUS+(t.akad>0?EDU_BONUS:0))+' Steuer'+(t.akad>0?', Akademie':'')+')'):'unzureichend', cls:(t.schul>0&&t.biblio>0)?'ok':'bad'},
+      {k:'Attraktivität',v:att+(att>=ATTRACT_MIN?(' (+'+ATTRACT_BONUS+' Steuer)'):''), cls:att>=ATTRACT_MIN?'ok':'bad'},
       {k:'Brandschutz', v:t.fireSafe>0?'gesichert':'ungeschützt', cls:t.fireSafe>0?'ok':'bad'},
       {k:'Statik',      v:t.engSafe>0?'geprüft':'ungeprüft', cls:t.engSafe>0?'ok':'bad'},
     ];
     const warns=[];
     if(t.water<=0) warns.push('Kein Wasser — Bewohner ziehen nach und nach weg.');
     else if(t.food<=0) warns.push('Ohne Nahrung bleibt das Haus unter dem Anwesen.');
-    else if(t.goods<=0) warns.push('Keramik vom Markt hebt das Haus zur Villa (höchste Stufe).');
+    else if(t.goods<=0) warns.push('Keramik vom Markt hebt das Haus zur Villa (Stufe 4).');
+    else if(t.lvl===3 && att<DESIRE_LVL4) warns.push('🌳 Gärten & Skulpturen in der Nähe (Attraktivität ≥ '+DESIRE_LVL4+') heben die Villa zum Palast (Stufe 5).');
     if(t.plagueRisk) warns.push('🤒 Seuchengefahr — ohne Therme und Arzt erkranken Bewohner. Ein Barbier mindert das Risiko.');
     else if(!(t.bath>0&&t.doctor>0)&&t.res>0){ const miss=[]; if(t.bath<=0)miss.push('Therme'); if(t.doctor<=0)miss.push('Arzt');
       warns.push('Gesundheit unzureichend — es fehlt: '+miss.join(' & ')+'. Eine Einrichtung an einer Straße in der Nähe schützt vor Seuchen.'); }
@@ -119,6 +122,15 @@ function describeTile(x,y){
     if(t.collapseRisk) warns.push('🏚 Einsturzgefahr — ein Bauingenieur in der Nähe sichert die Statik.');
     if(cap>0&&t.res>=cap) warns.push('Voll belegt — neue Häuser schaffen mehr Platz.');
     return {glyph:(H3D[t.lvl]||H3D[0]).glyph, title:'Haus', rows, warns};
+  }
+  if(typeof DECO!=='undefined' && DECO[t.type]){
+    const g=DECO[t.type];
+    return {glyph:g.glyph, title:g.label, rows:[
+      {k:'Funktion', v:'Hebt die Attraktivität der Wohngegend'},
+      {k:'Schönheit', v:'+'+g.desire+' im Zentrum'},
+      {k:'Reichweite', v:g.range+' Felder (nach außen abnehmend)'},
+      {k:'Personal', v:'keines — wirkt sofort, auch ohne Straße'},
+    ], warns:['Industrie & Lager in der Nähe mindern die Wirkung — Wohngegend und Produktion trennen.']};
   }
   if(t.type==='well'){
     return {glyph:'💧', title:'Brunnen', rows:[
