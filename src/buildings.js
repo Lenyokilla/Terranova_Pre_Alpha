@@ -1883,39 +1883,128 @@ function drawGarden(gx, gy, baseLift) {
   return { cx: c.cx, topY };
 }
 
-function drawStatue(gx, gy, baseLift) {
-  const s = cam.scale, marble = '#ece6d6', marbleSh = '#cfc7b2';
-  const c = isoCorners(gx, gy, baseLift, 0);
-  const ctr = { x: c.bx, y: c.by };
-  // Bodenschatten
+// ====== SKULPTUREN — EIN Baumenüfeld, mehrere Varianten ======
+// Jede platzierte Skulptur wählt deterministisch (positionsbasiert -> stabil,
+// kein Flackern, über die Karte gemischt) eine Variante. Alle Varianten haben
+// identische Attraktivität/Kosten — reine optische Varianz.
+const STATUE_NAMES = ['Statue', 'Reiterstandbild', 'Schmucksäule', 'Obelisk', 'Büste'];
+function statueVariant(gx, gy) { return Math.floor(hash01(gx + 101, gy + 57) * STATUE_NAMES.length); }
+function statueVariantName(gx, gy) { return STATUE_NAMES[statueVariant(gx, gy)]; }
+
+// gepflasterter Platz (gemeinsam für alle Varianten)
+function statuePlaza(c, ctr, s) {
   ctx.save(); ctx.translate(c.bx + 3 * s, c.by + 2 * s); ctx.scale(1, TH / TW);
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.3 * s, 0, 7); ctx.fill(); ctx.restore();
-  // gepflasterter Platz (eingerückte Raute) + Fugenkreuz
-  const k = 0.9, I = p => ({ x: ctr.x + (p.x - ctr.x) * k, y: ctr.y + (p.y - ctr.y) * k });
+  const I = p => ({ x: ctr.x + (p.x - ctr.x) * 0.9, y: ctr.y + (p.y - ctr.y) * 0.9 });
   ctx.fillStyle = '#cabfa4'; poly([I(c.N), I(c.E), I(c.S), I(c.W)]);
   ctx.strokeStyle = 'rgba(60,45,28,.3)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(I(c.N).x, I(c.N).y); ctx.lineTo(I(c.S).x, I(c.S).y); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(I(c.E).x, I(c.E).y); ctx.lineTo(I(c.W).x, I(c.W).y); ctx.stroke();
-  // Marmorsockel (zentrierter Quader)
-  const baseH = 12 * s, q = 0.42, P = p => ({ x: ctr.x + (p.x - ctr.x) * q, y: ctr.y + (p.y - ctr.y) * q });
+}
+// zentrierter Marmorsockel; liefert oberen Mittelpunkt
+function statuePlinth(c, ctr, baseH, col) {
+  const P = p => ({ x: ctr.x + (p.x - ctr.x) * 0.42, y: ctr.y + (p.y - ctr.y) * 0.42 });
   const pN = P(c.N), pE = P(c.E), pS = P(c.S), pW = P(c.W), up = (p, d) => ({ x: p.x, y: p.y - d });
-  ctx.fillStyle = shade(marble, -0.14); poly([pW, pS, up(pS, baseH), up(pW, baseH)]);   // SW-Wand
-  ctx.fillStyle = shade(marble, -0.30); poly([pS, pE, up(pE, baseH), up(pS, baseH)]);   // SE-Wand
-  ctx.fillStyle = marble; poly([up(pN, baseH), up(pE, baseH), up(pS, baseH), up(pW, baseH)]); // Deckplatte
+  ctx.fillStyle = shade(col, -0.14); poly([pW, pS, up(pS, baseH), up(pW, baseH)]);
+  ctx.fillStyle = shade(col, -0.30); poly([pS, pE, up(pE, baseH), up(pS, baseH)]);
+  ctx.fillStyle = col; poly([up(pN, baseH), up(pE, baseH), up(pS, baseH), up(pW, baseH)]);
   ctx.strokeStyle = 'rgba(60,50,34,.3)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(up(pW, baseH).x, up(pW, baseH).y); ctx.lineTo(up(pS, baseH).x, up(pS, baseH).y); ctx.lineTo(up(pE, baseH).x, up(pE, baseH).y); ctx.stroke();
-  // Figur auf dem Sockel (vereinfachte Marmorstatue)
-  const fx = ctr.x, fy = ctr.y - baseH, figH = 20 * s, fw = 4.6 * s;
-  ctx.fillStyle = marble; ctx.beginPath();   // Körper/Toga (Trapez)
-  ctx.moveTo(fx - fw * 0.5, fy); ctx.lineTo(fx + fw * 0.5, fy);
-  ctx.lineTo(fx + fw * 0.3, fy - figH * 0.72); ctx.lineTo(fx - fw * 0.3, fy - figH * 0.72); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = marbleSh; ctx.beginPath();  // Schattenseite
-  ctx.moveTo(fx + fw * 0.04, fy); ctx.lineTo(fx + fw * 0.5, fy);
-  ctx.lineTo(fx + fw * 0.3, fy - figH * 0.72); ctx.lineTo(fx + fw * 0.04, fy - figH * 0.72); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = marble; ctx.beginPath(); ctx.arc(fx, fy - figH * 0.84, 2.6 * s, 0, 7); ctx.fill();   // Kopf
-  ctx.strokeStyle = marble; ctx.lineWidth = Math.max(1.4, 1.6 * s); ctx.lineCap = 'round';            // ausgestreckter Arm
-  ctx.beginPath(); ctx.moveTo(fx, fy - figH * 0.58); ctx.lineTo(fx + 5.5 * s, fy - figH * 0.7); ctx.stroke(); ctx.lineCap = 'butt';
-  return { cx: c.cx, topY: fy - figH - 2 * s };
+  return { x: ctr.x, y: ctr.y - baseH };
+}
+// V0 — stehende Figur (Marmor)
+function statueStanding(P, s, m, mSh) {
+  const fx = P.x, fy = P.y, H = 20 * s, w = 4.6 * s;
+  ctx.fillStyle = m; ctx.beginPath();
+  ctx.moveTo(fx - w * 0.5, fy); ctx.lineTo(fx + w * 0.5, fy); ctx.lineTo(fx + w * 0.3, fy - H * 0.72); ctx.lineTo(fx - w * 0.3, fy - H * 0.72); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = mSh; ctx.beginPath();
+  ctx.moveTo(fx + w * 0.04, fy); ctx.lineTo(fx + w * 0.5, fy); ctx.lineTo(fx + w * 0.3, fy - H * 0.72); ctx.lineTo(fx + w * 0.04, fy - H * 0.72); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = m; ctx.beginPath(); ctx.arc(fx, fy - H * 0.84, 2.6 * s, 0, 7); ctx.fill();
+  ctx.strokeStyle = m; ctx.lineWidth = Math.max(1.4, 1.6 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(fx, fy - H * 0.58); ctx.lineTo(fx + 5.5 * s, fy - H * 0.7); ctx.stroke(); ctx.lineCap = 'butt';
+  return fy - H - 2 * s;
+}
+// V1 — Reiterstandbild (Bronze/Patina)
+function statueEquestrian(P, s, br, brSh) {
+  const cx = P.x, gnd = P.y, bw = 12 * s, legH = 7 * s, bodyY = gnd - legH;
+  ctx.strokeStyle = brSh; ctx.lineWidth = Math.max(1.4, 1.7 * s); ctx.lineCap = 'round';   // vier Beine
+  for (const dx of [-bw * 0.34, -bw * 0.12, bw * 0.12, bw * 0.34]) { ctx.beginPath(); ctx.moveTo(cx + dx, bodyY + 1.5 * s); ctx.lineTo(cx + dx * 1.08, gnd); ctx.stroke(); }
+  ctx.lineCap = 'butt';
+  ctx.fillStyle = br; ctx.beginPath(); ctx.ellipse(cx, bodyY, bw * 0.5, 4.6 * s, 0, 0, 7); ctx.fill();          // Rumpf
+  ctx.fillStyle = brSh; ctx.beginPath(); ctx.ellipse(cx, bodyY + 1.6 * s, bw * 0.48, 3 * s, 0, 0, 7); ctx.fill();
+  const nx = cx + bw * 0.42, ny = bodyY - 2 * s;                                                                 // Hals + Kopf (nach +x)
+  ctx.fillStyle = br; ctx.beginPath(); ctx.moveTo(cx + bw * 0.28, bodyY - 2.5 * s); ctx.lineTo(nx, ny - 6 * s); ctx.lineTo(nx + 3.2 * s, ny - 6 * s); ctx.lineTo(cx + bw * 0.42, bodyY + 1 * s); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(nx + 3.4 * s, ny - 6.6 * s, 2.4 * s, 1.7 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = brSh; ctx.lineWidth = Math.max(1.2, 1.4 * s);                                                // Schweif (nach -x)
+  ctx.beginPath(); ctx.moveTo(cx - bw * 0.48, bodyY); ctx.lineTo(cx - bw * 0.64, bodyY + 4.5 * s); ctx.stroke();
+  const rx = cx - 1 * s, rby = bodyY - 4 * s, rH = 9 * s;                                                        // Reiter
+  ctx.fillStyle = br; ctx.fillRect(rx - 1.7 * s, rby - rH, 3.4 * s, rH);
+  ctx.beginPath(); ctx.arc(rx, rby - rH - 1.7 * s, 2 * s, 0, 7); ctx.fill();
+  ctx.strokeStyle = br; ctx.lineWidth = Math.max(1.2, 1.5 * s); ctx.lineCap = 'round';                          // erhobener Arm
+  ctx.beginPath(); ctx.moveTo(rx, rby - rH * 0.6); ctx.lineTo(rx + 5 * s, rby - rH * 0.5); ctx.stroke(); ctx.lineCap = 'butt';
+  return rby - rH - 4 * s;
+}
+// V2 — Schmucksäule mit Bronze-Urne (vom Boden)
+function statueColumnUrn(P, s, m, mSh, br) {
+  const cx = P.x, gnd = P.y, H = 22 * s, w = 3.2 * s;
+  ctx.fillStyle = m; ctx.fillRect(cx - w, gnd - H, w * 2, H);
+  ctx.fillStyle = mSh; ctx.fillRect(cx + w * 0.1, gnd - H, w * 0.9, H);
+  ctx.strokeStyle = 'rgba(120,110,90,.3)'; ctx.lineWidth = 1;
+  for (const t of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.moveTo(cx + w * t, gnd - H + 2 * s); ctx.lineTo(cx + w * t, gnd - 2 * s); ctx.stroke(); }
+  ctx.fillStyle = m; ctx.fillRect(cx - w * 1.4, gnd - H - 2.5 * s, w * 2.8, 2.5 * s);   // Kapitell
+  ctx.fillRect(cx - w * 1.4, gnd - 3 * s, w * 2.8, 3 * s);                              // Basis
+  const uy = gnd - H - 2.5 * s;                                                          // Urne (Bronze)
+  ctx.fillStyle = br; ctx.beginPath();
+  ctx.moveTo(cx - 4.5 * s, uy - 2 * s); ctx.quadraticCurveTo(cx - 5.6 * s, uy - 9 * s, cx - 2.6 * s, uy - 11 * s);
+  ctx.lineTo(cx + 2.6 * s, uy - 11 * s); ctx.quadraticCurveTo(cx + 5.6 * s, uy - 9 * s, cx + 4.5 * s, uy - 2 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(br, 0.12); ctx.beginPath(); ctx.ellipse(cx, uy - 11 * s, 3.2 * s, 1.2 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = br; ctx.lineWidth = Math.max(1.2, 1.5 * s);
+  ctx.beginPath(); ctx.arc(cx - 4.4 * s, uy - 7 * s, 2 * s, -0.6, 2.0); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx + 4.4 * s, uy - 7 * s, 2 * s, 1.1, 3.7); ctx.stroke();
+  return uy - 12 * s;
+}
+// V3 — Obelisk (roter Granit, vom Boden)
+function statueObelisk(P, s, gr, grSh) {
+  const cx = P.x, gnd = P.y, H = 30 * s, wB = 4.4 * s, wT = 2.0 * s;
+  ctx.fillStyle = grSh; ctx.fillRect(cx - wB * 1.1, gnd - 3 * s, wB * 2.2, 3 * s);       // Basisblock
+  ctx.fillStyle = gr; ctx.beginPath();                                                   // Schaft Vorderseite
+  ctx.moveTo(cx - wB, gnd - 3 * s); ctx.lineTo(cx + wB * 0.2, gnd - 3 * s); ctx.lineTo(cx + wT * 0.1, gnd - 3 * s - H); ctx.lineTo(cx - wT, gnd - 3 * s - H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = grSh; ctx.beginPath();                                                 // Schaft rechte Seite
+  ctx.moveTo(cx + wB * 0.2, gnd - 3 * s); ctx.lineTo(cx + wB, gnd - 4.5 * s); ctx.lineTo(cx + wT * 0.6, gnd - 4.5 * s - H); ctx.lineTo(cx + wT * 0.1, gnd - 3 * s - H); ctx.closePath(); ctx.fill();
+  const ty = gnd - 3 * s - H;                                                            // Pyramidion
+  ctx.fillStyle = shade(gr, 0.08); ctx.beginPath(); ctx.moveTo(cx - wT, ty); ctx.lineTo(cx + wT * 0.1, ty); ctx.lineTo(cx - wT * 0.4, ty - 4 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = grSh; ctx.beginPath(); ctx.moveTo(cx + wT * 0.1, ty); ctx.lineTo(cx + wT * 0.6, ty - 1.5 * s); ctx.lineTo(cx - wT * 0.4, ty - 4 * s); ctx.closePath(); ctx.fill();
+  return ty - 4.5 * s;
+}
+// V4 — Büste auf kurzer Säule (Marmor, vom Boden)
+function statueBust(P, s, m, mSh) {
+  const cx = P.x, gnd = P.y, H = 14 * s, w = 3.4 * s;
+  ctx.fillStyle = m; ctx.fillRect(cx - w, gnd - H, w * 2, H);
+  ctx.fillStyle = mSh; ctx.fillRect(cx + w * 0.1, gnd - H, w * 0.9, H);
+  ctx.fillStyle = m; ctx.fillRect(cx - w * 1.3, gnd - H - 2 * s, w * 2.6, 2 * s);
+  const by = gnd - H - 2 * s;
+  ctx.fillStyle = m; ctx.beginPath(); ctx.moveTo(cx - 5 * s, by); ctx.lineTo(cx + 5 * s, by); ctx.lineTo(cx + 3.4 * s, by - 5 * s); ctx.lineTo(cx - 3.4 * s, by - 5 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = mSh; ctx.beginPath(); ctx.moveTo(cx + 0.2 * s, by); ctx.lineTo(cx + 5 * s, by); ctx.lineTo(cx + 3.4 * s, by - 5 * s); ctx.lineTo(cx + 0.2 * s, by - 5 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = m; ctx.beginPath(); ctx.arc(cx, by - 7.5 * s, 3 * s, 0, 7); ctx.fill();
+  return by - 11 * s;
+}
+
+function drawStatue(gx, gy, baseLift) {
+  const s = cam.scale;
+  const marble = '#ece6d6', marbleSh = '#cfc7b2', bronze = '#6fae93', bronzeSh = '#4f8a72', gran = '#b9897a', granSh = '#8f6557';
+  const c = isoCorners(gx, gy, baseLift, 0);
+  const ctr = { x: c.bx, y: c.by };
+  statuePlaza(c, ctr, s);
+  const v = statueVariant(gx, gy);
+  let topY;
+  if (v === 2) topY = statueColumnUrn(ctr, s, marble, marbleSh, bronze);
+  else if (v === 3) topY = statueObelisk(ctr, s, gran, granSh);
+  else if (v === 4) topY = statueBust(ctr, s, marble, marbleSh);
+  else {
+    const top = statuePlinth(c, ctr, 12 * s, marble);
+    topY = (v === 1) ? statueEquestrian(top, s, bronze, bronzeSh) : statueStanding(top, s, marble, marbleSh);
+  }
+  return { cx: c.cx, topY };
 }
 
 function drawRoadblock(gx, gy, baseLift) {
