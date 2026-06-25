@@ -173,14 +173,18 @@ function makeTool(key){
 
 // Kategorie öffnen/schließen (Toggle): zweites Tippen blendet die Untergebäude aus
 function openCategory(cat){
-  if(openCat===cat.key){closeFlyout();return;}             // gleiche Kategorie erneut -> zuklappen
+  if(openCat===cat.key){closeFlyout(true);return;}         // gleiche Kategorie erneut -> zuklappen + zurück zur Navigation
   openCat=cat.key; flyout.innerHTML='';
   cat.items.forEach(k=>flyout.appendChild(makeTool(k)));
   flyout.style.display='flex'; syncTools();
   document.querySelectorAll('.cat').forEach(c=>paintCat(c,c.dataset.cat===cat.key));
 }
-function closeFlyout(){openCat=null; flyout.style.display='none'; flyout.innerHTML='';
-  document.querySelectorAll('.cat').forEach(c=>paintCat(c,false));}
+function closeFlyout(resetTool){openCat=null; flyout.style.display='none'; flyout.innerHTML='';
+  document.querySelectorAll('.cat').forEach(c=>paintCat(c,false));
+  if(resetTool && tool!=='hand'){                          // Untermenü zu -> zurück zur Karten-Navigation
+    tool='hand'; syncTools();
+    if(typeof closePanel==='function')closePanel();
+    flash('Karte schieben & zoomen');}}
 
 // Untere Leiste: ZUERST die wichtigen Direkt-Werkzeuge (Straße/Sperre/Haus/Abriss),
 // dann ein Trenner, danach die Kategorie-Übermenüs der übrigen Gebäude.
