@@ -297,11 +297,11 @@ function drawGrainfield(gx, gy, baseLift) {
 // Römisches Mietshaus (Insula): hoher Putzbau, Fensterreihen je Stockwerk, flaches Terrakottadach
 function drawInsula(gx, gy, lvl, baseLift) {
   const s = cam.scale;
-  const L = Math.max(0, Math.min(3, lvl | 0));
-  const floors  = [1, 2, 3, 4][L];
-  const h       = [15, 26, 37, 46][L];
-  const wallCol = ['#b58a5c', '#cbae84', '#dccaa6', '#e6d8b8'][L];
-  const roofCol = '#b15f3a';
+  const L = Math.max(0, Math.min(4, lvl | 0));
+  const floors  = [1, 2, 3, 4, 5][L];
+  const h       = [15, 26, 37, 46, 55][L];
+  const wallCol = ['#b58a5c', '#cbae84', '#dccaa6', '#e6d8b8', '#f2ecd6'][L];
+  const roofCol = L >= 4 ? '#9c5230' : '#b15f3a';
   const c = isoCorners(gx, gy, baseLift, h);
 
   // weicher Schlagschatten
@@ -453,6 +453,8 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind && kind.indexOf('temple_') === 0) return drawTemple(gx, gy, baseLift, kind);
   if (kind && typeof HEALTH !== 'undefined' && HEALTH[kind]) return drawHealth(gx, gy, baseLift, kind);
   if (kind && typeof EDUCATION !== 'undefined' && EDUCATION[kind]) return drawEducation(gx, gy, baseLift, kind);
+  if (kind === 'garden') return drawGarden(gx, gy, baseLift);
+  if (kind === 'statue') return drawStatue(gx, gy, baseLift);
   
   statusEffects = statusEffects || { fireRisk: false, plagueRisk: false, waterShortage: false, unemployed: false };
   const s = cam.scale;
@@ -1751,6 +1753,77 @@ function drawWarehouse(gx, gy, baseLift) {
 }
 
 // Straßensperre: rot-weißer Schlagbaum quer über die Straße (Läufer kehren um)
+function drawGarden(gx, gy, baseLift) {
+  const s = cam.scale;
+  const c = isoCorners(gx, gy, baseLift, 0);
+  const ctr = { x: c.bx, y: c.by };
+  // weicher Bodenschatten
+  ctx.save(); ctx.translate(c.bx, c.by + 2 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.4 * s, 0, 7); ctx.fill(); ctx.restore();
+  // Steineinfassung (volle Raute) + eingerückte Rasenfläche
+  ctx.fillStyle = '#c9bd9c'; poly([c.N, c.E, c.S, c.W]);
+  const k = 0.88, I = p => ({ x: ctr.x + (p.x - ctr.x) * k, y: ctr.y + (p.y - ctr.y) * k });
+  const iN = I(c.N), iE = I(c.E), iS = I(c.S), iW = I(c.W);
+  const lawn = '#6f9a44';
+  const g = ctx.createLinearGradient(iN.x, iN.y, iS.x, iS.y);
+  g.addColorStop(0, shade(lawn, 0.12)); g.addColorStop(1, shade(lawn, -0.14));
+  ctx.fillStyle = g; poly([iN, iE, iS, iW]);
+  // Kieswege (Kreuz durch die Kantenmitten)
+  const mNE = lerp(iN, iE, 0.5), mES = lerp(iE, iS, 0.5), mSW = lerp(iS, iW, 0.5), mWN = lerp(iW, iN, 0.5);
+  ctx.strokeStyle = 'rgba(228,218,194,.75)'; ctx.lineWidth = Math.max(1.5, 2 * s);
+  ctx.beginPath(); ctx.moveTo(mNE.x, mNE.y); ctx.lineTo(mSW.x, mSW.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mES.x, mES.y); ctx.lineTo(mWN.x, mWN.y); ctx.stroke();
+  // vier Büsche in den Quadranten + Blütentupfer
+  const bush = (corner, r) => {
+    const p = { x: ctr.x + (corner.x - ctr.x) * 0.5, y: ctr.y + (corner.y - ctr.y) * 0.5 };
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 1.6 * s, r * 1.05, r * 0.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4f7d34'; ctx.beginPath(); ctx.arc(p.x, p.y - r * 0.4, r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6aa047'; ctx.beginPath(); ctx.arc(p.x - r * 0.3, p.y - r * 0.6, r * 0.7, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(p.x - r * 0.4, p.y - r * 0.8, r * 0.3, 0, 7); ctx.fill();
+    return p;
+  };
+  bush(c.N, 4.4 * s); bush(c.E, 4.4 * s); bush(c.S, 4.4 * s); bush(c.W, 4.4 * s);
+  // ein paar Blüten auf dem Rasen
+  const flowers = [['#e4d24a', 0, -1], ['#d85a7a', -3, 2], ['#e08a3a', 3, 1], ['#cf6fae', 1, 4]];
+  for (const [col, dx, dy] of flowers) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ctr.x + dx * s, ctr.y + dy * s, 1.2 * s, 0, 7); ctx.fill(); }
+  return { cx: c.cx, topY: ctr.y - 8 * s };
+}
+
+function drawStatue(gx, gy, baseLift) {
+  const s = cam.scale, marble = '#ece6d6', marbleSh = '#cfc7b2';
+  const c = isoCorners(gx, gy, baseLift, 0);
+  const ctr = { x: c.bx, y: c.by };
+  // Bodenschatten
+  ctx.save(); ctx.translate(c.bx + 3 * s, c.by + 2 * s); ctx.scale(1, TH / TW);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(0, 0, TW * 0.3 * s, 0, 7); ctx.fill(); ctx.restore();
+  // gepflasterter Platz (eingerückte Raute) + Fugenkreuz
+  const k = 0.9, I = p => ({ x: ctr.x + (p.x - ctr.x) * k, y: ctr.y + (p.y - ctr.y) * k });
+  ctx.fillStyle = '#cabfa4'; poly([I(c.N), I(c.E), I(c.S), I(c.W)]);
+  ctx.strokeStyle = 'rgba(60,45,28,.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(I(c.N).x, I(c.N).y); ctx.lineTo(I(c.S).x, I(c.S).y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(I(c.E).x, I(c.E).y); ctx.lineTo(I(c.W).x, I(c.W).y); ctx.stroke();
+  // Marmorsockel (zentrierter Quader)
+  const baseH = 12 * s, q = 0.42, P = p => ({ x: ctr.x + (p.x - ctr.x) * q, y: ctr.y + (p.y - ctr.y) * q });
+  const pN = P(c.N), pE = P(c.E), pS = P(c.S), pW = P(c.W), up = (p, d) => ({ x: p.x, y: p.y - d });
+  ctx.fillStyle = shade(marble, -0.14); poly([pW, pS, up(pS, baseH), up(pW, baseH)]);   // SW-Wand
+  ctx.fillStyle = shade(marble, -0.30); poly([pS, pE, up(pE, baseH), up(pS, baseH)]);   // SE-Wand
+  ctx.fillStyle = marble; poly([up(pN, baseH), up(pE, baseH), up(pS, baseH), up(pW, baseH)]); // Deckplatte
+  ctx.strokeStyle = 'rgba(60,50,34,.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(up(pW, baseH).x, up(pW, baseH).y); ctx.lineTo(up(pS, baseH).x, up(pS, baseH).y); ctx.lineTo(up(pE, baseH).x, up(pE, baseH).y); ctx.stroke();
+  // Figur auf dem Sockel (vereinfachte Marmorstatue)
+  const fx = ctr.x, fy = ctr.y - baseH, figH = 20 * s, fw = 4.6 * s;
+  ctx.fillStyle = marble; ctx.beginPath();   // Körper/Toga (Trapez)
+  ctx.moveTo(fx - fw * 0.5, fy); ctx.lineTo(fx + fw * 0.5, fy);
+  ctx.lineTo(fx + fw * 0.3, fy - figH * 0.72); ctx.lineTo(fx - fw * 0.3, fy - figH * 0.72); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = marbleSh; ctx.beginPath();  // Schattenseite
+  ctx.moveTo(fx + fw * 0.04, fy); ctx.lineTo(fx + fw * 0.5, fy);
+  ctx.lineTo(fx + fw * 0.3, fy - figH * 0.72); ctx.lineTo(fx + fw * 0.04, fy - figH * 0.72); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = marble; ctx.beginPath(); ctx.arc(fx, fy - figH * 0.84, 2.6 * s, 0, 7); ctx.fill();   // Kopf
+  ctx.strokeStyle = marble; ctx.lineWidth = Math.max(1.4, 1.6 * s); ctx.lineCap = 'round';            // ausgestreckter Arm
+  ctx.beginPath(); ctx.moveTo(fx, fy - figH * 0.58); ctx.lineTo(fx + 5.5 * s, fy - figH * 0.7); ctx.stroke(); ctx.lineCap = 'butt';
+  return { cx: c.cx, topY: fy - figH - 2 * s };
+}
+
 function drawRoadblock(gx, gy, baseLift) {
   const s = cam.scale;
   const c = isoCorners(gx, gy, baseLift, 0);
