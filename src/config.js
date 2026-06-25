@@ -221,7 +221,7 @@ ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(EDUCATION));
 // ============================================================
 const DECO = {
   garden: { label:'Garten',   glyph:'🌳', desire:3, range:2, cost:18, up:0 }, // kleiner Schönheitsspender, günstig
-  statue: { label:'Skulptur', glyph:'🗿', desire:7, range:3, cost:45, up:1 }, // starker Schönheitsspender, große Reichweite
+  statue: { label:'Skulpturen', glyph:'🗿', desire:7, range:3, cost:45, up:1 }, // starker Schönheitsspender; beim Bau zufällige Variante (Statue/Reiter/Säule/Obelisk/Büste)
 };
 Object.keys(DECO).forEach(k=>{
   const g=DECO[k];
