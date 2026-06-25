@@ -115,6 +115,7 @@ const CATS=[
   {key:'health',label:'Gesundheit', glyph:'⚕️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='health')},
   {key:'edu',   label:'Bildung',    glyph:'🎓', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='education')},
   {key:'fun',   label:'Kultur',     glyph:'🎭', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='entertain')},
+  {key:'deco',  label:'Schmuck',    glyph:'🌳', items:Object.keys(BUILD).filter(k=>BUILD[k].deco)},
   {key:'mil',   label:'Militär',    glyph:'⚔️', items:['wall','tower','gate','barracks']},
   {key:'civic', label:'Sicherheit', glyph:'🛡',  items:['well','forum','firehouse','engineer']},
 ];
