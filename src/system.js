@@ -123,6 +123,16 @@ function describeTile(x,y){
     if(cap>0&&t.res>=cap) warns.push('Voll belegt — neue Häuser schaffen mehr Platz.');
     return {glyph:(H3D[t.lvl]||H3D[0]).glyph, title:'Haus', rows, warns};
   }
+  if(t.type==='statue'){
+    const g=DECO.statue, nm=(typeof statueVariantName==='function')?statueVariantName(x,y):g.label;
+    return {glyph:g.glyph, title:nm, rows:[
+      {k:'Art', v:nm},
+      {k:'Funktion', v:'Hebt die Attraktivität der Wohngegend'},
+      {k:'Schönheit', v:'+'+g.desire+' im Zentrum'},
+      {k:'Reichweite', v:g.range+' Felder (nach außen abnehmend)'},
+      {k:'Personal', v:'keines — wirkt sofort, auch ohne Straße'},
+    ], warns:['Industrie & Lager in der Nähe mindern die Wirkung — Wohngegend und Produktion trennen.']};
+  }
   if(typeof DECO!=='undefined' && DECO[t.type]){
     const g=DECO[t.type];
     return {glyph:g.glyph, title:g.label, rows:[
