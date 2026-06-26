@@ -1384,11 +1384,23 @@ function potShape(x, y, col, kind, s, scl) {
 
 function drawPottery(gx, gy, baseLift) {
   const s = cam.scale, wall = '#caa46e', roof = '#b15f3a', terra = '#b3672f';
-  const h = 13;
-  const c = isoCorners(gx, gy, baseLift, h);
+  const h = 10;
+  // Gebäude = kompaktes Brennhaus im HINTEREN Teil der Kachel; davor bleibt der Hof frei
+  const bl = (baseLift || 0) * s, hh = h * s;
+  const u0 = 0.16, v0 = 0.06, u1 = 0.74, v1 = 0.52;
+  const mN = project(gx + u0, gy + v0), mE = project(gx + u1, gy + v0),
+        mS = project(gx + u1, gy + v1), mW = project(gx + u0, gy + v1);
+  [mN, mE, mS, mW].forEach(p => p.y -= bl);
+  const c = {
+    N: mN, E: mE, S: mS, W: mW,
+    Nt: { x: mN.x, y: mN.y - hh }, Et: { x: mE.x, y: mE.y - hh },
+    St: { x: mS.x, y: mS.y - hh }, Wt: { x: mW.x, y: mW.y - hh },
+    cx: (mN.x + mS.x) / 2, cy: (mN.y + mS.y) / 2 - hh,
+    bx: (mN.x + mE.x + mS.x + mW.x) / 4, by: (mN.y + mE.y + mS.y + mW.y) / 4
+  };
   // Schatten
   ctx.save();
-  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetX = 11 * s; ctx.shadowOffsetY = 6 * s;
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 7 * s; ctx.shadowOffsetX = 8 * s; ctx.shadowOffsetY = 5 * s;
   ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
   // Wände (Backstein-Brennhaus)
   const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
@@ -1401,46 +1413,47 @@ function drawPottery(gx, gy, baseLift) {
   wallBrickLines(c.S, c.E, c.St, c.Et, 2, 'rgba(95, 45, 30, 0.44)', s);
 
   // --- glühendes Brennofen-Maul in der SE-Wand (flackernd) ---
-  const kb = lerp(c.S, c.E, 0.60), kt = lerp(c.St, c.Et, 0.60);
-  const kx = (kb.x + kt.x) / 2, ky = (kb.y + kt.y) / 2 + 1 * s;
+  const kb = lerp(c.S, c.E, 0.58), kt = lerp(c.St, c.Et, 0.58);
+  const kx = (kb.x + kt.x) / 2, ky = (kb.y + kt.y) / 2 + 0.5 * s;
   const flick = 0.55 + 0.30 * Math.abs(Math.sin(animT * 4.3 + 1.1));
-  ctx.fillStyle = 'rgba(35,20,12,0.92)'; ctx.beginPath(); ctx.arc(kx, ky, 3.4 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(245,150,55,' + flick.toFixed(2) + ')'; ctx.beginPath(); ctx.arc(kx, ky, 2.3 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(255,228,150,' + (flick * 0.9).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(kx, ky - 0.3 * s, 1.1 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(35,20,12,0.92)'; ctx.beginPath(); ctx.arc(kx, ky, 2.4 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(245,150,55,' + flick.toFixed(2) + ')'; ctx.beginPath(); ctx.arc(kx, ky, 1.6 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,228,150,' + (flick * 0.9).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(kx, ky - 0.2 * s, 0.8 * s, Math.PI, 0); ctx.closePath(); ctx.fill();
 
   // Dach
-  const topY = hipRoof(c, roof, 9, true);
+  const topY = hipRoof(c, roof, 6, true);
 
   // --- Schornstein + driftender, aufsteigender Rauch ---
-  const ch = lerp(c.N, c.E, 0.40);
-  ctx.fillStyle = shade(roof, -0.35); ctx.fillRect(ch.x - 1.8 * s, topY - 7 * s, 3.6 * s, 7 * s);
-  ctx.fillStyle = shade(roof, -0.55); ctx.fillRect(ch.x - 1.8 * s, topY - 7 * s, 3.6 * s, 1.4 * s);
+  const ch = lerp(c.N, c.E, 0.42);
+  ctx.fillStyle = shade(roof, -0.35); ctx.fillRect(ch.x - 1.4 * s, topY - 5 * s, 2.8 * s, 5 * s);
+  ctx.fillStyle = shade(roof, -0.55); ctx.fillRect(ch.x - 1.4 * s, topY - 5 * s, 2.8 * s, 1.1 * s);
   for (let i = 0; i < 4; i++) {
     const t = (animT * 0.55 + i * 0.27) % 1;          // Aufstiegsphase 0..1
     const a = (1 - t) * 0.30;
-    const yy = topY - 7 * s - t * 17 * s;
-    const xx = ch.x + Math.sin(animT * 1.1 + i * 1.7) * 2.2 * s + t * 3 * s;
-    const r = (1.5 + t * 3.4) * s;
+    const yy = topY - 5 * s - t * 15 * s;
+    const xx = ch.x + Math.sin(animT * 1.1 + i * 1.7) * 2.0 * s + t * 3 * s;
+    const r = (1.3 + t * 3.0) * s;
     ctx.fillStyle = 'rgba(120,112,104,' + a.toFixed(2) + ')';
     ctx.beginPath(); ctx.arc(xx, yy, r, 0, 7); ctx.fill();
   }
 
-  // ====== offener Werkhof VOR dem Gebäude (an der Grundfläche verankert) ======
-  const bx = c.bx, by = c.by;
-  const fy = by + (c.S.y - by) * 0.50;     // mittlere Hof-Höhe im Vordergrund
+  // ====== offener Werkhof in der freien Kachel-Vorderhälfte (vor dem Brennhaus) ======
+  const F = isoCorners(gx, gy, baseLift, 0);          // volle Kachel als Bezug
+  const bx = F.bx;                                    // Kachelmitte (X)
+  const fy = (c.S.y + F.S.y) / 2 + 1 * s;             // zwischen Gebäudefront und Kachel-Vorderecke
   // gestampfter Lehmboden als Untergrund
   ctx.fillStyle = 'rgba(120,95,68,0.30)';
   ctx.beginPath(); ctx.ellipse(bx, fy + 5 * s, 18 * s, 8 * s, 0, 0, 7); ctx.fill();
 
   // --- Tonklumpen + Wasserschale (links) ---
-  const cxp = bx - 12 * s, cyp = fy + 6 * s;
+  const cxp = bx - 11 * s, cyp = fy + 6 * s;
   ctx.fillStyle = '#7a6a55'; ctx.beginPath(); ctx.ellipse(cxp, cyp, 4 * s, 2.6 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#8d7d66'; ctx.beginPath(); ctx.ellipse(cxp - 0.6 * s, cyp - 1.3 * s, 2.6 * s, 1.6 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#5e7a86'; ctx.beginPath(); ctx.ellipse(cxp + 5.5 * s, cyp + 1.8 * s, 2.4 * s, 1.5 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#9ec6d8'; ctx.beginPath(); ctx.ellipse(cxp + 5.5 * s, cyp + 1.5 * s, 1.6 * s, 1 * s, 0, 0, 7); ctx.fill();
 
   // --- Trockengestell mit fertigen Gefäßen (rechts) ---
-  const rx = bx + 14 * s, ry = fy + 1 * s;
+  const rx = bx + 12 * s, ry = fy + 1 * s;
   ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.4, 1.7 * s); ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(rx - 6.5 * s, ry + 6 * s); ctx.lineTo(rx - 6.5 * s, ry - 9 * s); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(rx + 6.5 * s, ry + 5 * s); ctx.lineTo(rx + 6.5 * s, ry - 10 * s); ctx.stroke();
