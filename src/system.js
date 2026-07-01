@@ -101,6 +101,7 @@ function describeTile(x,y){
       {k:'Wasser',      v:t.water>0?'versorgt':'fehlt', cls:t.water>0?'ok':'bad'},
       {k:'Nahrung',     v:t.food >0?'versorgt':'fehlt', cls:t.food >0?'ok':'bad'},
       {k:'Luxus',       v:t.goods>0?('Keramik (+'+GOODS_BONUS+' Steuer)'):'keine'},
+      {k:'Möbel',       v:t.furn>0?('Möbel (+'+FURN_BONUS+' Steuer)'):'keine'},
       {k:'Gesundheit',  v:(t.bath>0&&t.doctor>0)?('versorgt (+'+HEALTH_BONUS+' Steuer)'):'unzureichend', cls:(t.bath>0&&t.doctor>0)?'ok':'bad'},
       {k:'Unterhaltung',v:t.entertain>0?('versorgt (+'+ENTERTAIN_BONUS+' Steuer)'):'keine', cls:t.entertain>0?'ok':'bad'},
       {k:'Bildung',     v:(t.schul>0&&t.biblio>0)?('versorgt (+'+(EDU_BONUS+(t.akad>0?EDU_BONUS:0))+' Steuer'+(t.akad>0?', Akademie':'')+')'):'unzureichend', cls:(t.schul>0&&t.biblio>0)?'ok':'bad'},
@@ -153,9 +154,10 @@ function describeTile(x,y){
     const w=hasRoad?[]:['Keine angrenzende Straße — der Markthändler kann nicht losziehen.'];
     if((t.bread||0)<=0) w.push('Keine Nahrung — eine Bäckerei oder ein Fischer liefert Nachschub.');
     return {glyph:'🧺', title:'Markt', rows:[
-      {k:'Funktion', v:'Verteilt Nahrung (Brot/Fisch) & Keramik'},
+      {k:'Funktion', v:'Verteilt Nahrung (Brot/Fisch), Keramik & Möbel'},
       {k:'Nahrungs-Lager', v:(t.bread||0)+' / 8'},
       {k:'Keramik-Lager', v:(t.cer||0)+' / 8'},
+      {k:'Möbel-Lager', v:(t.furn||0)+' / 8'},
       roadRow,
       {k:'Trägerintervall', v:'alle '+BUILD.market.every+' Ticks'},
     ], warns:w};
@@ -183,6 +185,17 @@ function describeTile(x,y){
       {k:'Lehm-Lager',   v:(t.clay||0)+' / 8'},
       {k:'Keramik-Lager',v:(t.cer ||0)+' / 8'},
       {k:'Wandelt', v:'Lehm → Keramik'},
+      {k:'Liefert an', v:'Markt (über Straße)'},
+    ], warns:w};
+  }
+  if(t.type==='workshop'){
+    const link=!!findPath(x,y,'market'); const w=[];
+    if((t.wood||0)<=0) w.push('Kein Holz — ein angeschlossener Holzfäller liefert Nachschub (er beliefert die Schreinerei bevorzugt vor dem Lager).');
+    if(!link) w.push('Keine Straßenverbindung zum Markt — die Möbel bleiben im Lager.');
+    return {glyph:'🪑', title:'Schreinerei', rows:[
+      {k:'Holz-Lager',  v:(t.wood||0)+' / 8'},
+      {k:'Möbel-Lager', v:(t.furn||0)+' / 8'},
+      {k:'Wandelt', v:'Holz → Möbel'},
       {k:'Liefert an', v:'Markt (über Straße)'},
     ], warns:w};
   }

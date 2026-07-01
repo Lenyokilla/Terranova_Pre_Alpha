@@ -222,12 +222,24 @@ function drawLoad(w,x,topY,s){
     ctx.fillStyle='#e3ded3';ctx.fillRect(x-2.2*s,topY-1.6*s,4.4*s,3.6*s);
     ctx.fillStyle='#f4f0e8';ctx.fillRect(x-2.2*s,topY-1.6*s,4.4*s,1.1*s);
     ctx.strokeStyle='rgba(150,160,165,.6)';ctx.lineWidth=Math.max(1,0.6*s);ctx.strokeRect(x-2.2*s,topY-1.6*s,4.4*s,3.6*s);
+  } else if(w.cargo==='furn'){                                           // Möbel: kleiner Stuhl
+    ctx.fillStyle='#8a5a2e';ctx.fillRect(x-2*s,topY-0.4*s,4*s,1.4*s);                 // Sitzfläche
+    ctx.fillStyle='#9c6a3a';ctx.fillRect(x+0.7*s,topY-3.6*s,1.3*s,3.4*s);            // Rückenlehne
+    ctx.strokeStyle='#6e4421';ctx.lineWidth=Math.max(1,0.7*s);ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x-1.6*s,topY+1*s);ctx.lineTo(x-1.6*s,topY+2.8*s);
+    ctx.moveTo(x+1.6*s,topY+1*s);ctx.lineTo(x+1.6*s,topY+2.8*s);ctx.stroke();ctx.lineCap='butt';   // Beine
   } else if(w.service==='water'){ amphora(x,topY+0.5*s,s,'#4f93b0');
   } else if(w.service==='market'){
     ctx.fillStyle='#b07a3c';ctx.beginPath();
     ctx.moveTo(x-3*s,topY-0.5*s);ctx.lineTo(x+3*s,topY-0.5*s);ctx.lineTo(x+2.2*s,topY+3*s);ctx.lineTo(x-2.2*s,topY+3*s);ctx.closePath();ctx.fill();
     ctx.strokeStyle='#7c531f';ctx.lineWidth=Math.max(1,0.6*s);ctx.beginPath();ctx.arc(x,topY-0.5*s,3*s,Math.PI,0);ctx.stroke();
     if(w.goods) amphora(x+0.4*s,topY,s*0.78,'#3f9c8a');
+    if(w.luxe){ const fx=x-2.2*s, fy2=topY-1.2*s;                                  // Möbel (Stuhl) auf dem Korbrand
+      ctx.fillStyle='#5e3a1c'; ctx.fillRect(fx-1.5*s,fy2-0.4*s,3.0*s,1.1*s);        // Sitz (Kontur dunkel)
+      ctx.fillStyle='#a06a3a'; ctx.fillRect(fx-1.2*s,fy2-0.2*s,2.4*s,0.7*s);
+      ctx.fillStyle='#5e3a1c'; ctx.fillRect(fx+0.7*s,fy2-2.4*s,1.0*s,2.2*s);        // Rückenlehne
+      ctx.fillStyle='#a06a3a'; ctx.fillRect(fx+0.9*s,fy2-2.2*s,0.6*s,2.0*s); }
+    if(w.luxe){ ctx.fillStyle='#8a5a2e';ctx.fillRect(x-2.4*s,topY+0.2*s,2.6*s,0.9*s); ctx.fillStyle='#9c6a3a';ctx.fillRect(x-0.2*s,topY-1.8*s,0.9*s,2*s); }   // Möbel (Stuhl)
   } else if(w.service==='tax'){
     ctx.fillStyle='#ece3c8';ctx.fillRect(x-2.4*s,topY-0.8*s,4.8*s,2.4*s);
     ctx.strokeStyle='#bcb083';ctx.lineWidth=Math.max(1,0.6*s);ctx.strokeRect(x-2.4*s,topY-0.8*s,4.8*s,2.4*s);

@@ -1,7 +1,7 @@
 /* TERRA · sim.js */
 // ---- Simulation ----
 function neighbors(x,y){return [[x,y-1],[x+1,y],[x,y+1],[x-1,y]];}
-function riskable(tp){return tp==='house'||tp==='market'||tp==='forum'||tp==='pottery'||tp==='claypit'||tp==='mill'||tp==='farm'||tp==='bakery';}
+function riskable(tp){return tp==='house'||tp==='market'||tp==='forum'||tp==='pottery'||tp==='workshop'||tp==='claypit'||tp==='mill'||tp==='farm'||tp==='bakery';}
 function adjRoad(x,y){return neighbors(x,y).find(([nx,ny])=>inBounds(nx,ny)&&grid[ny][nx].type==='road');}
 // Mehrfeld-Gebäude: eine Footprint-Kachel ist "Sklave", wenn sie zu einem Anker
 // gehört, aber selbst nicht der Master ist (keine eigene Logik/Job/Unterhalt).
@@ -66,6 +66,8 @@ function boatArrive(w){ const [hx,hy]=w.home||[]; if(!inBounds(hx,hy))return; co
 function deliverCargo(w){const [dx,dy]=w.dest;if(!inBounds(dx,dy))return;const t=grid[dy][dx];
   if(w.cargo==='clay'&&t.type==='pottery')t.clay=Math.min(8,(t.clay||0)+1);
   else if(w.cargo==='cer'&&t.type==='market')t.cer=Math.min(8,(t.cer||0)+1);
+  else if(w.cargo==='wood'&&t.type==='workshop')t.wood=Math.min(8,(t.wood||0)+1);
+  else if(w.cargo==='furn'&&t.type==='market')t.furn=Math.min(8,(t.furn||0)+1);
   else if(w.cargo==='grain'&&t.type==='mill')t.grain=Math.min(8,(t.grain||0)+1);
   else if(w.cargo==='flour'&&t.type==='bakery')t.flour=Math.min(8,(t.flour||0)+1);
   else if(w.cargo==='bread'&&t.type==='market')t.bread=Math.min(8,(t.bread||0)+1);
@@ -141,7 +143,8 @@ function tick(){
       if(adj&&c.spawn>=bdef.every){ c.spawn=0;
         const w={x:adj[0],y:adj[1],from:null,service:c.service,color:B3D[c.type].wcol,life:bdef.life||34,prog:0,dx:0,dy:0};
         if(c.service==='market'){ w.goods=(c.cer||0)>0; if(w.goods)c.cer--;       // Markt verkauft Keramik aus Lager
-                                  w.food=(c.bread||0)>0; if(w.food)c.bread--; }   // Nahrung nur mit Brot aus der Mühle
+                                  w.food=(c.bread||0)>0; if(w.food)c.bread--;      // Nahrung nur mit Brot aus der Mühle
+                                  w.luxe=(c.furn||0)>0; if(w.luxe)c.furn--; }      // Markt verkauft Möbel aus Lager
         if(c.service==='health'){ w.need=(typeof HEALTH!=='undefined'&&HEALTH[c.type])?HEALTH[c.type].need:null; }   // Therme/Arzt/Barbier versorgen ihren Bedarf
         if(c.service==='education'){ w.need=(typeof EDUCATION!=='undefined'&&EDUCATION[c.type])?EDUCATION[c.type].need:null; }   // Schule/Bibliothek/Akademie versorgen ihren Bedarf
         walkers.push(w);
@@ -156,6 +159,12 @@ function tick(){
       c.spawn=(c.spawn||0)+1;
       if(c.spawn>=BUILD.pottery.every&&(c.cer||0)>0){ const fp=findPath(x,y,'market');
         if(fp){c.spawn=0;c.cer--;spawnCarrier(fp,'cer','#3f9c8a');} else {c.spawn=BUILD.pottery.every;} } }
+    if(c.type==='workshop'&&c.staffed){
+      c.conv=(c.conv||0)+1;
+      if(c.conv>=8&&(c.wood||0)>0&&(c.furn||0)<8){c.conv=0;c.wood--;c.furn=(c.furn||0)+1;}   // Holz -> Möbel
+      c.spawn=(c.spawn||0)+1;
+      if(c.spawn>=BUILD.workshop.every&&(c.furn||0)>0){ const fp=findPath(x,y,'market');
+        if(fp){c.spawn=0;c.furn--;spawnCarrier(fp,'furn','#a06a3a');} else {c.spawn=BUILD.workshop.every;} } }
     if(c.type==='grainfield'&&c.staffed){
       if((tickCount%SEASON_LEN)===HARVEST_TICK) c.grain=8;          // Ernte: Speicher voll (auch ohne Straße)
       c.spawn=(c.spawn||0)+1;
@@ -201,7 +210,7 @@ function tick(){
       if(c.conv>=HARVEST_EVERY&&(c.wood||0)<8){ const f=adjWood(x,y);
         if(f){ c.conv=0; f.wood--; c.wood=(c.wood||0)+1; } }
       c.spawn=(c.spawn||0)+1;
-      if(c.spawn>=BUILD.woodcutter.every&&(c.wood||0)>0){ const fp=findPath(x,y,'warehouse');
+      if(c.spawn>=BUILD.woodcutter.every&&(c.wood||0)>0){ const fp=findPath(x,y,'workshop')||findPath(x,y,'warehouse');
         if(fp){c.spawn=0;c.wood--;spawnCarrier(fp,'wood','#9c6b3a');} else {c.spawn=BUILD.woodcutter.every;} } }
     // Steinbruch: bricht Stein am angrenzenden Fels (unerschöpflich) -> Lagerhaus
     if(c.type==='quarry'&&c.staffed){
@@ -236,8 +245,8 @@ function tick(){
         if(w.service==='eng'){ if(riskable(t.type))t.engSafe=SERVICE_LIFE; continue; }      // Statik
         if(t.type==='house'){
           if(w.service==='water')t.water=SERVICE_LIFE;
-          else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; }
-          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0)+((t.schul>0&&t.biblio>0)?(EDU_BONUS+(t.akad>0?EDU_BONUS:0)):0)+(((t.desire||0)>=ATTRACT_MIN)?ATTRACT_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
+          else if(w.service==='market'){ if(w.food)t.food=SERVICE_LIFE; if(w.goods)t.goods=SERVICE_LIFE; if(w.luxe)t.furn=SERVICE_LIFE; }
+          else if(w.service==='tax'){ if(t.res>0&&t.taxed<=0){ const amt=t.res+(t.goods>0?GOODS_BONUS:0)+(t.furn>0?FURN_BONUS:0)+((t.bath>0&&t.doctor>0)?HEALTH_BONUS:0)+((t.entertain>0)?ENTERTAIN_BONUS:0)+((t.schul>0&&t.biblio>0)?(EDU_BONUS+(t.akad>0?EDU_BONUS:0)):0)+(((t.desire||0)>=ATTRACT_MIN)?ATTRACT_BONUS:0); money+=amt; t.taxed=SERVICE_LIFE; if(typeof statInc==='function')statInc(amt); if(typeof floatText==='function')floatText(nx,ny,'+'+amt+' D','#ffd24a'); } }
           else if(w.service==='religion')t.faith=SERVICE_LIFE;   // Priester segnet Haus (Haken für spätere Götter-Gunst)
           else if(w.service==='health'){ if(w.need)t[w.need]=SERVICE_LIFE; }   // Therme→bath, Arzt→doctor, Barbier→barber
           else if(w.service==='entertain')t.entertain=SERVICE_LIFE;   // Theater/Arena/Kolosseum unterhalten das Haus
@@ -267,7 +276,7 @@ function tick(){
   // Bewohner-Dynamik
   pop=0;
   for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){const h=grid[y][x]; if(h.type!=='house')continue;
-    if(h.water>0)h.water--; if(h.food>0)h.food--; if(h.taxed>0)h.taxed--; if(h.goods>0)h.goods--;
+    if(h.water>0)h.water--; if(h.food>0)h.food--; if(h.taxed>0)h.taxed--; if(h.goods>0)h.goods--; if(h.furn>0)h.furn--;
     if(h.bath>0)h.bath--; if(h.doctor>0)h.doctor--; if(h.barber>0)h.barber--;   // Hygiene-Abdeckung klingt ab (wie Wasser/Nahrung)
     if(h.entertain>0)h.entertain--;                                              // Unterhaltung klingt ab
     if(h.schul>0)h.schul--; if(h.biblio>0)h.biblio--; if(h.akad>0)h.akad--;       // Bildungs-Abdeckung klingt ab

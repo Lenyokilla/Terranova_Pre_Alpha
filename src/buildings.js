@@ -436,6 +436,7 @@ function drawBuilding(gx, gy, kind, lvl, baseLift, statusEffects) {
   if (kind === 'forum') return drawForum(gx, gy, baseLift);
   if (kind === 'claypit') return drawClaypit(gx, gy, baseLift);
   if (kind === 'pottery') return drawPottery(gx, gy, baseLift);
+  if (kind === 'workshop') return drawWorkshop(gx, gy, baseLift);
   if (kind === 'well') return drawWell(gx, gy, baseLift);
   if (kind === 'market') return drawMarket(gx, gy, baseLift);
   if (kind === 'firehouse') return drawFirehouse(gx, gy, baseLift);
@@ -1518,6 +1519,112 @@ function drawPottery(gx, gy, baseLift) {
   // fertige Amphoren ganz vorn abgestellt
   potShape(bx - 1 * s, fy + 9 * s, terra, 'amph', s, 1.2);
   potShape(bx + 3.5 * s, fy + 9.5 * s, '#9c5a2c', 'amph', s, 1.05);
+
+  return { cx: c.cx, topY };
+}
+
+function drawWorkshop(gx, gy, baseLift) {
+  const s = cam.scale, wall = '#c8a36a', roof = '#7a4f2c', woodc = '#9c6a3a';
+  const h = 10;
+  // Werkhaus im HINTEREN Teil der Kachel; davor bleibt der Werkhof frei
+  const bl = (baseLift || 0) * s, hh = h * s;
+  const u0 = 0.16, v0 = 0.06, u1 = 0.74, v1 = 0.52;
+  const mN = project(gx + u0, gy + v0), mE = project(gx + u1, gy + v0),
+        mS = project(gx + u1, gy + v1), mW = project(gx + u0, gy + v1);
+  [mN, mE, mS, mW].forEach(p => p.y -= bl);
+  const c = {
+    N: mN, E: mE, S: mS, W: mW,
+    Nt: { x: mN.x, y: mN.y - hh }, Et: { x: mE.x, y: mE.y - hh },
+    St: { x: mS.x, y: mS.y - hh }, Wt: { x: mW.x, y: mW.y - hh },
+    cx: (mN.x + mS.x) / 2, cy: (mN.y + mS.y) / 2 - hh,
+    bx: (mN.x + mE.x + mS.x + mW.x) / 4, by: (mN.y + mE.y + mS.y + mW.y) / 4
+  };
+  // Schatten
+  ctx.save();
+  ctx.shadowColor = 'rgba(25,15,5,0.22)'; ctx.shadowBlur = 7 * s; ctx.shadowOffsetX = 8 * s; ctx.shadowOffsetY = 5 * s;
+  ctx.fillStyle = 'rgba(0,0,0,0.01)'; poly([c.W, c.S, c.E, c.N]); ctx.restore();
+  // Waende (Holzfachwerk)
+  const gSW = ctx.createLinearGradient(c.Wt.x, c.Wt.y, c.S.x, c.S.y);
+  gSW.addColorStop(0, shade(wall, 0.05)); gSW.addColorStop(1, shade(wall, -0.12));
+  ctx.fillStyle = gSW; poly([c.W, c.S, c.St, c.Wt]);
+  const gSE = ctx.createLinearGradient(c.St.x, c.St.y, c.E.x, c.E.y);
+  gSE.addColorStop(0, shade(wall, -0.22)); gSE.addColorStop(1, shade(wall, -0.38));
+  ctx.fillStyle = gSE; poly([c.S, c.E, c.Et, c.St]);
+  // Plankenfugen + Fachwerk
+  wallBrickLines(c.W, c.S, c.Wt, c.St, 2, 'rgba(90, 60, 35, 0.40)', s);
+  wallBrickLines(c.S, c.E, c.St, c.Et, 2, 'rgba(70, 45, 26, 0.46)', s);
+  ctx.strokeStyle = 'rgba(80,52,30,0.42)'; ctx.lineWidth = Math.max(1, 0.8 * s);
+  for (const f of [0.32, 0.66]) { const a = lerp(c.W, c.S, f), b = lerp(c.Wt, c.St, f);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  // kleines Werkstattfenster in der SE-Wand
+  const wb = lerp(c.S, c.E, 0.56), wt = lerp(c.St, c.Et, 0.56);
+  const wx0 = (wb.x + wt.x) / 2, wy0 = (wb.y + wt.y) / 2 - 3.2 * s;
+  ctx.fillStyle = 'rgba(40,28,16,0.85)'; ctx.fillRect(wx0 - 1.7 * s, wy0 - 1.7 * s, 3.4 * s, 3.4 * s);
+  ctx.strokeStyle = shade(woodc, -0.3); ctx.lineWidth = Math.max(1, 0.7 * s);
+  ctx.strokeRect(wx0 - 1.7 * s, wy0 - 1.7 * s, 3.4 * s, 3.4 * s);
+  ctx.beginPath(); ctx.moveTo(wx0, wy0 - 1.7 * s); ctx.lineTo(wx0, wy0 + 1.7 * s); ctx.moveTo(wx0 - 1.7 * s, wy0); ctx.lineTo(wx0 + 1.7 * s, wy0); ctx.stroke();
+  // Dach
+  const topY = hipRoof(c, roof, 6, true);
+
+  // ====== offener Werkhof in der freien Kachel-Vorderhaelfte ======
+  const F = isoCorners(gx, gy, baseLift, 0);
+  const bx = F.bx;
+  const fy = (c.S.y + F.S.y) / 2 + 1 * s;
+  // Boden + Saegespaene
+  ctx.fillStyle = 'rgba(120,95,68,0.30)';
+  ctx.beginPath(); ctx.ellipse(bx, fy + 5 * s, 18 * s, 8 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(214,184,128,0.40)';
+  for (let i = 0; i < 7; i++) { const a = hash01(gx * 7 + i, gy * 3 + i * 5);
+    const sx = bx + (a - 0.5) * 26 * s, sy = fy + 4 * s + hash01(i, gx + gy) * 7 * s;
+    ctx.beginPath(); ctx.ellipse(sx, sy, 1.2 * s, 0.5 * s, a * 6, 0, 7); ctx.fill(); }
+
+  // --- Holzstapel (links) ---
+  const lx = bx - 12 * s, ly = fy + 5 * s;
+  for (let row = 0; row < 2; row++) for (let k = 0; k < 3 - row; k++) {
+    const px = lx + k * 2.6 * s + row * 1.3 * s, py = ly - row * 2.0 * s;
+    ctx.fillStyle = shade(woodc, 0.04); ctx.beginPath(); ctx.ellipse(px, py, 1.4 * s, 1.4 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#caa173'; ctx.beginPath(); ctx.arc(px, py, 0.9 * s, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(110,75,40,0.6)'; ctx.lineWidth = Math.max(1, 0.4 * s); ctx.beginPath(); ctx.arc(px, py, 0.45 * s, 0, 7); ctx.stroke();
+  }
+
+  // --- fertiger Stuhl (rechts) ---
+  const cx2 = bx + 12 * s, cy2 = fy + 5 * s;
+  ctx.fillStyle = shade(woodc, -0.05); ctx.fillRect(cx2 - 2.4 * s, cy2 - 1.2 * s, 4.8 * s, 1.6 * s);
+  ctx.fillStyle = woodc; ctx.fillRect(cx2 + 1.2 * s, cy2 - 6 * s, 1.4 * s, 5 * s);
+  ctx.fillStyle = shade(woodc, -0.12);
+  ctx.fillRect(cx2 - 2.2 * s, cy2 + 0.4 * s, 1.2 * s, 3.4 * s);
+  ctx.fillRect(cx2 + 1.2 * s, cy2 + 0.4 * s, 1.2 * s, 3.4 * s);
+  for (const ry of [cy2 - 4.4 * s, cy2 - 2.8 * s]) { ctx.fillRect(cx2 + 1.3 * s, ry, 1.2 * s, 0.8 * s); }
+
+  // --- Werkbank mit saegendem Schreiner (Mitte) ---
+  const bxw = bx - 2 * s, byw = fy + 0.5 * s;
+  ctx.fillStyle = shade(woodc, -0.08); ctx.fillRect(bxw - 6 * s, byw, 12 * s, 2.2 * s);
+  ctx.fillStyle = shade(woodc, -0.22); ctx.fillRect(bxw - 5.4 * s, byw + 2.2 * s, 1.4 * s, 4 * s);
+  ctx.fillStyle = shade(woodc, -0.22); ctx.fillRect(bxw + 4 * s, byw + 2.2 * s, 1.4 * s, 4 * s);
+  ctx.fillStyle = '#d2ac76'; ctx.fillRect(bxw - 4.5 * s, byw - 1 * s, 9 * s, 1.4 * s);
+  ctx.strokeStyle = 'rgba(120,82,44,0.5)'; ctx.lineWidth = Math.max(1, 0.4 * s);
+  ctx.strokeRect(bxw - 4.5 * s, byw - 1 * s, 9 * s, 1.4 * s);
+
+  const saw = Math.sin(animT * 5.0);
+  const wkx = bxw + 1.0 * s, wky = byw - 1.5 * s;
+  const lean = saw * 1.0 * s;
+  ctx.fillStyle = '#7a5a8c';
+  ctx.beginPath();
+  ctx.moveTo(wkx - 2.6 * s + lean, wky - 8 * s);
+  ctx.lineTo(wkx + 2.6 * s + lean, wky - 8 * s);
+  ctx.lineTo(wkx + 2.0 * s, wky - 0.5 * s);
+  ctx.lineTo(wkx - 2.0 * s, wky - 0.5 * s);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#caa07a'; ctx.beginPath(); ctx.arc(wkx + lean * 0.8, wky - 10 * s, 2.1 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3f2a18'; ctx.beginPath(); ctx.arc(wkx + lean * 0.8, wky - 10.6 * s, 2.1 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+  const handx = bxw - 1 * s + saw * 3.4 * s, handy = byw - 1.2 * s;
+  ctx.strokeStyle = '#caa07a'; ctx.lineWidth = Math.max(1.4, 1.8 * s); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(wkx + 1.6 * s + lean, wky - 6 * s); ctx.lineTo(handx, handy); ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#b9c0c6'; ctx.lineWidth = Math.max(1, 1.0 * s);
+  ctx.beginPath(); ctx.moveTo(handx, handy); ctx.lineTo(handx - 4.5 * s, handy + 1.2 * s); ctx.stroke();
+  ctx.strokeStyle = '#6e4a2a'; ctx.lineWidth = Math.max(1.2, 1.4 * s);
+  ctx.beginPath(); ctx.moveTo(handx, handy - 0.6 * s); ctx.lineTo(handx + 1.4 * s, handy + 0.6 * s); ctx.stroke();
 
   return { cx: c.cx, topY };
 }

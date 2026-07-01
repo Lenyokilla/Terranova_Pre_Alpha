@@ -108,7 +108,7 @@ document.getElementById('cheat').onclick=()=>{money+=500;updateHUD();flash('+500
 // gezogen (service==='religion'), damit neue Götter aus config.js ohne Menü-
 // Änderung im Religions-Flyout erscheinen.
 const CATS=[
-  {key:'prod',  label:'Produktion', glyph:'🏺',  items:['claypit','pottery']},
+  {key:'prod',  label:'Produktion', glyph:'🏺',  items:['claypit','pottery','workshop']},
   {key:'mat',   label:'Baustoffe',  glyph:'🪵',  items:['woodcutter','quarry','marblequarry','warehouse']},
   {key:'food',  label:'Nahrung',    glyph:'🌾',  items:['grainfield','farm','mill','bakery','fisher','market']},
   {key:'faith', label:'Religion',   glyph:'🏛️', items:Object.keys(BUILD).filter(k=>BUILD[k].service==='religion')},

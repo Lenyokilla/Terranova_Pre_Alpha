@@ -19,6 +19,7 @@ const BUILD={
   engineer: {label:'Bauingenieur',glyph:'🛠', cost:50, service:'eng', every:18, up:2, jobs:2},
   claypit: {label:'Lehmgrube',glyph:'🕳️', cost:35, every:14, up:2, jobs:2},
   pottery: {label:'Töpferei', glyph:'🏺', cost:60, every:11, up:2, jobs:2},
+  workshop: {label:'Schreinerei', glyph:'🪑', cost:65, every:11, up:2, jobs:2},   // Holz → Möbel (Luxusgut)
   grainfield:{label:'Getreidefeld',glyph:'🌾', cost:30, every:14, up:1, jobs:1},
   farm:    {label:'Bauernhof', glyph:'🐂', cost:45, every:12, up:1, jobs:2},
   mill:    {label:'Mühle',    glyph:'⚙',  cost:55, every:11, up:2, jobs:2},
@@ -32,11 +33,12 @@ const BUILD={
   roadblock:{label:'Sperre',  glyph:'🚧', cost:0,  util:true},   // Straßensperre: Läufer meiden diese Kachel (Steuerung)
   raze:    {label:'Abriss',   glyph:'⛏', cost:0,  util:true},
 };
-const ORDER=['road','bridge','roadblock','house','well','market','forum','firehouse','engineer','claypit','pottery','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
+const ORDER=['road','bridge','roadblock','house','well','market','forum','firehouse','engineer','claypit','pottery','workshop','grainfield','farm','mill','bakery','fisher','woodcutter','quarry','marblequarry','warehouse','raze'];
 
 const HOUSE=[{pop:1,tax:0},{pop:4,tax:2},{pop:9,tax:5},{pop:16,tax:9},{pop:25,tax:14}];  // lvl3 = Villa (verlangt Keramik) · lvl4 = Palast (verlangt zusätzlich hohe Attraktivität)
 const SERVICE_LIFE=55;
 const GOODS_BONUS=4;        // Extra-Steuer für mit Keramik versorgte Häuser
+const FURN_BONUS=4;         // Extra-Steuer für mit Möbeln versorgte Häuser
 const HEALTH_BONUS=3;       // Extra-Steuer für gesund versorgte Häuser (Therme + Arzt) — verknüpft Gesundheit mit dem Geldkreislauf
 const ENTERTAIN_BONUS=4;    // Extra-Steuer für unterhaltene Häuser (Theater/Arena/Kolosseum) — Kultur zahlt sich aus
 const EDU_BONUS=4;          // Extra-Steuer für gebildete Häuser (Schule + Bibliothek); Akademie verdoppelt diesen Bonus
@@ -55,7 +57,7 @@ const FIRE_CHANCE=0.0018;   // Wahrscheinlichkeit/Tick für Brand (nach Warnung 
 const COLLAPSE_CHANCE=0.0012;// Wahrscheinlichkeit/Tick für Einsturz (nach Warnung + Schonfrist)
 const PLAGUE_CHANCE=0.0014; // Wahrscheinlichkeit/Tick für einen Seuchen-Toten in einem ungesunden Haus (nach Warnung + Schonfrist)
 // ---- Arbeitskräfte (global, ohne Straße): Gebäude -> [benötigte Arbeiter, Priorität (klein=zuerst)] ----
-const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], fisher:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3], woodcutter:[1,3], quarry:[2,3], marblequarry:[2,3] };
+const LABOR={ well:[1,0], market:[2,1], grainfield:[1,1], farm:[2,1], mill:[2,1], bakery:[2,1], fisher:[2,1], forum:[2,2], firehouse:[1,2], engineer:[1,2], pottery:[2,3], claypit:[1,3], woodcutter:[1,3], quarry:[2,3], marblequarry:[2,3], workshop:[2,3] };
 
 // 3D-Farben (Dachfläche / linke / rechte Wand) + Höhe
 const H3D=[
@@ -73,6 +75,7 @@ const B3D={
   engineer:{wcol:'#5b7da8'},    // Bauingenieur-Läufer (blau)
   claypit:{wcol:'#a9713f'},   // Lehm-Träger
   pottery:{wcol:'#3f9c8a'},   // Keramik-Träger
+  workshop:{wcol:'#a06a3a'},  // Möbel-Träger (Holzbraun)
   grainfield:{wcol:'#d9b44a'},// Getreide-Träger
   farm:{wcol:'#d9b44a'},      // Hof: Getreide-Träger
   mill:{wcol:'#e8dcc0'},      // Mehl-Träger
@@ -233,7 +236,7 @@ ORDER.splice(ORDER.indexOf('raze'), 0, ...Object.keys(DECO));
 
 // Industrie & Lager mindern die Attraktivität in der Nähe (Reichweite UGLY_RANGE).
 // Werte negativ — der Schmuck muss die Wohngegend von der Produktion trennen.
-const DECO_UGLY = { claypit:-3, pottery:-3, quarry:-3, marblequarry:-3, woodcutter:-2, warehouse:-2, mill:-2, bakery:-1, farm:-1 };
+const DECO_UGLY = { claypit:-3, pottery:-3, workshop:-3, quarry:-3, marblequarry:-3, woodcutter:-2, warehouse:-2, mill:-2, bakery:-1, farm:-1 };
 const UGLY_RANGE   = 2;
 // ---- Schwellen ----
 const ATTRACT_BONUS = 4;   // Extra-Steuer für Häuser auf attraktivem Grund (analog zu Keramik/Gesundheit/Kultur/Bildung)
